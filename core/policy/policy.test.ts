@@ -188,6 +188,6 @@ test('real 10s beforeCreate/beforeSend deadlines and 5s classify deadline fail c
     assert.equal((create as { code: string }).code, 'ADMISSION_TIMEOUT');
     assert.equal((send as { code: string }).code, 'ADMISSION_TIMEOUT');
     assert.equal(gate.allow, false);
-    assert.ok(Date.now() - started >= 10_000);
+    assert.ok(Date.now() - started >= 9_950);  // timers run on a monotonic clock; Date.now() may trail it in a VM
   } finally { f.close(); }
 });
