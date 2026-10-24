@@ -1,0 +1,28 @@
+# Core API integration notes
+
+Start with the pinned runtime: `sh scripts/node-env.sh node core/main.ts --state <scratch-state> --api-port <port> --mcp-port <port> --init-tokens`.
+The production entry uses the fixed plugin/policy/driver/terminal/MCP factories. `startEngine(options, dependencies)` accepts explicit fake seams for tests; no command-line switch bypasses production policy.
+
+Start the independent terminal sidecar with `sh scripts/node-env.sh node ptyd/main.ts --run <scratch-run>` and pass that directory to artemisd using `--ptyd-run <scratch-run>`. Configure Console's terminal directories with `--console-roots <dir,...>`; the default grants none. The API uses the terminal module's `terminalSocket(ws)` adapter, including its real transport backlog. Shutting down artemisd closes terminal transports; shutting down ptyd stops its PTY trees.
+
+Policy is constructed before MCP on the same database object. Spawn specifications use the concrete MCP service's `serversFor(agent)`, which includes the agent slot and only profile-granted adapter servers. The null plugin's `generic` profile grants no MCP tools. User approval rows (`kind=user:*`) are kept out of ordinary permission routes and ordinary prompt reconciliation; only policy and the plugin's user-approval adapter manage them.
+
+Caller `CreateIntent.env` remains restricted. Trusted `Admit.env` and `beforeSpawn` output may set `ARTEMIS_PLUGIN_*`, `CLAUDE_CODE_*` tuning, and `CLAUDE_CONFIG_DIR` (an absolute existing directory). Credential/auth names and standard proxy overrides are refused from both sources, including any name ending in `_TOKEN`, `_SECRET`, or `_KEY`. `ARTEMIS_PLUGIN_PROXY_URL` is an identity/configuration field, not a standard proxy override. Admission stores caller and plugin env separately in `meta` so respawn/restart preserves provenance and revalidates the directory. The daemon's own environment check remains unchanged.
+
+The opt-in `node core/api/live-smoke.ts` exercises both production entrypoints under `env -i`, real Claude and Codex completion, Codex steer/cancel, and terminal API IO. It requires the core lane TMPDIR, uses ports 47171/47174, provisions an in-memory credential as a hash, and writes sanitized evidence plus a PID audit under scratch. It records the null-profile MCP tool limitation instead of bypassing it.
+
+`--init-tokens` creates missing Console and CLI token files. Optional `--user-channel <name> --user-target <agent-id-or-label>` provisions a restricted user channel; repeat the target option for additional explicit targets. The files are mode 0600, and the database contains only SHA-256. Never place token contents on a command line. Authenticate HTTP and WebSocket upgrades with the Authorization header. CLI launchers live at `cli/engine` and `cli/main.ts`; package/release installation is outside this lane.
+
+List responses are `{agents: [...]}`, `{workspaces: [...]}`, `{models: [...]}`, `{permissions: [...]}`, and terminal service results `{items, nextCursor?}`. Agent inspection also includes `status`, mapping stopped/archived to `closed` and writer_locked to `error`, plus `activeTurnId`, original `requestId`, original prompt and admitted env. `state` retains the shared AgentState vocabulary. `archived=1` includes live and archived agents.
+
+Timeline `after` is a URL-encoded JSON `{epoch,seq}`. Pages are at most 200 frames. The `message` kind includes user and assistant timeline items. WebSocket framing follows schema contract. Slow consumers are disconnected and must reconnect with their last cursor; transport close never stops an actor. Terminal sockets delegate binary IO and custody to TerminalService.
+
+Uploads accept multipart form files (optional `agentId` text field), or JSON `{agentId?,files:[{mime,data}]}` with base64 `data`. Responses contain only `{uploads:[{id,mime,bytes}]}`. Message `images` and `attachments` accept these IDs, never paths. Limits are 25 MiB per file, five files, and four concurrent upload requests. Attachments are resolved by the core to its own stored files before dispatch.
+
+`POST /v1/agents/cleanup-children` accepts `{parentId?,label?,idleHours}`. `label` is either a parent-label key or `key=value`. It rechecks each actor and archives only idle matches with no queued work, pending prompts, or owned tools. Workspace mutations change database records only.
+
+User calls require `user.say`/`user.read`; user-channel tokens cannot use agent controls. Requests are serialized per principal for idempotency and rate limits. Replies contain whole sentences and never silently truncate a stored frame. `maxChars` is a soft budget at whole-frame/sentence boundaries; a single oversized sentence can exceed it. The three-component opaque cursor cannot represent a partially consumed frame. The journal remains authoritative, and there is no additional reply store.
+
+Daemon shutdown closes listeners/transports, MCP, outbox delivery, sessions, and verified owned process trees, then releases the kernel lock. The lock uses `flock --no-fork` with a private stdin pipe: it excludes concurrent writers and releases on EOF after daemon SIGKILL. Linux process custody checks `/proc/<pid>/stat` start times before every signal. Windows custody is deliberately a Stage 3 typed refusal.
+
+The database's exact shared tables are unchanged. Generic metadata (admitted intents, pending requests, queue pauses, sequence high-water marks, workspace records and upload timestamps) lives in `meta`; no shared TypeScript contracts were changed. Plugin onEvent writes run inside the event transaction. Boot-context outbox writes each get a transaction because onBoot is asynchronous.

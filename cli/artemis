@@ -1,0 +1,4 @@
+#!/bin/sh
+# Installed command seam; use the module's pinned Node runtime.
+cli_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec sh "$cli_dir/../scripts/node-env.sh" node "$cli_dir/main.ts" "$@"

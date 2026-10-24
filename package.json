@@ -1,0 +1,29 @@
+{
+  "name": "artemis",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Independent agent engine with durable sessions, local APIs, terminal custody, and pluggable policy.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "test": "node scripts/test.mjs",
+    "artemisd": "node core/main.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.304",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@xterm/headless": "6.0.0",
+    "node-pty": "1.2.0-beta.15",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
+    "typescript": "5.9.3"
+  },
+  "license": "MIT"
+}
