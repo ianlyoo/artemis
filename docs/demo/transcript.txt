@@ -1,0 +1,33 @@
+Todo CLI demo
+01  owner   request    Make the todo list readable by scripts
+02  lead    goal       Offer JSON alongside plain text
+03  cto     plan       Add an opt-in flag and test both output formats
+04  pm      project    Todo CLI
+05  pm      assigned   Add --json to todo.py [CLI artifact, Output tests]
+06  pm      waiting    Publish release note (send as owner)
+07  worker  reported   JSON flag ready (1/2 evidence)
+08  cqo     reject     Output tests: missing command evidence
+09  worker  reported   Output tests recorded (2/2 evidence)
+10  cqo     pass       All done criteria supported
+11  ship    checked    python3 test_todo.py exit 0
+12  ship    applied    main contains b1422cb2562b, receipt saved
+13  owner   approved   Publish release note
+14  worker  simulated  Publish release note
+
+Ledger timeline | task 1
+01  owner   request    Make the todo list readable by scripts
+02  lead    goal       Offer JSON alongside plain text
+03  cto     plan       Add an opt-in flag and test both output formats
+04  pm      project    Todo CLI
+05  pm      assigned   Add --json to todo.py [CLI artifact, Output tests]
+06  pm      waiting    Publish release note (send as owner)
+07  worker  reported   JSON flag ready (1/2 evidence)
+08  cqo     reject     Output tests: missing command evidence
+09  worker  reported   Output tests recorded (2/2 evidence)
+10  cqo     pass       All done criteria supported
+11  ship    checked    python3 test_todo.py exit 0
+12  ship    applied    main contains b1422cb2562b, receipt saved
+13  owner   approved   Publish release note
+14  worker  simulated  Publish release note
+
+Ledger: .harness/ledger.db
