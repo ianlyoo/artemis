@@ -6,6 +6,8 @@ When one person directs many AI agents, it soon becomes hard to tell what was de
 
 Artemis is a harness that keeps those three apart. Each agent holds one role with a written scope and hands a narrower piece of work to the next. Every request, decision, claim and piece of evidence goes into one database, the ledger, and chat and dashboards only show what the ledger holds. A judge that did none of the work rules on each claimed completion, and every change reaches the main branch through one ship lane that leaves a receipt.
 
+It is not a setup kit for one coding agent (skills and instruction files for a single session). It is the organisation around many agents: who decides, where the state lives, who checks the work, and how a change ships.
+
 ## Roles
 
 ```mermaid
