@@ -161,6 +161,7 @@ def _submit(args: argparse.Namespace, config: Config, ledger: Ledger) -> None:
     captured = {}
     artifacts = [source for source in selected if isinstance(source, str)]
     if artifacts:
+        ledger.allow_step(args.task)
         with checkout(config.root, sha) as tree:
             for path in artifacts:
                 ledger.allow_step(args.task)
@@ -172,6 +173,7 @@ def _submit(args: argparse.Namespace, config: Config, ledger: Ledger) -> None:
 
     for source in selected:
         if isinstance(source, tuple):
+            ledger.allow_step(args.task)
             with checkout(config.root, sha) as tree:
                 ledger.allow_step(args.task)
                 captured[source] = CommandEvidence.capture(tree, source)
@@ -180,6 +182,7 @@ def _submit(args: argparse.Namespace, config: Config, ledger: Ledger) -> None:
         criteria_lines = "\n".join(f"- {item.label}: {item.artifact or shlex.join(item.command)}"
                                    for item in criteria)
         brief = f"Task {args.task}: {title}\nCommit: {sha}\nDone criteria:\n{criteria_lines}\n"
+        ledger.allow_step(args.task)
         with checkout(config.root, sha) as tree:
             ledger.allow_step(args.task)
             claim = CommandRunner(config.roles[Role.WORKER]).claim(tree, args.task, brief)

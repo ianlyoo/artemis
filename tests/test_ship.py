@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from harness.config import DEFAULT_LEDGER
-from harness.demo import CHECK, _change, _commit, _sample
+from harness.demo import _change, _commit, _sample
 from harness.judge import ArtifactEvidence, CommandEvidence, Criterion, RuleJudge
 from harness.ledger import Ledger
 from harness.roles import Role, WorkflowError
@@ -45,7 +45,7 @@ class ShipTests(unittest.TestCase):
         self.ledger.submit(Role.WORKER, self.task, commit, "Ready", {1: artifact})
         self.assertEqual(self.ledger.judge(Role.CQO, self.task, RuleJudge()).kind, "pass")
 
-    def ship(self, commands=(CHECK,)):
+    def ship(self, commands=((sys.executable, "test_todo.py"),)):
         return ship(self.ledger, self.task, self.repo, "json-output", commands=commands)
 
     def test_checks_in_disposable_worktree_and_rerun_is_idempotent(self):

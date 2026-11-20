@@ -1,4 +1,5 @@
-from contextlib import closing
+from contextlib import chdir, closing, redirect_stderr
+from io import StringIO
 import json
 import os
 from pathlib import Path
@@ -8,13 +9,15 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from harness.cli import main
 from harness.config import Config, ledger_path
 from harness.demo import _commit, _sample
-from harness.judge import Criterion, RuleJudge
+from harness.judge import CommandEvidence, Criterion, RuleJudge
 from harness.ledger import Ledger
 from harness.roles import OwnerAction, Role
-from harness.ship import git
+from harness.ship import checkout, git
 
 
 class CliTests(unittest.TestCase):
@@ -44,6 +47,13 @@ class CliTests(unittest.TestCase):
             with closing(sqlite3.connect(ledger_path(cwd))) as db:
                 self.assertEqual(db.execute("SELECT state FROM approvals").fetchone(), ("done",))
                 self.assertEqual(db.execute("SELECT state FROM receipts").fetchone(), ("applied",))
+                criteria = json.loads(db.execute("SELECT criteria FROM tasks").fetchone()[0])
+                evidence = db.execute("SELECT data FROM evidence WHERE kind = 'command'")
+                checks = json.loads(db.execute("SELECT checks FROM receipts").fetchone()[0])
+                portable = [["python", "test_todo.py"]]
+                self.assertEqual([item["command"] for item in criteria if item["command"]], portable)
+                self.assertEqual([json.loads(row[0])["argv"] for row in evidence], portable)
+                self.assertEqual([check["argv"] for check in checks], portable)
 
     def test_demo_ignores_callers_git_repository(self):
         root = Path(self.enterContext(TemporaryDirectory()))
@@ -135,6 +145,42 @@ class CliTests(unittest.TestCase):
                              "--evidence", f"cmd:{shlex.join(order[1])}")
                 verdict = self.run_cli(repo, "judge", "--task", task, status=3)
                 self.assertEqual(verdict.stdout, "reject: Verify: command exited 1\n")
+
+    def test_halt_blocks_the_next_checkout_after_evidence(self):
+        for next_step in ("capture", "worker"):
+            with self.subTest(next_step=next_step):
+                repo = self.project_directory()
+                ledger = Ledger(ledger_path(repo))
+                first = ("check-first",)
+                second = ("check-second",)
+                task = self.assign(repo, Criterion("First", command=first),
+                                   Criterion("Second", command=second))
+                sha = git(repo, "rev-parse", "HEAD")
+                args = ["--task", str(task), "--commit", sha, "--evidence", "cmd:check-first"]
+                if next_step == "capture":
+                    args = ["submit", *args, "--claim", "Ready", "--evidence", "cmd:check-second"]
+                else:
+                    args = ["run", *args]
+
+                def pause_after_capture(tree, argv):
+                    ledger.stop(Role.OWNER, "Pause after first capture")
+                    return CommandEvidence(argv, 0, "OK")
+
+                errors = StringIO()
+                with (
+                    chdir(repo),
+                    redirect_stderr(errors),
+                    patch("harness.cli.checkout", wraps=checkout) as worktrees,
+                    patch("harness.cli.CommandEvidence.capture", side_effect=pause_after_capture) as capture,
+                    patch("harness.cli.CommandRunner.claim") as worker,
+                ):
+                    self.assertEqual(main(args), 1)
+                self.assertIn("Work is stopped", errors.getvalue())
+                worktrees.assert_called_once_with(repo.resolve(), sha)
+                capture.assert_called_once()
+                worker.assert_not_called()
+                self.assertEqual(ledger.open_work()[0]["state"], "assigned")
+                self.assertEqual(git(repo, "worktree", "list", "--porcelain").count("worktree "), 1)
 
     def test_stop_resume_and_show_work_with_malformed_settings(self):
         repo = self.project_directory()

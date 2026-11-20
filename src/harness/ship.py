@@ -1,6 +1,6 @@
 """Check a pinned commit in a disposable Git worktree and fast-forward main."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from hashlib import sha256
 from pathlib import Path, PurePosixPath
@@ -16,6 +16,7 @@ from .roles import WorkflowError
 
 
 MAIN = "refs/heads/main"
+Capture = Callable[[Path, tuple[str, ...]], CommandEvidence]
 
 
 def git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:
@@ -58,11 +59,12 @@ def _reserved_entry(repo: Path, sha: str, database: Path) -> str | None:
     return None
 
 
-def _checks(tree: Path, ledger: Ledger, commands: tuple[tuple[str, ...], ...]) -> tuple[Check, ...]:
+def _checks(tree: Path, ledger: Ledger, commands: tuple[tuple[str, ...], ...],
+            capture: Capture) -> tuple[Check, ...]:
     reports = []
     for argv in commands:
         ledger.allow_step()
-        result = CommandEvidence.capture(tree, argv)
+        result = capture(tree, argv)
         reports.append(Check(argv, result.exit_code, sha256(result.output.encode()).hexdigest()))
     return tuple(reports)
 
@@ -85,7 +87,7 @@ def _is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
 
 
 def ship(ledger: Ledger, task: int, repo: Path, branch: str, *,
-         commands: tuple[tuple[str, ...], ...]) -> Receipt:
+         commands: tuple[tuple[str, ...], ...], capture: Capture | None = None) -> Receipt:
     """Run the operator's checks on the candidate, then apply to a clean main checkout."""
     ledger.allow_step()
     sha = git(repo, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}")
@@ -97,8 +99,9 @@ def ship(ledger: Ledger, task: int, repo: Path, branch: str, *,
         return ledger._record_checks(task, sha, (), preflight_error=f"Candidate tracks reserved path {blocked}.")
     if receipt is None:
         _require_main(repo)
+        capture = CommandEvidence.capture if capture is None else capture
         with checkout(repo, sha) as tree:
-            checks = _checks(tree, ledger, commands)
+            checks = _checks(tree, ledger, commands, capture)
         receipt = ledger._record_checks(task, sha, checks)
     if receipt.state != "checked":
         return receipt

@@ -14,9 +14,9 @@
 <p align="center">
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="라이선스: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 이상" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#실행해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS 또는 Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#실행해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS, Linux, Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-showcase-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 쇼케이스" src="https://img.shields.io/badge/status-showcase-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <!-- badges:ci-release -->
+  <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="빠른 시작 CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
 <p align="center">
@@ -91,7 +91,7 @@ Artemis는 이 세 가지를 따로 기록해 두는 하네스다. 요청과 결
 
 이 페이지 맨 위의 장부가 바로 이 실행의 결과다. 데모는 지어낸 작업 하나를 역할과 판정자, 배포 레인에 차례로 통과시키고, 로컬 장부에는 지어낸 데이터만 들어간다. 전체 출력은 [docs/demo/transcript.txt](docs/demo/transcript.txt)에 있다.
 
-Python 3.11 이상과 Git이 필요하고, macOS나 Linux에서 돈다.
+빠른 시작은 macOS나 Linux에서 실행한다. 데모와 테스트는 Windows에서도 실행할 수 있다.
 
 <!-- quickstart:begin -->
 Python 3.11 이상, Git, POSIX 셸이 필요하다. Git 훅이나 `GIT_DIR`를 설정하는 도구 밖의 일반 셸에서 실행한다.
@@ -122,16 +122,28 @@ printf '.harness/\n' > .gitignore
 harness init
 
 printf 'print("basil")\n' > garden.py
-git add .gitignore harness.toml garden.py
+git add .gitignore harness.toml \
+  garden.py
 git commit -qm "Start a garden list"
 
-request=$(harness request "Make the garden list readable by scripts")
-goal=$(harness goal "$request" "Print the list as a JSON array")
-harness plan "$goal" "Use the standard JSON library and check the output"
-project=$(harness project "$goal" "Garden list")
-task=$(harness assign "$project" "Print JSON" \
-  --criterion 'Source=file:garden.py' --criterion 'JSON output=cmd:python check.py')
-approval=$(harness request-action --task "$task" --kind 'send as owner' "Publish a sample note")
+request=$(harness request \
+  "Make the list script-readable")
+goal=$(harness goal "$request" \
+  "Print the list as a JSON array")
+harness plan "$goal" \
+  "Use JSON and check the output"
+project=$(harness project "$goal" \
+  "Garden list")
+task=$(harness assign \
+  "$project" "Print JSON" \
+  --criterion \
+    'Source=file:garden.py' \
+  --criterion \
+    'JSON output=cmd:python check.py')
+approval=$(harness request-action \
+  --task "$task" \
+  --kind 'send as owner' \
+  "Publish a sample note")
 
 git switch -qc json-list
 cat > garden.py <<'EOF'
@@ -144,28 +156,56 @@ import json
 import subprocess
 import sys
 
-output = subprocess.check_output([sys.executable, "garden.py"], text=True)
+output = subprocess.check_output(
+    [sys.executable, "garden.py"],
+    text=True,
+)
 assert json.loads(output) == ["basil"]
 print("JSON check passed")
 EOF
 git add garden.py check.py
-git commit -qm "Print the list as JSON"
+git commit -qm \
+  "Print the list as JSON"
 commit=$(git rev-parse HEAD)
 
 harness stop "Pause before submitting"
-if harness submit --task "$task" --commit "$commit" --claim "Ready"; then exit 1; else test "$?" -eq 1; fi
+if harness submit --task "$task" \
+  --commit "$commit" --claim "Ready"
+then
+  exit 1
+else
+  test "$?" -eq 1
+fi
 harness resume "Continue the example"
 
-harness submit --task "$task" --commit "$commit" --claim "JSON is ready" --evidence 'file:garden.py'
-if harness judge --task "$task"; then exit 1; else test "$?" -eq 3; fi
-harness submit --task "$task" --commit "$commit" --claim "JSON check recorded" \
-  --evidence 'file:garden.py' --evidence 'cmd:python check.py'
+harness submit --task "$task" \
+  --commit "$commit" \
+  --claim "JSON is ready" \
+  --evidence 'file:garden.py'
+if harness judge --task "$task"; then
+  exit 1
+else
+  test "$?" -eq 3
+fi
+harness submit --task "$task" \
+  --commit "$commit" \
+  --claim "JSON check recorded" \
+  --evidence 'file:garden.py' \
+  --evidence 'cmd:python check.py'
 harness judge --task "$task"
 
 git switch -q main
-harness ship --task "$task" --branch json-list
-test "$(git rev-parse main)" = "$commit"
-if harness action --approval "$approval"; then exit 1; else test "$?" -eq 1; fi
+harness ship --task "$task" \
+  --branch json-list
+test "$(git rev-parse main)" \
+  = "$commit"
+if harness action \
+  --approval "$approval"
+then
+  exit 1
+else
+  test "$?" -eq 1
+fi
 harness approve --approval "$approval"
 harness action --approval "$approval"
 harness show --task "$task"
@@ -182,7 +222,7 @@ harness show --task "$task"
 
 ## 상태
 
-이 저장소는 쇼케이스다. 설계 문서와 로컬 데모가 들어 있고, 데모에서는 실제 에이전트 대신 스크립트로 짠 역할이 움직인다. 사람이 필요한 단계에서는 시스템이 기다린다. 데모는 macOS와 Linux에서 돈다. Windows는 아직 지원하지 않고, 설치형 릴리스도 아직 나오지 않았다.
+설계 문서와 설치형 코어, 미리 정한 역할별 동작을 실행하는 로컬 데모를 담았다. 사람이 필요한 단계에서는 시스템이 기다린다. 빠른 시작은 macOS와 Linux에서 실행한다. 데모와 단위 테스트는 Windows에서도 실행할 수 있다.
 
 이 쇼케이스가 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있다.
 

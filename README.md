@@ -14,9 +14,9 @@
 <p align="center">
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#see-it-run"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="Platform: macOS or Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#see-it-run"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="Platform: macOS, Linux, and Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="#status"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-showcase-e6edf3?style=flat-square&labelColor=30363d"><img alt="Status: showcase" src="https://img.shields.io/badge/status-showcase-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <!-- badges:ci-release -->
+  <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="Quickstart CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
 <p align="center">
@@ -91,7 +91,7 @@ Code: [ship.py](src/harness/ship.py) · [test_ship.py](tests/test_ship.py)
 
 The ledger at the top of this page is this run. It takes an invented task through the roles, the judge and the ship lane, against a local ledger that holds only made-up data. The full output is in [docs/demo/transcript.txt](docs/demo/transcript.txt).
 
-You need Python 3.11 or newer and Git, on macOS or Linux.
+Use the quickstart on macOS or Linux. The demo and tests also run on Windows.
 
 <!-- quickstart:begin -->
 You need Python 3.11 or newer, Git, and a POSIX shell. Run the quickstart from a normal shell outside Git hooks and other tools that set `GIT_DIR`.
@@ -122,16 +122,28 @@ printf '.harness/\n' > .gitignore
 harness init
 
 printf 'print("basil")\n' > garden.py
-git add .gitignore harness.toml garden.py
+git add .gitignore harness.toml \
+  garden.py
 git commit -qm "Start a garden list"
 
-request=$(harness request "Make the garden list readable by scripts")
-goal=$(harness goal "$request" "Print the list as a JSON array")
-harness plan "$goal" "Use the standard JSON library and check the output"
-project=$(harness project "$goal" "Garden list")
-task=$(harness assign "$project" "Print JSON" \
-  --criterion 'Source=file:garden.py' --criterion 'JSON output=cmd:python check.py')
-approval=$(harness request-action --task "$task" --kind 'send as owner' "Publish a sample note")
+request=$(harness request \
+  "Make the list script-readable")
+goal=$(harness goal "$request" \
+  "Print the list as a JSON array")
+harness plan "$goal" \
+  "Use JSON and check the output"
+project=$(harness project "$goal" \
+  "Garden list")
+task=$(harness assign \
+  "$project" "Print JSON" \
+  --criterion \
+    'Source=file:garden.py' \
+  --criterion \
+    'JSON output=cmd:python check.py')
+approval=$(harness request-action \
+  --task "$task" \
+  --kind 'send as owner' \
+  "Publish a sample note")
 
 git switch -qc json-list
 cat > garden.py <<'EOF'
@@ -144,28 +156,56 @@ import json
 import subprocess
 import sys
 
-output = subprocess.check_output([sys.executable, "garden.py"], text=True)
+output = subprocess.check_output(
+    [sys.executable, "garden.py"],
+    text=True,
+)
 assert json.loads(output) == ["basil"]
 print("JSON check passed")
 EOF
 git add garden.py check.py
-git commit -qm "Print the list as JSON"
+git commit -qm \
+  "Print the list as JSON"
 commit=$(git rev-parse HEAD)
 
 harness stop "Pause before submitting"
-if harness submit --task "$task" --commit "$commit" --claim "Ready"; then exit 1; else test "$?" -eq 1; fi
+if harness submit --task "$task" \
+  --commit "$commit" --claim "Ready"
+then
+  exit 1
+else
+  test "$?" -eq 1
+fi
 harness resume "Continue the example"
 
-harness submit --task "$task" --commit "$commit" --claim "JSON is ready" --evidence 'file:garden.py'
-if harness judge --task "$task"; then exit 1; else test "$?" -eq 3; fi
-harness submit --task "$task" --commit "$commit" --claim "JSON check recorded" \
-  --evidence 'file:garden.py' --evidence 'cmd:python check.py'
+harness submit --task "$task" \
+  --commit "$commit" \
+  --claim "JSON is ready" \
+  --evidence 'file:garden.py'
+if harness judge --task "$task"; then
+  exit 1
+else
+  test "$?" -eq 3
+fi
+harness submit --task "$task" \
+  --commit "$commit" \
+  --claim "JSON check recorded" \
+  --evidence 'file:garden.py' \
+  --evidence 'cmd:python check.py'
 harness judge --task "$task"
 
 git switch -q main
-harness ship --task "$task" --branch json-list
-test "$(git rev-parse main)" = "$commit"
-if harness action --approval "$approval"; then exit 1; else test "$?" -eq 1; fi
+harness ship --task "$task" \
+  --branch json-list
+test "$(git rev-parse main)" \
+  = "$commit"
+if harness action \
+  --approval "$approval"
+then
+  exit 1
+else
+  test "$?" -eq 1
+fi
 harness approve --approval "$approval"
 harness action --approval "$approval"
 harness show --task "$task"
@@ -182,7 +222,7 @@ Commands exit with 0 on success, 1 for a workflow or local operation error, and 
 
 ## Status
 
-This repository is a showcase: the design, and a local demo in which scripted roles stand in for live agents. When a step needs a person, the system waits. The demo runs on macOS and Linux; Windows is not supported yet, and an installable release is not out yet.
+This repository includes the design, an installable core, and a local demo with scripted roles. When a step needs a person, the system waits. The quickstart runs on macOS and Linux. The demo and unit tests also run on Windows.
 
 See [NOTICES.md](NOTICES.md) for the open-source projects that informed this showcase.
 

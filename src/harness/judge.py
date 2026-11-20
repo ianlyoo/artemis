@@ -16,11 +16,12 @@ class CommandEvidence:
     output: str
 
     @classmethod
-    def capture(cls, root: Path, argv: tuple[str, ...]) -> "CommandEvidence":
+    def capture(cls, root: Path, argv: tuple[str, ...], *,
+                executable: str | None = None) -> "CommandEvidence":
         env = checkout_env()
         try:
             result = subprocess.run(
-                argv, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                argv, executable=executable, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace", check=False, timeout=60, env=env,
             )
         except subprocess.TimeoutExpired:

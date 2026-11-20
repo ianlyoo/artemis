@@ -1,6 +1,7 @@
 """A fictional todo project, built from scratch for each demo run."""
 
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -59,7 +60,7 @@ if __name__ == "__main__":
     unittest.main()
 """
 
-CHECK = (sys.executable, "test_todo.py")
+CHECK = ("python", "test_todo.py")
 
 
 def _commit(repo: Path, title: str) -> str:
@@ -90,6 +91,7 @@ def _change(repo: Path) -> tuple[str, ArtifactEvidence]:
 def demo(ledger: Ledger, emit: Callable[[], None]) -> int:
     """Run the role chain and use the ledger as the source for live output."""
     runner = ScriptedRunner(ledger)
+    capture = partial(CommandEvidence.capture, executable=sys.executable)
 
     def step(role, action, *args):
         result = runner.run(role, lambda _card: action(role, *args))
@@ -112,11 +114,13 @@ def demo(ledger: Ledger, emit: Callable[[], None]) -> int:
         commit, artifact = runner.run(Role.WORKER, lambda _card: _change(repo))
         step(Role.WORKER, ledger.submit, task, commit, "JSON flag ready", {1: artifact})
         step(Role.CQO, ledger.judge, task, RuleJudge())
-        test = runner.run(Role.WORKER, lambda _card: CommandEvidence.capture(repo, CHECK))
+        test = runner.run(Role.WORKER, lambda _card: capture(repo, CHECK))
         step(Role.WORKER, ledger.submit, task, commit, "Output tests recorded", {1: artifact, 2: test})
         step(Role.CQO, ledger.judge, task, RuleJudge())
         runner.run(Role.SHIP, lambda _card: git(repo, "switch", "main"))
-        receipt = runner.run(Role.SHIP, lambda _card: ship(ledger, task, repo, "json-output", commands=(CHECK,)))
+        receipt = runner.run(
+            Role.SHIP, lambda _card: ship(ledger, task, repo, "json-output", commands=(CHECK,), capture=capture)
+        )
         emit()
         if receipt.state != "applied":
             raise WorkflowError("The demo could not ship the sample change.")

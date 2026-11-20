@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 import re
 import sqlite3
-import sys
 from typing import Callable
 
 from .judge import ArtifactEvidence, Case, CommandEvidence, Criterion, Evidence, Judge, Verdict
@@ -90,12 +89,6 @@ class Check:
     argv: tuple[str, ...]
     exit_code: int
     output_sha256: str
-
-    def describe(self) -> str:
-        executable, *arguments = self.argv
-        if executable == sys.executable:
-            executable = "python"
-        return f"{' '.join((executable, *arguments))} exit {self.exit_code}"
 
 
 @dataclass(frozen=True)
@@ -357,7 +350,7 @@ class Ledger:
             db.execute("INSERT INTO receipts VALUES (?, ?, ?) "
                        "ON CONFLICT(submission_id) DO UPDATE SET state = excluded.state",
                        (submission, state, json.dumps([asdict(c) for c in checks])))
-            detail = preflight_error or ", ".join(check.describe() for check in checks)
+            detail = preflight_error or ", ".join(f"{' '.join(c.argv)} exit {c.exit_code}" for c in checks)
             _event(db, Role.SHIP, state, detail, task=task)
             return Receipt(sha, state, checks)
 
