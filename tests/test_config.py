@@ -2,7 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from harness.config import Config, DEFAULT_LEDGER
+from harness.config import Config, DEFAULT_LEDGER, ledger_path
 from harness.roles import OwnerAction, Role, WorkflowError
 
 
@@ -14,7 +14,7 @@ class ConfigTests(unittest.TestCase):
         self.sample = self.file.read_text(encoding="utf-8")
 
     def test_samples_and_project_relative_settings(self):
-        self.assertEqual(self.config.ledger, self.root.resolve() / DEFAULT_LEDGER)
+        self.assertEqual(ledger_path(self.root), self.root.resolve() / DEFAULT_LEDGER)
         self.assertEqual(self.config.checks, (("python", "check.py"),))
         self.assertEqual(self.config.owner_actions, frozenset(OwnerAction))
         self.assertEqual(set(self.config.roles), set(Role))
@@ -22,18 +22,18 @@ class ConfigTests(unittest.TestCase):
             self.assertTrue(settings.instructions())
 
     def test_init_preserves_edited_config_and_runbooks(self):
-        updated = self.sample.replace(".harness/ledger.db", "state/other.db")
+        updated = self.sample.replace('"money out", ', "")
         self.file.write_text(updated, encoding="utf-8")
         card = self.config.roles[Role.WORKER].runbook
         card.write_text('instructions = "Keep the sample small."\n', encoding="utf-8")
         config = Config.initialize(self.root)
         self.assertEqual(self.file.read_text(encoding="utf-8"), updated)
-        self.assertEqual(config.ledger, self.root.resolve() / "state/other.db")
+        self.assertNotIn(OwnerAction.SPEND, config.owner_actions)
         self.assertEqual(config.roles[Role.WORKER].instructions(), "Keep the sample small.")
 
     def test_reports_invalid_settings_at_load(self):
         changes = [
-            (".harness/ledger.db", "../other.db", "relative path inside the project"),
+            (".harness/runbooks/owner.toml", "../other.toml", "relative path inside the project"),
             ('"money out"', '"erase everything"', "known owner action kinds"),
             ('[["python", "check.py"]]', "[]", "at least one command"),
             ("[roles.cqo]", "[roles.other]", "one entry for each harness role"),

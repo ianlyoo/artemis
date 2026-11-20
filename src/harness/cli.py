@@ -9,7 +9,7 @@ import sys
 import time
 
 from .agents import CommandRunner
-from .config import CONFIG_NAME, DEFAULT_LEDGER, Config, command
+from .config import CONFIG_NAME, DEFAULT_LEDGER, Config, command, ledger_path
 from .demo import demo
 from .judge import ArtifactEvidence, CommandEvidence, Criterion, RuleJudge
 from .ledger import Ledger
@@ -17,9 +17,13 @@ from .roles import OwnerAction, Role, WorkflowError
 from .ship import checkout, git, ship
 
 
+def _visible(text: str) -> str:
+    return "".join(char if char.isprintable() else ascii(char)[1:-1] for char in text)
+
+
 class Parser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
-        self.exit(2, f"{self.prog}: {' '.join(message.splitlines())}\n")
+        self.exit(2, f"{self.prog}: {_visible(message)}\n")
 
 
 def _parser() -> Parser:
@@ -78,7 +82,7 @@ def _parser() -> Parser:
 
 
 def _line(row: sqlite3.Row) -> str:
-    return f"{row['id']:02d}  {row['role']:<6}  {row['kind']:<9}  {row['detail']}"
+    return f"{row['id']:02d}  {row['role']:<6}  {row['kind']:<9}  {_visible(row['detail'])}"
 
 
 def _show(ledger: Ledger, task: int | None, heading: str = "Ledger timeline") -> None:
@@ -88,8 +92,7 @@ def _show(ledger: Ledger, task: int | None, heading: str = "Ledger timeline") ->
         print(_line(row))
 
 
-def _play(fast: bool) -> None:
-    ledger = Ledger(DEFAULT_LEDGER)
+def _play(ledger: Ledger, fast: bool) -> None:
     ledger.initialize()
     previous = ledger.timeline()
     cursor = previous[-1]["id"] if previous else 0
@@ -106,7 +109,7 @@ def _play(fast: bool) -> None:
     print("Todo CLI demo", flush=True)
     task = demo(ledger, emit)
     _show(ledger, task, f"\nLedger timeline | task {task}")
-    print(f"\nLedger: {DEFAULT_LEDGER}")
+    print(f"\nLedger: {DEFAULT_LEDGER.as_posix()}")
 
 
 Source = str | tuple[str, ...]
@@ -156,25 +159,30 @@ def _submit(args: argparse.Namespace, config: Config, ledger: Ledger) -> None:
 
     claim = getattr(args, "claim", "")
     captured = {}
-    if selected or args.command == "run":
+    artifacts = [source for source in selected if isinstance(source, str)]
+    if artifacts:
         with checkout(config.root, sha) as tree:
-            # Read artifacts before commands can change files in the disposable checkout.
-            for source in sorted(selected, key=lambda item: isinstance(item, tuple)):
+            for path in artifacts:
                 ledger.allow_step(args.task)
-                if isinstance(source, str):
-                    try:
-                        git(tree, "--literal-pathspecs", "ls-files", "--error-unmatch", "--", source)
-                        captured[source] = ArtifactEvidence.capture(tree, source)
-                    except (OSError, subprocess.CalledProcessError):
-                        raise WorkflowError("File evidence needs a readable file tracked by the commit.") from None
-                else:
-                    captured[source] = CommandEvidence.capture(tree, source)
-            if args.command == "run":
+                try:
+                    git(tree, "--literal-pathspecs", "ls-files", "--error-unmatch", "--", path)
+                    captured[path] = ArtifactEvidence.capture(tree, path)
+                except (OSError, subprocess.CalledProcessError):
+                    raise WorkflowError("File evidence needs a readable file tracked by the commit.") from None
+
+    for source in selected:
+        if isinstance(source, tuple):
+            with checkout(config.root, sha) as tree:
                 ledger.allow_step(args.task)
-                criteria_lines = "\n".join(f"- {item.label}: {item.artifact or shlex.join(item.command)}"
-                                           for item in criteria)
-                brief = f"Task {args.task}: {title}\nCommit: {sha}\nDone criteria:\n{criteria_lines}\n"
-                claim = CommandRunner(config.roles[Role.WORKER]).claim(tree, args.task, brief)
+                captured[source] = CommandEvidence.capture(tree, source)
+
+    if args.command == "run":
+        criteria_lines = "\n".join(f"- {item.label}: {item.artifact or shlex.join(item.command)}"
+                                   for item in criteria)
+        brief = f"Task {args.task}: {title}\nCommit: {sha}\nDone criteria:\n{criteria_lines}\n"
+        with checkout(config.root, sha) as tree:
+            ledger.allow_step(args.task)
+            claim = CommandRunner(config.roles[Role.WORKER]).claim(tree, args.task, brief)
     if not claim.strip():
         raise WorkflowError("Provide a nonempty claim.")
     ledger.submit(Role.WORKER, args.task, sha, claim,
@@ -199,7 +207,8 @@ def _transition(args: argparse.Namespace, config: Config, ledger: Ledger) -> int
             _submit(args, config, ledger)
         case "judge":
             verdict = ledger.judge(Role.CQO, args.task, RuleJudge())
-            print(f"{verdict.kind}: {'; '.join(verdict.gaps) or 'All done criteria supported'}")
+            detail = "; ".join(verdict.gaps) or "All done criteria supported"
+            print(f"{verdict.kind}: {_visible(detail)}")
             return {"pass": 0, "reject": 3, "stop": 4}[verdict.kind]
         case "ship":
             _require_git_root(config.root)
@@ -214,41 +223,46 @@ def _transition(args: argparse.Namespace, config: Config, ledger: Ledger) -> int
             ledger.approve(Role.OWNER, args.approval)
         case "action":
             ledger.simulate_action(Role.WORKER, args.approval)
-        case "stop":
-            ledger.stop(Role.OWNER, args.reason)
-        case "resume":
-            ledger.resume(Role.OWNER, args.reason)
-        case "show":
-            _show(ledger, args.task)
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
-        if args.command == "demo":
-            _play(args.fast)
-            return 0
         if args.command == "init":
             config = Config.initialize(args.dir)
-            Ledger(config.ledger).initialize()
-            print(f"Ledger ready at {config.ledger.relative_to(config.root)}")
+            Ledger(ledger_path(config.root)).initialize()
+            print(f"Ledger ready at {DEFAULT_LEDGER.as_posix()}")
             return 0
+
         root = Path.cwd()
-        if args.command == "show" and not (root / CONFIG_NAME).exists():
-            if not DEFAULT_LEDGER.is_file():
-                raise WorkflowError("Run harness init or harness demo first.")
-            _show(Ledger(DEFAULT_LEDGER), args.task)
+        ledger = Ledger(ledger_path(root))
+        if args.command == "demo":
+            if not ledger.path.exists() and (root / CONFIG_NAME).exists():
+                Config.load(root)  # Check for a legacy custom ledger before creating the default.
+            _play(ledger, args.fast)
             return 0
+
+        if args.command in {"stop", "resume", "show"}:
+            if not ledger.path.is_file():
+                raise WorkflowError("Run harness init or harness demo first.")
+            if args.command == "show":
+                _show(ledger, args.task)
+            elif args.command == "stop":
+                ledger.stop(Role.OWNER, args.reason)
+            else:
+                ledger.resume(Role.OWNER, args.reason)
+            return 0
+
         config = Config.load(root)
         if args.command == "runbook":
             print(config.roles[args.role].instructions())
             return 0
-        if not config.ledger.is_file():
-            raise WorkflowError("Run harness init to initialize the configured ledger.")
-        return _transition(args, config, Ledger(config.ledger))
+        if not ledger.path.is_file():
+            raise WorkflowError("Run harness init to initialize the project ledger.")
+        return _transition(args, config, ledger)
     except (ValueError, WorkflowError) as error:
-        print(f"harness: {' '.join(str(error).splitlines())}", file=sys.stderr)
+        print(f"harness: {_visible(str(error))}", file=sys.stderr)
     except (sqlite3.Error, subprocess.SubprocessError, OSError):
         print("harness: a local database, Git, or filesystem operation failed.", file=sys.stderr)
     return 1

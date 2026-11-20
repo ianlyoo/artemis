@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+import sys
 from typing import Callable
 
 from .judge import ArtifactEvidence, Case, CommandEvidence, Criterion, Evidence, Judge, Verdict
@@ -89,6 +90,12 @@ class Check:
     argv: tuple[str, ...]
     exit_code: int
     output_sha256: str
+
+    def describe(self) -> str:
+        executable, *arguments = self.argv
+        if executable == sys.executable:
+            executable = "python"
+        return f"{' '.join((executable, *arguments))} exit {self.exit_code}"
 
 
 @dataclass(frozen=True)
@@ -174,35 +181,36 @@ class Ledger:
     def __init__(self, path: Path):
         self.path = path
 
-    def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.path, isolation_level=None, timeout=10)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
-        return db
+    @contextmanager
+    def _connect(self):
+        with closing(sqlite3.connect(self.path, isolation_level=None, timeout=10)) as db:
+            db.row_factory = sqlite3.Row
+            db.execute("PRAGMA foreign_keys = ON")
+            yield db
 
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with closing(self._connect()) as db:
+        with self._connect() as db:
             db.executescript("BEGIN IMMEDIATE;\n" + SCHEMA + "\nCOMMIT;")
 
     @contextmanager
     def _write(self, actor: Role, expected: Role, *, intervention: bool = False):
         require(actor, expected)
-        with closing(self._connect()) as db, db:
+        with self._connect() as db, db:
             db.execute("BEGIN IMMEDIATE")
             if not intervention:
                 _active(db)
             yield db
 
     def allow_step(self, task: int | None = None) -> None:
-        with closing(self._connect()) as db, db:
+        with self._connect() as db, db:
             db.execute("BEGIN")
             _active(db)
             if task is not None:
                 _require_task_release(db, task)
 
     def submission_brief(self, task: int, sha: str) -> tuple[str, tuple[Criterion, ...]]:
-        with closing(self._connect()) as db, db:
+        with self._connect() as db, db:
             db.execute("BEGIN")
             _active(db)
             row = _submission_task(db, task, sha)
@@ -302,6 +310,7 @@ class Ledger:
         if not isinstance(kind, OwnerAction):
             raise ValueError("Unknown owner action.")
         with self._write(actor, Role.PM) as db:
+            _require_task_release(db, task)
             key = db.execute(
                 "INSERT INTO approvals(task_id, kind, description, state) VALUES (?, ?, ?, 'waiting')",
                 (task, kind, description),
@@ -321,30 +330,34 @@ class Ledger:
         """Consume approval for one simulated action."""
         with self._write(actor, Role.WORKER) as db:
             row = _one(db, "SELECT * FROM approvals WHERE id = ?", approval)
+            _require_task_release(db, row["task_id"])
             if row["state"] != "granted":
                 raise WorkflowError("This action requires an unused owner approval.")
             db.execute("UPDATE approvals SET state = 'done' WHERE id = ?", (approval,))
             _event(db, actor, "simulated", row["description"], task=row["task_id"])
 
     def _ship_receipt(self, task: int, sha: str) -> Receipt | None:
-        with closing(self._connect()) as db, db:
+        with self._connect() as db, db:
             db.execute("BEGIN")
             _active(db)
             return _receipt(db, _candidate(db, task, sha), sha)
 
     def _record_checks(self, task: int, sha: str, checks: tuple[Check, ...], *,
-                       config_error: str | None = None) -> Receipt:
-        if not checks and config_error is None:
+                       preflight_error: str | None = None) -> Receipt:
+        if not checks and preflight_error is None:
             raise ValueError("Shipping requires at least one check.")
         with self._write(Role.SHIP, Role.SHIP) as db:
             submission = _candidate(db, task, sha)
             previous = _receipt(db, submission, sha)
             if previous is not None:
-                return previous
-            state = "red" if config_error is not None or any(c.exit_code for c in checks) else "checked"
-            db.execute("INSERT INTO receipts VALUES (?, ?, ?)",
+                if preflight_error is None or previous.state != "checked":
+                    return previous
+                checks = previous.checks
+            state = "red" if preflight_error is not None or any(c.exit_code for c in checks) else "checked"
+            db.execute("INSERT INTO receipts VALUES (?, ?, ?) "
+                       "ON CONFLICT(submission_id) DO UPDATE SET state = excluded.state",
                        (submission, state, json.dumps([asdict(c) for c in checks])))
-            detail = config_error or ", ".join(f"{' '.join(c.argv)} exit {c.exit_code}" for c in checks)
+            detail = preflight_error or ", ".join(check.describe() for check in checks)
             _event(db, Role.SHIP, state, detail, task=task)
             return Receipt(sha, state, checks)
 
@@ -353,7 +366,7 @@ class Ledger:
         with self._write(Role.SHIP, Role.SHIP) as db:
             submission = _candidate(db, task, sha)
             receipt = _receipt(db, submission, sha)
-            if receipt is None or receipt.state == "red":
+            if receipt is None:
                 raise WorkflowError("Shipping requires green checks.")
             if receipt.state != "checked":
                 return receipt
@@ -366,7 +379,7 @@ class Ledger:
             return Receipt(sha, state, receipt.checks)
 
     def timeline(self, task: int | None = None) -> list[sqlite3.Row]:
-        with closing(self._connect()) as db:
+        with self._connect() as db:
             if task is None:
                 return db.execute("SELECT * FROM events ORDER BY id").fetchall()
             scope = _one(
@@ -381,5 +394,5 @@ class Ledger:
             ).fetchall()
 
     def open_work(self) -> list[sqlite3.Row]:
-        with closing(self._connect()) as db:
+        with self._connect() as db:
             return db.execute("SELECT id, title, state FROM work WHERE state <> 'shipped' ORDER BY id").fetchall()

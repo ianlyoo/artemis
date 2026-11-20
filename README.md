@@ -94,7 +94,7 @@ The ledger at the top of this page is this run. It takes an invented task throug
 You need Python 3.11 or newer and Git, on macOS or Linux.
 
 <!-- quickstart:begin -->
-You need Python 3.11 or newer, Git, and a POSIX shell.
+You need Python 3.11 or newer, Git, and a POSIX shell. Run the quickstart from a normal shell outside Git hooks and other tools that set `GIT_DIR`.
 
 ### Install
 
@@ -173,7 +173,7 @@ harness show --task "$task"
 
 You should see a blocked submission while stopped, a rejection for missing command evidence, then a pass and a ship receipt. The note waits for approval and is simulated after approval. The timeline and receipts live in `garden-list/.harness/ledger.db`. Run `harness show` again from the garden project to read them.
 
-For your own repository, run `harness init` at its root and edit `harness.toml` to set `ship.checks` and the role runbook paths. Keep `.harness/` out of Git and check out a clean `main` before shipping. The evidence and check commands run locally in disposable Git worktrees with your process permissions. Use commands and commits you trust. Each command selects its role, so a local operator can act in every role.
+For your own repository, run `harness init` at its root and edit `harness.toml` to set `ship.checks` and the role runbook paths. Keep `.harness/` out of Git and check out a clean `main` before shipping. The checked-out `harness.toml` on `main` selects the checks for the pinned candidate. The evidence and check commands run locally in disposable Git worktrees with your process permissions. Use commands and commits you trust. Each command selects its role, so a local operator can act in every role.
 
 To connect a local worker, uncomment `run` under `[roles.worker]` and set its command. `harness run --task N --commit SHA` passes the runbook, task number, commit and criteria on stdin. It records stdout as the claim. Supply `--evidence` to capture proof separately. `harness runbook worker` prints the configured instructions.
 

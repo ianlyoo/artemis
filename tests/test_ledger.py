@@ -1,4 +1,6 @@
+from contextlib import closing
 import sqlite3
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -10,7 +12,7 @@ from harness.roles import OwnerAction, Role, WorkflowError, runbook
 
 
 COMMIT = "a" * 40
-COMMAND = ("python3", "test_todo.py")
+COMMAND = (sys.executable, "test_todo.py")
 
 
 class LedgerTests(unittest.TestCase):
@@ -27,7 +29,7 @@ class LedgerTests(unittest.TestCase):
         return self.ledger.assign(Role.PM, project, "Add JSON output", criteria)
 
     def test_state_and_event_roll_back_together(self):
-        with sqlite3.connect(self.ledger.path) as db:
+        with closing(sqlite3.connect(self.ledger.path)) as db, db:
             db.execute("""
                 CREATE TRIGGER fail_event BEFORE INSERT ON events WHEN NEW.kind = 'plan'
                 BEGIN SELECT RAISE(ABORT, 'cannot append plan'); END
@@ -39,7 +41,7 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual([row["kind"] for row in self.ledger.timeline()], ["request", "goal"])
 
     def test_events_are_append_only(self):
-        with sqlite3.connect(self.ledger.path) as db:
+        with closing(sqlite3.connect(self.ledger.path)) as db, db:
             for statement in ("UPDATE events SET detail = ''", "DELETE FROM events"):
                 with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
                     db.execute(statement)

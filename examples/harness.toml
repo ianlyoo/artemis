@@ -1,4 +1,3 @@
-ledger = ".harness/ledger.db"
 owner_actions = ["money out", "irreversible delete", "send as owner"]
 
 [ship]

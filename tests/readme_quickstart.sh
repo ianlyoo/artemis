@@ -11,7 +11,12 @@ from tempfile import TemporaryDirectory
 
 
 def block(path, heading):
-    section = path.read_text(encoding="utf-8").split(f"\n### {heading}\n", 1)[1]
+    readme = path.read_text(encoding="utf-8")
+    _, start, tail = readme.partition("<!-- quickstart:begin -->")
+    quickstart, end, _ = tail.partition("<!-- quickstart:end -->")
+    if not start or not end:
+        raise SystemExit(f"Quickstart markers are missing in {path.name}.")
+    section = quickstart.split(f"\n### {heading}\n", 1)[1]
     return section.split("\n```sh\n", 1)[1].split("\n```", 1)[0]
 
 

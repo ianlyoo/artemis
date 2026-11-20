@@ -1,9 +1,9 @@
-"""Role runner interface and the demo's local stand-ins."""
+"""Local worker commands and the demo's local stand-ins."""
 
 from collections.abc import Callable
 from pathlib import Path
 import subprocess
-from typing import Protocol, TypeVar
+from typing import TypeVar
 
 from .config import RoleSettings
 from .ledger import Ledger
@@ -11,10 +11,6 @@ from .process import checkout_env
 from .roles import Role, WorkflowError, runbook
 
 T = TypeVar("T")
-
-
-class Runner(Protocol):
-    def run(self, role: Role, step: Callable[[str], T]) -> T: ...
 
 
 class ScriptedRunner:
@@ -42,8 +38,8 @@ class CommandRunner:
         env = checkout_env()
         try:
             result = subprocess.run(
-                argv, cwd=root, input=prompt, capture_output=True, text=True,
-                encoding="utf-8", errors="replace", check=False, timeout=60, env=env,
+                argv, cwd=root, input=prompt.encode("utf-8"), capture_output=True,
+                check=False, timeout=60, env=env,
             )
         except subprocess.TimeoutExpired:
             raise WorkflowError("Worker command timed out.") from None
@@ -51,7 +47,7 @@ class CommandRunner:
             raise WorkflowError("Worker command could not start.") from None
         if result.returncode:
             raise WorkflowError(f"Worker command exited {result.returncode}.")
-        claim = result.stdout.strip()
-        if not claim:
+        claim = result.stdout.decode("utf-8", errors="replace")
+        if not claim.strip():
             raise WorkflowError("Worker command returned an empty claim.")
         return claim

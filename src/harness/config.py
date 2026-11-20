@@ -34,6 +34,10 @@ def _inside(root: Path, value: object, field: str) -> Path:
     raise WorkflowError(f"{field} needs a relative path inside the project.")
 
 
+def ledger_path(root: Path) -> Path:
+    return _inside(root.resolve(), DEFAULT_LEDGER.as_posix(), "ledger")
+
+
 def _table(value: object, field: str) -> dict:
     if not isinstance(value, dict):
         raise WorkflowError(f"{field} needs a TOML table.")
@@ -58,7 +62,6 @@ class RoleSettings:
 @dataclass(frozen=True)
 class Config:
     root: Path
-    ledger: Path
     owner_actions: frozenset[OwnerAction]
     checks: tuple[tuple[str, ...], ...]
     roles: dict[Role, RoleSettings]
@@ -74,7 +77,11 @@ class Config:
         except (ValueError, OSError):
             raise WorkflowError("Could not read harness.toml as TOML.") from None
 
-        ledger = _inside(root, data.get("ledger"), "ledger")
+        if "ledger" in data and _inside(root, data["ledger"], "ledger") != ledger_path(root):
+            raise WorkflowError(
+                "Close harness processes, move the existing ledger and any SQLite sidecars to "
+                ".harness/ledger.db and the corresponding sidecar paths, then remove ledger from harness.toml."
+            )
         kinds = data.get("owner_actions")
         if not isinstance(kinds, list) or any(item not in list(OwnerAction) for item in kinds):
             raise WorkflowError("owner_actions needs a list of known owner action kinds.")
@@ -92,7 +99,7 @@ class Config:
                     raise WorkflowError("Only roles.worker can configure a submission command.")
                 run = command(source["run"], "roles.worker.run")
             settings[role] = RoleSettings(book, run)
-        return cls(root, ledger, frozenset(map(OwnerAction, kinds)),
+        return cls(root, frozenset(map(OwnerAction, kinds)),
                    check_plan(ship.get("checks"), "ship.checks"), settings)
 
     @classmethod

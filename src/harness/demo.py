@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from pathlib import Path
+import sys
 from tempfile import TemporaryDirectory
 
 from .agents import ScriptedRunner
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     unittest.main()
 """
 
-CHECK = ("python3", "test_todo.py")
+CHECK = (sys.executable, "test_todo.py")
 
 
 def _commit(repo: Path, title: str) -> str:
@@ -74,15 +75,14 @@ def _commit(repo: Path, title: str) -> str:
 def _sample(repo: Path) -> None:
     git(repo, "init", "--quiet", "-b", "main", "--object-format=sha1", "--template=")
     git(repo, "config", "core.hooksPath", ".git/hooks")
-    (repo / "todo.py").write_text(ORIGINAL, encoding="utf-8")
-    (repo / "ship.toml").write_text('checks = [["python3", "test_todo.py"]]\n', encoding="utf-8")
+    (repo / "todo.py").write_text(ORIGINAL, encoding="utf-8", newline="\n")
     _commit(repo, "Start with plain text output")
 
 
 def _change(repo: Path) -> tuple[str, ArtifactEvidence]:
     git(repo, "switch", "-c", "json-output")
-    (repo / "todo.py").write_text(UPDATED, encoding="utf-8")
-    (repo / "test_todo.py").write_text(SMOKE, encoding="utf-8")
+    (repo / "todo.py").write_text(UPDATED, encoding="utf-8", newline="\n")
+    (repo / "test_todo.py").write_text(SMOKE, encoding="utf-8", newline="\n")
     commit = _commit(repo, "Add JSON output to the todo command")
     return commit, ArtifactEvidence.capture(repo, "todo.py")
 
@@ -116,7 +116,7 @@ def demo(ledger: Ledger, emit: Callable[[], None]) -> int:
         step(Role.WORKER, ledger.submit, task, commit, "Output tests recorded", {1: artifact, 2: test})
         step(Role.CQO, ledger.judge, task, RuleJudge())
         runner.run(Role.SHIP, lambda _card: git(repo, "switch", "main"))
-        receipt = runner.run(Role.SHIP, lambda _card: ship(ledger, task, repo, "json-output"))
+        receipt = runner.run(Role.SHIP, lambda _card: ship(ledger, task, repo, "json-output", commands=(CHECK,)))
         emit()
         if receipt.state != "applied":
             raise WorkflowError("The demo could not ship the sample change.")

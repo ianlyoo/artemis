@@ -15,7 +15,11 @@ class CommandRunnerTests(unittest.TestCase):
         self.card.write_text('instructions = "Use the supplied criterion."\n', encoding="utf-8")
 
     def test_passes_runbook_brief_and_task_argument(self):
-        command = (sys.executable, "-c", "import sys; print(sys.argv[1]); print(sys.stdin.read())", "{task}")
+        command = (
+            sys.executable, "-c",
+            "import sys; sys.stdout.buffer.write(sys.argv[1].encode() + b'\\n' + sys.stdin.buffer.read())",
+            "{task}",
+        )
         runner = CommandRunner(RoleSettings(self.card, command))
         self.assertEqual(
             runner.claim(self.root, 7, "Task brief"),

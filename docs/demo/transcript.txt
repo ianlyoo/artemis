@@ -9,8 +9,8 @@ Todo CLI demo
 08  cqo     reject     Output tests: missing command evidence
 09  worker  reported   Output tests recorded (2/2 evidence)
 10  cqo     pass       All done criteria supported
-11  ship    checked    python3 test_todo.py exit 0
-12  ship    applied    main contains b1422cb2562b, receipt saved
+11  ship    checked    python test_todo.py exit 0
+12  ship    applied    main contains 05167cfbfc6e, receipt saved
 13  owner   approved   Publish release note
 14  worker  simulated  Publish release note
 
@@ -25,8 +25,8 @@ Ledger timeline | task 1
 08  cqo     reject     Output tests: missing command evidence
 09  worker  reported   Output tests recorded (2/2 evidence)
 10  cqo     pass       All done criteria supported
-11  ship    checked    python3 test_todo.py exit 0
-12  ship    applied    main contains b1422cb2562b, receipt saved
+11  ship    checked    python test_todo.py exit 0
+12  ship    applied    main contains 05167cfbfc6e, receipt saved
 13  owner   approved   Publish release note
 14  worker  simulated  Publish release note
 
