@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,6 +7,8 @@ name = "harness"
 version = "0.1.0"
 description = "A local demo of evidence-driven task delivery"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICES.md"]
 
 [project.scripts]
 harness = "harness.cli:main"

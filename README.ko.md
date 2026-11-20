@@ -86,3 +86,7 @@ python3 -m venv .venv && . .venv/bin/activate && pip install -e . && harness dem
 설계 문서와 로컬에서 실행할 수 있는 데모를 담았다.
 
 이 전시에 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 적었다.
+
+## 라이선스
+
+Apache-2.0. [LICENSE](LICENSE)를 보라.

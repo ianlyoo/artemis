@@ -86,3 +86,7 @@ This local demo uses scripted roles. When a step needs a person, the system wait
 This showcase includes the design and a runnable local demo.
 
 See [NOTICES.md](NOTICES.md) for the open-source projects that informed this showcase.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
