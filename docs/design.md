@@ -104,7 +104,7 @@ A branch ships whole or not at all. The receipt describes the tested tip, so lan
 
 The value of one lane is that the main branch always has an explanation. For any commit on main there is a receipt that says which checks it passed and when. A failure is equally visible: it is a row, not a message someone may or may not have read.
 
-In the code: `src/harness/ship.py` checks out the pinned commit, detached, in a disposable worktree, runs the checks there, removes the worktree and fast-forwards main in the local repository. `src/harness/ledger.py` will not record checks or apply a commit unless the latest verdict passed that exact commit. Deploying to services, restarting them and migrating live data belong to the private system and are not part of this code. The demo runs the commands in ship.toml. Each check record contains the command, exit code and output digest.
+In the code: `src/harness/ship.py` checks out the pinned commit, detached, in a disposable worktree, runs the checks there, removes the worktree and fast-forwards main in the local repository. `src/harness/ledger.py` will not record checks or apply a commit unless the latest verdict passed that exact commit. Deploying to services, restarting them and migrating live data belong to the private system and are not part of this code. The ship checks are the commands listed under `[ship]` in the operator's harness.toml; they run against the pinned commit. Each check record contains the command, exit code and output digest.
 
 ## Owner-only decisions and the stop
 
