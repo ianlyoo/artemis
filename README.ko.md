@@ -1,92 +1,110 @@
-# Artemis
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/wordmark-dark.svg">
+    <img src="assets/readme/wordmark-light.svg" width="100%" alt="Artemis">
+  </picture>
+</p>
 
-[English](README.md) · 한국어
+<p align="center">
+  <b>Multi-agent orchestration harness</b><br>
+  에이전트는 여럿, 장부는 하나.<br>
+  자기 일은 자기가 판정하지 않는다.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="라이선스: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 이상" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#실행해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS 또는 Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-showcase-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 쇼케이스" src="https://img.shields.io/badge/status-showcase-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <!-- badges:ci-release -->
+</p>
+
+<p align="center">
+  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#실행해-보기">데모 실행</a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(max-width: 700px)" srcset="assets/readme/ledger-narrow.svg">
+    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ledger-narrow.svg">
+    <img src="assets/readme/ledger.svg" width="100%" alt="데모 작업 하나의 장부 열네 줄. 판정자는 테스트 증거가 빠진 워커의 첫 완료 주장을 반려하고 두 번째 주장을 통과시킨다. 배포 레인은 main에 그 커밋이 들어갔다고 기록한다.">
+  </picture>
+</p>
+
+<p align="center">
+  <sub>지어낸 작업 하나의 장부다. 판정자가 증거 빠진 첫 주장을 반려하고 두 번째를 통과시키면, 배포 레인이 영수증을 남긴다.<br>
+  행은 <a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>에서 가져왔고, 그림은 <a href="assets/readme/render.py">assets/readme/render.py</a>가 그린다.</sub>
+</p>
 
 한 사람이 여러 AI 에이전트에게 일을 맡기다 보면, 무엇이 정해졌고 무엇이 끝났으며 무엇이 실제로 확인됐는지 금방 알 수 없게 된다.
 
-Artemis는 이 세 가지를 따로 기록해 두는 하네스다. 에이전트는 저마다 범위가 글로 정해진 역할 하나를 맡고, 받은 일을 더 작게 나눠 다음 역할에 넘긴다. 요청과 결정, 완료 주장과 증거는 모두 장부라는 데이터베이스 한 곳에 들어가고, 채팅과 대시보드는 장부에 있는 것을 보여 줄 뿐이다. 완료 주장은 그 일을 하지 않은 판정자가 판정한다. 모든 변경은 배포 레인 하나를 거쳐 main 브랜치에 들어가고, 들어갈 때마다 영수증이 남는다.
+Artemis는 이 세 가지를 따로 기록해 두는 하네스다. 요청과 결정, 완료 주장과 증거는 모두 장부라는 데이터베이스 한 곳에 들어가고, 채팅과 대시보드는 장부에 있는 것을 보여 줄 뿐이다. 완료 주장은 그 일을 하지 않은 판정자가 판정한다. 모든 변경은 배포 레인 하나를 거쳐 main 브랜치에 들어가고, 들어갈 때마다 영수증이 남는다.
 
 코딩 에이전트 하나를 위한 설정 묶음(한 세션에서 쓰는 스킬과 지침 파일)이 아니다. 여러 에이전트를 둘러싼 조직, 즉 누가 결정하고, 상태를 어디에 두고, 누가 결과를 확인하고, 변경이 어떻게 반영되는지를 다룬다.
 
 ## 역할
 
-```mermaid
-flowchart TD
-    owner(["오너"])
-    lead["리드<br/>무엇을, 왜"]
-    cto["CTO<br/>어떻게"]
-    pm["PM<br/>프로젝트 하나"]
-    worker["워커<br/>작업 하나"]
+<p align="center">
+  <picture>
+    <source media="(max-width: 700px)" srcset="assets/readme/roles-narrow.svg">
+    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/roles-narrow.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/roles-dark.svg">
+    <img src="assets/readme/roles-light.svg" width="100%" alt="오너, 리드, CTO, PM, 워커가 일을 차례로 넘기고, 저마다 자기 단계를 장부 하나에 적는다. 이 사슬 밖의 판정자는 완료 주장을 읽고 판정을 적는다. 배포 레인은 영수증을 적고 main을 옮긴다.">
+  </picture>
+</p>
 
-    owner -->|요청| lead
-    lead -->|목표와 완료 기준| cto
-    cto -->|프로젝트 브리프| pm
-    pm -->|작업 브리프| worker
-```
+에이전트는 저마다 범위가 글로 정해진 역할 하나를 맡고, 받은 일을 더 작게 나눠 다음 역할에 넘긴다. 오너가 요청하면 리드가 무엇을 왜 할지 정하고, CTO가 어떻게 할지 정한다. PM은 프로젝트 하나를 맡고, 워커는 작업 하나를 한다. 누구든 자기 단계를 장부에 적은 다음에 일을 넘긴다.
 
-이 사슬 바깥에 판정자가 있다. 코드에서는 CQO라고 부른다. 판정자는 작업에 손대지 않고, 증거가 붙은 완료 주장을 읽어 세 가지 가운데 하나로 판정한다. 통과, 빈틈을 적은 반려, 그리고 판정할 수 없을 때의 정지다.
+이 사슬 밖에 판정자가 있다. 코드에서는 CQO라고 부른다. 판정자는 일을 하지 않는다. 완료 주장과 증거를 읽고 통과, 반려, 정지 가운데 하나로 판정한다. 반려할 때는 빠진 것을 적고, 판정할 수 없을 때는 정지한다.
 
-## 작업 하나가 끝나기까지
-
-데모는 가상의 할 일 CLI 변경 과정을 SQLite에 기록한다.
-
-1. 오너가 스크립트로 읽을 수 있는 출력을 요청한다. 리드는 목표를, CTO는 구현 방식을 기록하고 PM은 JSON 옵션 작업을 배정한다.
-2. 워커가 커밋과 파일 해시를 제출한다. 판정자는 테스트 결과가 빠져 반려한다.
-3. 워커가 같은 커밋에 테스트 명령과 출력을 붙여 다시 제출한다. 판정자가 통과시킨다.
-4. 배포 레인이 그 커밋을 검사하고 main을 앞으로 옮긴 뒤 영수증을 기록한다.
+코드: [roles.py](src/harness/roles.py) · [judge.py](src/harness/judge.py) · [ledger.py](src/harness/ledger.py)
 
 ## 배포 레인
 
-누가 만든 변경이든 main에는 이 길 하나로만 들어간다.
+누가 만든 변경이든 이 길 하나로만 main에 들어간다.
 
-```mermaid
-flowchart TD
-    branch["커밋 하나에<br/>고정한 브랜치"] --> stop{"사람이 건 정지가<br/>살아 있는가?"}
-    stop -->|예| held["사람이 풀 때까지<br/>아무것도 돌지 않는다"]
-    stop -->|아니오| wt["일회용 작업트리에<br/>고정한 커밋 체크아웃"]
-    wt --> checks["이 변경에<br/>필요한 검사"]
-    checks -->|통과| ff["main을 앞으로 이동"]
-    ff --> receipt[("장부에 영수증")]
-    checks -->|실패| keep["main은 그대로"]
-    keep --> failure[("장부에 실패 기록")]
-```
+<p align="center">
+  <picture>
+    <source media="(max-width: 700px)" srcset="assets/readme/ship-lane-narrow.svg">
+    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ship-lane-narrow.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/ship-lane-dark.svg">
+    <img src="assets/readme/ship-lane-light.svg" width="100%" alt="커밋 하나에 고정된 브랜치가 정지 확인, 일회용 작업트리, 검사, fast-forward를 거쳐 main에 들어간다. 정지가 걸려 있으면 멈춘다. 검사가 실패하면 red 영수증, 그사이 main이 움직였으면 stale 영수증, 성공하면 applied 영수증이 남는다.">
+  </picture>
+</p>
+
+브랜치는 커밋 하나에 고정된 채로 들어온다. 사람이 정지를 걸어 두었으면 사람이 풀 때까지 아무것도 실행되지 않는다. 정지가 없으면 `ship.toml`에 적힌 검사가 일회용 작업트리에서 돈다. 검사가 실패하면 main은 그대로 두고 red 영수증을 남긴다. 검사를 통과하면 main을 fast-forward하고 영수증을 applied로 적는다. 그사이 main이 앞서 나갔으면 영수증은 stale이 되고, 그 변경은 새 커밋으로 다시 들어와야 한다.
+
+코드: [ship.py](src/harness/ship.py) · [test_ship.py](tests/test_ship.py)
 
 ## 원칙
 
-- **상태는 장부에만 있다.** 채팅 답장, 대시보드, 파일은 장부의 행을 보여 줄 뿐이다. 장부에 적히지 않은 사실은 세션이 끝나면 사라진다.
-- **배포 레인은 하나다.** 모든 변경은 버리는 작업트리에서 검사를 거쳐 영수증과 함께 들어가거나, 들어가지 않는다.
-- **판정자는 일한 쪽이 아니다.** 증명으로 치는 것은 실행한 명령과 그 출력, 또는 직접 열어 볼 수 있는 결과물이다. 증명이 없는 주장에는 "보고됨"이 붙는다.
-- **사람이 건 정지는 어떤 자동화보다 세다.** 타이머, 재시도, 대기열, 장애 복구는 움직이기 전에 정지가 있는지 보고, 정지를 풀 수 있는 것은 사람뿐이다.
-- **오너의 승낙이 필요한 일은 세 종류다.** 돈을 쓰는 일, 되살릴 수 없게 지우는 일, 오너의 이름으로 말하는 일이다. 나머지는 먼저 진행하고 나중에 알린다.
-- **절차는 필요할 때 읽는다.** 역할은 절차마다 한 줄짜리 안내만 지니고, 그 순간이 오면 전문을 연다.
-- **증상이 아니라 설계를 고친다.** 무언가 실패하면 그 실패를 허용한 설계를 바꾼다. 실패가 드러난 자리에 무언가를 덧대지 않는다.
+- **상태는 장부에만 있다.** 채팅 답변과 대시보드, 파일은 장부의 행을 보여 줄 뿐이다. 장부에 적지 않은 사실은 세션이 끝나면 사라진다.
+- **판정하는 쪽과 일하는 쪽은 다르다.** 증거란 출력과 함께 남긴 명령이거나 직접 열어 볼 수 있는 결과물이다. 증거 없는 주장에는 "보고됨"이라고 적는다.
+- **사람이 건 정지는 모든 자동화보다 앞선다.** 타이머와 재시도, 대기열, 장애 복구는 움직이기 전에 정지가 걸렸는지부터 본다. 정지는 사람만 풀 수 있다.
+- **세 가지 일은 오너가 승낙해야 한다.** 돈을 쓰는 일, 되돌릴 수 없는 삭제, 오너 이름으로 말하는 일이다. 나머지는 먼저 하고 나서 알린다.
+- **절차는 필요할 때 읽는다.** 역할은 절차마다 한 줄짜리 안내만 지니고, 그 순간이 오면 전문을 연다. 데모의 절차는 [examples/runbooks](examples/runbooks)에 있다.
+- **증상이 아니라 설계를 고친다.** 무언가 실패하면 그 실패를 허용한 설계를 바꾼다. 실패가 드러난 자리에 덧대지 않는다.
+
+[docs/design.ko.md](docs/design.ko.md)에 원칙마다 설명이 있고, 그 원칙이 `src/harness/`의 어느 모듈에 구현돼 있는지도 적혀 있다.
 
 ## 실행해 보기
 
-![harness demo 터미널 녹화](docs/demo/demo.gif)
+이 페이지 맨 위의 장부가 바로 이 실행의 결과다. 데모는 지어낸 작업 하나를 역할과 판정자, 배포 레인에 차례로 통과시키고, 로컬 장부에는 지어낸 데이터만 들어간다. 전체 출력은 [docs/demo/transcript.txt](docs/demo/transcript.txt)에 있다.
 
-전체 출력: [docs/demo/transcript.txt](docs/demo/transcript.txt)
+Python 3.11 이상과 Git이 필요하고, macOS나 Linux에서 돈다.
 
+<!-- quickstart:begin -->
 ```sh
 python3 -m venv .venv && . .venv/bin/activate && pip install -e . && harness demo
 ```
-
-데모는 지어낸 작업 하나를 역할, 판정자, 배포 레인에 차례로 통과시킨다. 장부는 로컬에 만들고, 그 안에는 지어낸 데이터만 들어간다.
-
-## 설계
-
-[docs/design.ko.md](docs/design.ko.md)에 각 원칙을 설명하고, `src/harness/`의 어느 모듈에 들어 있는지 적었다.
-
-## 여기에 없는 것
-
-로컬 데모는 미리 정한 역할별 동작을 실행한다. 사람이 필요한 단계에서는 시스템이 기다린다.
+<!-- quickstart:end -->
 
 ## 상태
 
-설계 문서와 로컬에서 실행할 수 있는 데모를 담았다.
+이 저장소는 쇼케이스다. 설계 문서와 로컬 데모가 들어 있고, 데모에서는 실제 에이전트 대신 스크립트로 짠 역할이 움직인다. 사람이 필요한 단계에서는 시스템이 기다린다. 데모는 macOS와 Linux에서 돈다. Windows는 아직 지원하지 않고, 설치형 릴리스도 아직 나오지 않았다.
 
-이 전시에 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 적었다.
+이 쇼케이스가 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있다.
 
-## 라이선스
-
-Apache-2.0. [LICENSE](LICENSE)를 보라.
+<p align="center">
+  <sub>Apache-2.0 · <a href="LICENSE">LICENSE</a></sub>
+</p>
