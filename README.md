@@ -15,7 +15,7 @@
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="#see-it-run"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="Platform: macOS, Linux, and Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#status"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-showcase-e6edf3?style=flat-square&labelColor=30363d"><img alt="Status: showcase" src="https://img.shields.io/badge/status-showcase-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#status"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-installable%20core-e6edf3?style=flat-square&labelColor=30363d"><img alt="Status: installable core" src="https://img.shields.io/badge/status-installable%20core-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="Quickstart CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
@@ -224,7 +224,7 @@ Commands exit with 0 on success, 1 for a workflow or local operation error, and 
 
 This repository includes the design, an installable core, and a local demo with scripted roles. When a step needs a person, the system waits. The quickstart runs on macOS and Linux. The demo and unit tests also run on Windows.
 
-See [NOTICES.md](NOTICES.md) for the open-source projects that informed this showcase.
+See [NOTICES.md](NOTICES.md) for the open-source projects that informed this project.
 
 <p align="center">
   <sub>Apache-2.0 · <a href="LICENSE">LICENSE</a></sub>

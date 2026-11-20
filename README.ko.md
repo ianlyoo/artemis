@@ -15,7 +15,7 @@
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="라이선스: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 이상" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="#실행해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS, Linux, Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-showcase-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 쇼케이스" src="https://img.shields.io/badge/status-showcase-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-installable%20core-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 설치형 코어" src="https://img.shields.io/badge/status-installable%20core-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="빠른 시작 CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
@@ -224,7 +224,7 @@ harness show --task "$task"
 
 설계 문서와 설치형 코어, 미리 정한 역할별 동작을 실행하는 로컬 데모를 담았다. 사람이 필요한 단계에서는 시스템이 기다린다. 빠른 시작은 macOS와 Linux에서 실행한다. 데모와 단위 테스트는 Windows에서도 실행할 수 있다.
 
-이 쇼케이스가 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있다.
+이 프로젝트가 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있다.
 
 <p align="center">
   <sub>Apache-2.0 · <a href="LICENSE">LICENSE</a></sub>
