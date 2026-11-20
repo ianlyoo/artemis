@@ -94,9 +94,90 @@ Artemis는 이 세 가지를 따로 기록해 두는 하네스다. 요청과 결
 Python 3.11 이상과 Git이 필요하고, macOS나 Linux에서 돈다.
 
 <!-- quickstart:begin -->
+Python 3.11 이상, Git, POSIX 셸이 필요하다.
+
+### 설치
+
+Artemis를 클론한 디렉터리에서 다음 명령을 실행한다.
+
 ```sh
-python3 -m venv .venv && . .venv/bin/activate && pip install -e . && harness demo
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
 ```
+
+### 프로젝트 실행
+
+가상 환경을 활성화한 채 빈 디렉터리에서 아래 명령을 실행한다. 새 Git 저장소에 가상의 텃밭 목록을 만든다.
+
+```sh
+set -eu
+mkdir garden-list
+cd garden-list
+git init -q -b main
+git config user.name "Garden Example"
+git config user.email garden-example
+git config commit.gpgsign false
+printf '.harness/\n' > .gitignore
+harness init
+
+printf 'print("basil")\n' > garden.py
+git add .gitignore harness.toml garden.py
+git commit -qm "Start a garden list"
+
+request=$(harness request "Make the garden list readable by scripts")
+goal=$(harness goal "$request" "Print the list as a JSON array")
+harness plan "$goal" "Use the standard JSON library and check the output"
+project=$(harness project "$goal" "Garden list")
+task=$(harness assign "$project" "Print JSON" \
+  --criterion 'Source=file:garden.py' --criterion 'JSON output=cmd:python check.py')
+approval=$(harness request-action --task "$task" --kind 'send as owner' "Publish a sample note")
+
+git switch -qc json-list
+cat > garden.py <<'EOF'
+import json
+
+print(json.dumps(["basil"]))
+EOF
+cat > check.py <<'EOF'
+import json
+import subprocess
+import sys
+
+output = subprocess.check_output([sys.executable, "garden.py"], text=True)
+assert json.loads(output) == ["basil"]
+print("JSON check passed")
+EOF
+git add garden.py check.py
+git commit -qm "Print the list as JSON"
+commit=$(git rev-parse HEAD)
+
+harness stop "Pause before submitting"
+if harness submit --task "$task" --commit "$commit" --claim "Ready"; then exit 1; else test "$?" -eq 1; fi
+harness resume "Continue the example"
+
+harness submit --task "$task" --commit "$commit" --claim "JSON is ready" --evidence 'file:garden.py'
+if harness judge --task "$task"; then exit 1; else test "$?" -eq 3; fi
+harness submit --task "$task" --commit "$commit" --claim "JSON check recorded" \
+  --evidence 'file:garden.py' --evidence 'cmd:python check.py'
+harness judge --task "$task"
+
+git switch -q main
+harness ship --task "$task" --branch json-list
+test "$(git rev-parse main)" = "$commit"
+if harness action --approval "$approval"; then exit 1; else test "$?" -eq 1; fi
+harness approve --approval "$approval"
+harness action --approval "$approval"
+harness show --task "$task"
+```
+
+정지 중에는 제출이 막힌다. 재개하면 명령 증거가 빠진 제출을 판정자가 반려한다. 증거를 보완하면 판정이 통과하고 배포 영수증이 남는다. 게시 요청은 승인을 기다리며 승인 뒤 게시를 모의 실행한다. 타임라인과 영수증은 `garden-list/.harness/ledger.db`에 저장한다. 텃밭 프로젝트에서 `harness show`로 다시 볼 수 있다.
+
+자기 저장소에서는 루트에서 `harness init`을 실행하고 `harness.toml`에서 `ship.checks`와 역할별 런북 경로를 설정한다. `.harness/`는 Git에 넣지 않고, 배포하기 전에 작업 트리가 깨끗한 `main`을 체크아웃한다. 증거 수집과 검사 명령은 일회용 Git 작업 트리에서 현재 프로세스 권한으로 실행한다. 신뢰할 수 있는 명령과 커밋을 사용한다. 명령마다 역할이 정해져 있으므로 로컬 작업자는 모든 역할을 실행할 수 있다.
+
+로컬 워커를 연결하려면 `[roles.worker]` 아래의 `run` 주석을 풀고 실행할 명령을 지정한다. `harness run --task N --commit SHA`는 런북, 작업 번호, 커밋, 완료 기준을 표준 입력으로 전달한다. 표준 출력을 완료 주장으로 기록한다. 검증에 쓸 증거는 `--evidence`로 수집한다. `harness runbook worker`로 설정된 지침을 읽는다.
+
+종료 코드는 성공 시 0, 워크플로 또는 로컬 작업 오류 시 1, 명령 문법이 잘못되면 2다. 판정 반려는 3, 정지는 4다. 검사에 실패하거나 후보 커밋이 `main`과 갈라졌으면 배포 명령은 5를 반환한다.
 <!-- quickstart:end -->
 
 ## 상태

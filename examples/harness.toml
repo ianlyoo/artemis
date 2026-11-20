@@ -1,0 +1,27 @@
+ledger = ".harness/ledger.db"
+owner_actions = ["money out", "irreversible delete", "send as owner"]
+
+[ship]
+checks = [["python", "check.py"]]
+
+[roles.owner]
+runbook = ".harness/runbooks/owner.toml"
+
+[roles.lead]
+runbook = ".harness/runbooks/lead.toml"
+
+[roles.cto]
+runbook = ".harness/runbooks/cto.toml"
+
+[roles.pm]
+runbook = ".harness/runbooks/pm.toml"
+
+[roles.worker]
+runbook = ".harness/runbooks/worker.toml"
+# run = ["python", "agent.py", "--task", "{task}"]
+
+[roles.cqo]
+runbook = ".harness/runbooks/cqo.toml"
+
+[roles.ship]
+runbook = ".harness/runbooks/ship.toml"

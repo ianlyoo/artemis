@@ -9,13 +9,15 @@ import subprocess
 from tempfile import TemporaryDirectory
 import tomllib
 
+from .config import check_plan
 from .judge import CommandEvidence
 from .ledger import Check, Ledger, Receipt
+from .process import checkout_env
 from .roles import WorkflowError
 
 
 def git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:
-    git_env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    git_env = checkout_env()
     git_env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
     git_env.update(env or {})
     return subprocess.run(
@@ -25,7 +27,7 @@ def git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:
 
 
 @contextmanager
-def _checkout(repo: Path, commit: str) -> Iterator[Path]:
+def checkout(repo: Path, commit: str) -> Iterator[Path]:
     with TemporaryDirectory(prefix="harness-check-") as scratch:
         tree = Path(scratch) / "checkout"
         git(repo, "worktree", "add", "--detach", str(tree), commit)
@@ -39,42 +41,46 @@ class _CheckPlanError(WorkflowError):
     """The candidate's check configuration could not be used."""
 
 
-def _checks(tree: Path, ledger: Ledger) -> tuple[Check, ...]:
+def _candidate_checks(tree: Path) -> tuple[tuple[str, ...], ...]:
     try:
         with (tree / "ship.toml").open("rb") as config:
             commands = tomllib.load(config).get("checks")
     except (OSError, ValueError):
         raise _CheckPlanError("The candidate needs a readable ship.toml.") from None
-    if not isinstance(commands, list) or not commands or any(
-        not isinstance(argv, list) or not argv
-        or not all(isinstance(arg, str) and arg and "\0" not in arg for arg in argv)
-        for argv in commands
-    ):
-        raise _CheckPlanError("ship.toml needs a list of valid check command arrays.")
+    try:
+        return check_plan(commands, "ship.toml checks")
+    except WorkflowError as error:
+        raise _CheckPlanError(str(error)) from None
 
+
+def _checks(tree: Path, ledger: Ledger, commands: tuple[tuple[str, ...], ...]) -> tuple[Check, ...]:
     reports = []
     for argv in commands:
         ledger.allow_step()
-        try:
-            result = CommandEvidence.capture(tree, tuple(argv))
-            exit_code, output = result.exit_code, result.output
-        except subprocess.TimeoutExpired:
-            exit_code, output = 124, "Check timed out."
-        except OSError:
-            exit_code, output = 127, "Check command could not start."
-        reports.append(Check(tuple(argv), exit_code, sha256(output.encode()).hexdigest()))
+        result = CommandEvidence.capture(tree, argv)
+        reports.append(Check(argv, result.exit_code, sha256(result.output.encode()).hexdigest()))
     return tuple(reports)
 
 
-def ship(ledger: Ledger, task: int, repo: Path, branch: str) -> Receipt:
+def _require_main(repo: Path) -> None:
+    if git(repo, "symbolic-ref", "--quiet", "HEAD") != "refs/heads/main":
+        raise WorkflowError("Check out main before applying a ship.")
+    if git(repo, "status", "--porcelain"):
+        raise WorkflowError("Main must have a clean working tree.")
+
+
+def ship(ledger: Ledger, task: int, repo: Path, branch: str, *,
+         commands: tuple[tuple[str, ...], ...] | None = None) -> Receipt:
     """Run trusted local check commands and apply to a clean main checkout."""
     ledger.allow_step()
     sha = git(repo, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}")
     receipt = ledger._ship_receipt(task, sha)
     if receipt is None:
+        _require_main(repo)
         try:
-            with _checkout(repo, sha) as tree:
-                checks = _checks(tree, ledger)
+            with checkout(repo, sha) as tree:
+                plan = _candidate_checks(tree) if commands is None else commands
+                checks = _checks(tree, ledger, plan)
         except _CheckPlanError as error:
             return ledger._record_checks(task, sha, (), config_error=str(error))
         receipt = ledger._record_checks(task, sha, checks)
@@ -82,10 +88,7 @@ def ship(ledger: Ledger, task: int, repo: Path, branch: str) -> Receipt:
         return receipt
 
     def apply() -> bool:
-        if git(repo, "symbolic-ref", "--quiet", "HEAD") != "refs/heads/main":
-            raise WorkflowError("Check out main before applying a ship.")
-        if git(repo, "status", "--porcelain"):
-            raise WorkflowError("Main must have a clean working tree.")
+        _require_main(repo)
         # A prior attempt may have advanced Git before its SQLite transaction committed.
         try:
             git(repo, "merge", "--ff-only", sha)

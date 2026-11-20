@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "harness"
 version = "0.1.0"
-description = "A local demo of evidence-driven task delivery"
+description = "A local harness for evidence-driven task delivery"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICES.md"]
@@ -14,8 +14,9 @@ license-files = ["LICENSE", "NOTICES.md"]
 harness = "harness.cli:main"
 
 [tool.setuptools]
-packages = ["harness", "harness.runbooks"]
-package-dir = { harness = "src/harness", "harness.runbooks" = "examples/runbooks" }
+packages = ["harness", "harness.examples", "harness.runbooks"]
+package-dir = { harness = "src/harness", "harness.examples" = "examples", "harness.runbooks" = "examples/runbooks" }
 
 [tool.setuptools.package-data]
 "harness.runbooks" = ["*.toml"]
+"harness.examples" = ["*.toml"]

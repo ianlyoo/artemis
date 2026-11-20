@@ -133,6 +133,23 @@ def _require_task_release(db: sqlite3.Connection, task: int) -> None:
         raise WorkflowError("This task is stopped until the owner resumes it.")
 
 
+def _criteria(raw: str) -> tuple[Criterion, ...]:
+    return tuple(Criterion(item["label"], tuple(item["command"]), item["output"], item["artifact"])
+                 for item in json.loads(raw))
+
+
+def _submission_task(db: sqlite3.Connection, task: int, sha: str) -> sqlite3.Row:
+    _require_task_release(db, task)
+    row = _one(db, "SELECT * FROM work WHERE id = ?", task)
+    if row["state"] == "shipped":
+        raise WorkflowError("This task has already shipped.")
+    if row["state"] == "verified" and (
+        row["sha"] == sha or _receipt(db, row["submission_id"], row["sha"]) is not None
+    ):
+        raise WorkflowError("Finish shipping the passing submission.")
+    return _one(db, "SELECT title, criteria FROM tasks WHERE id = ?", task)
+
+
 def _candidate(db: sqlite3.Connection, task: int, sha: str) -> int:
     row = _one(db, "SELECT * FROM work WHERE id = ?", task)
     if row["verdict"] != "pass" or row["sha"] != sha:
@@ -177,9 +194,19 @@ class Ledger:
                 _active(db)
             yield db
 
-    def allow_step(self) -> None:
-        with closing(self._connect()) as db:
+    def allow_step(self, task: int | None = None) -> None:
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN")
             _active(db)
+            if task is not None:
+                _require_task_release(db, task)
+
+    def submission_brief(self, task: int, sha: str) -> tuple[str, tuple[Criterion, ...]]:
+        with closing(self._connect()) as db, db:
+            db.execute("BEGIN")
+            _active(db)
+            row = _submission_task(db, task, sha)
+            return row["title"], _criteria(row["criteria"])
 
     def request(self, actor: Role, text: str) -> int:
         with self._write(actor, Role.OWNER) as db:
@@ -225,15 +252,7 @@ class Ledger:
         if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", sha):
             raise ValueError("Submit the full Git commit hash.")
         with self._write(actor, Role.WORKER) as db:
-            _require_task_release(db, task)
-            row = _one(db, "SELECT * FROM work WHERE id = ?", task)
-            if row["state"] == "shipped":
-                raise WorkflowError("This task has already shipped.")
-            if row["state"] == "verified" and (
-                row["sha"] == sha or _receipt(db, row["submission_id"], row["sha"]) is not None
-            ):
-                raise WorkflowError("Finish shipping the passing submission.")
-            criteria = json.loads(_one(db, "SELECT criteria FROM tasks WHERE id = ?", task)["criteria"])
+            criteria = _criteria(_submission_task(db, task, sha)["criteria"])
             if not items.keys() <= set(range(1, len(criteria) + 1)):
                 raise ValueError("Evidence must refer to an assigned criterion.")
             submission = db.execute(
@@ -254,10 +273,7 @@ class Ledger:
                 raise WorkflowError("There is no unjudged submission.")
             submission = _one(db, "SELECT * FROM submissions WHERE id = ?", row["submission_id"])
             raw = _one(db, "SELECT criteria FROM tasks WHERE id = ?", task)["criteria"]
-            criteria = tuple(
-                Criterion(item["label"], tuple(item["command"]), item["output"], item["artifact"])
-                for item in json.loads(raw)
-            )
+            criteria = _criteria(raw)
             items = {}
             for saved in db.execute("SELECT * FROM evidence WHERE submission_id = ?", (submission["id"],)):
                 data = json.loads(saved["data"])

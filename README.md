@@ -94,9 +94,90 @@ The ledger at the top of this page is this run. It takes an invented task throug
 You need Python 3.11 or newer and Git, on macOS or Linux.
 
 <!-- quickstart:begin -->
+You need Python 3.11 or newer, Git, and a POSIX shell.
+
+### Install
+
+Run these commands from your Artemis clone.
+
 ```sh
-python3 -m venv .venv && . .venv/bin/activate && pip install -e . && harness demo
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install .
 ```
+
+### Run a project
+
+Keep the virtual environment active and run this block in an empty directory. It creates a fictional garden list in a new Git repository.
+
+```sh
+set -eu
+mkdir garden-list
+cd garden-list
+git init -q -b main
+git config user.name "Garden Example"
+git config user.email garden-example
+git config commit.gpgsign false
+printf '.harness/\n' > .gitignore
+harness init
+
+printf 'print("basil")\n' > garden.py
+git add .gitignore harness.toml garden.py
+git commit -qm "Start a garden list"
+
+request=$(harness request "Make the garden list readable by scripts")
+goal=$(harness goal "$request" "Print the list as a JSON array")
+harness plan "$goal" "Use the standard JSON library and check the output"
+project=$(harness project "$goal" "Garden list")
+task=$(harness assign "$project" "Print JSON" \
+  --criterion 'Source=file:garden.py' --criterion 'JSON output=cmd:python check.py')
+approval=$(harness request-action --task "$task" --kind 'send as owner' "Publish a sample note")
+
+git switch -qc json-list
+cat > garden.py <<'EOF'
+import json
+
+print(json.dumps(["basil"]))
+EOF
+cat > check.py <<'EOF'
+import json
+import subprocess
+import sys
+
+output = subprocess.check_output([sys.executable, "garden.py"], text=True)
+assert json.loads(output) == ["basil"]
+print("JSON check passed")
+EOF
+git add garden.py check.py
+git commit -qm "Print the list as JSON"
+commit=$(git rev-parse HEAD)
+
+harness stop "Pause before submitting"
+if harness submit --task "$task" --commit "$commit" --claim "Ready"; then exit 1; else test "$?" -eq 1; fi
+harness resume "Continue the example"
+
+harness submit --task "$task" --commit "$commit" --claim "JSON is ready" --evidence 'file:garden.py'
+if harness judge --task "$task"; then exit 1; else test "$?" -eq 3; fi
+harness submit --task "$task" --commit "$commit" --claim "JSON check recorded" \
+  --evidence 'file:garden.py' --evidence 'cmd:python check.py'
+harness judge --task "$task"
+
+git switch -q main
+harness ship --task "$task" --branch json-list
+test "$(git rev-parse main)" = "$commit"
+if harness action --approval "$approval"; then exit 1; else test "$?" -eq 1; fi
+harness approve --approval "$approval"
+harness action --approval "$approval"
+harness show --task "$task"
+```
+
+You should see a blocked submission while stopped, a rejection for missing command evidence, then a pass and a ship receipt. The note waits for approval and is simulated after approval. The timeline and receipts live in `garden-list/.harness/ledger.db`. Run `harness show` again from the garden project to read them.
+
+For your own repository, run `harness init` at its root and edit `harness.toml` to set `ship.checks` and the role runbook paths. Keep `.harness/` out of Git and check out a clean `main` before shipping. The evidence and check commands run locally in disposable Git worktrees with your process permissions. Use commands and commits you trust. Each command selects its role, so a local operator can act in every role.
+
+To connect a local worker, uncomment `run` under `[roles.worker]` and set its command. `harness run --task N --commit SHA` passes the runbook, task number, commit and criteria on stdin. It records stdout as the claim. Supply `--evidence` to capture proof separately. `harness runbook worker` prints the configured instructions.
+
+Commands exit with 0 on success, 1 for a workflow or local operation error, and 2 for invalid command syntax. Judgment returns 3 for rejection or 4 for a stop. Shipping returns 5 if checks fail or the candidate diverges from `main`.
 <!-- quickstart:end -->
 
 ## Status
