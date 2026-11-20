@@ -72,7 +72,7 @@ Whoever wrote a change, it reaches main by this one route.
   </picture>
 </p>
 
-A branch enters pinned at one commit. While a stop set by a person is in force, nothing runs until a person lifts it. Otherwise the checks listed in `ship.toml` run in a disposable worktree. A failing check leaves main untouched and records a red receipt. When the checks pass, main is fast-forwarded and the receipt is marked applied; if main has moved on in the meantime, the receipt is marked stale and the change needs a new commit.
+A branch enters pinned at one commit. While a stop set by a person is in force, nothing runs until a person lifts it. Otherwise the checks listed under `[ship]` in `harness.toml` run in a disposable worktree. A failing check leaves main untouched and records a red receipt. When the checks pass, main is fast-forwarded and the receipt is marked applied; if main has moved on in the meantime, the receipt is marked stale and the change needs a new commit.
 
 Code: [ship.py](src/harness/ship.py) · [test_ship.py](tests/test_ship.py)
 
