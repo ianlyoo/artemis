@@ -30,6 +30,11 @@ def _plural(count: int, word: str) -> str:
     return f"{count} {word}" if count == 1 else f"{count} {word}s"
 
 
+def _columns() -> int:
+    """The width lines are cut to: the terminal's, 100 when not a terminal, and never under 60."""
+    return max(shutil.get_terminal_size((100, 24)).columns, 60)
+
+
 def _ago(seconds: float) -> str:
     minutes = round(seconds / 60)
     if minutes < 1:
@@ -94,6 +99,14 @@ def statusline(ledger: Ledger) -> str:
     return mark + " · ".join(parts)
 
 
+def _said(argv: list[str], exit_code: int) -> str:
+    """A check in words: grep -q PATTERN FILE that passed reads as FILE mentions PATTERN; others as run."""
+    args = [arg for arg in argv[1:] if arg != "--"]
+    if argv[0] == "grep" and len(args) == 3 and args[0] == "-q" and exit_code == 0:
+        return f"{args[2]} mentions {args[1]}"
+    return f"{shlex.join(argv)} exit {exit_code}"
+
+
 def _proof(ledger: Ledger, task: int) -> str:
     """One phrase of evidence for a task's latest judged submission, named by its criteria."""
     with ledger._read() as db:
@@ -109,12 +122,21 @@ def _proof(ledger: Ledger, task: int) -> str:
         if row["kind"] != "command":
             phrases.append(f"{data['path']} recorded")
         elif label == shlex.join(data["argv"]) or label == " ".join(data["argv"]):
-            phrases.append(f"{label} exit {data['exit_code']}")
+            phrases.append(_said(data["argv"], data["exit_code"]))
         else:
             phrases.append(label)
-    if len(phrases) > 1 and all(p.startswith("README mentions ") for p in phrases):
-        return "README mentions " + ", ".join(p.removeprefix("README mentions ") for p in phrases)
-    return ", ".join(phrases) or "no evidence"
+    return _joined(phrases)
+
+
+def _joined(phrases: list[str]) -> str:
+    """Evidence phrases as one: "README mentions --json" and "README mentions --done" read as one mention."""
+    grouped: dict[str, list[str]] = {}
+    for phrase in phrases:
+        subject, said, what = phrase.partition(" mentions ")
+        grouped.setdefault(subject + said, []).append(what)
+    shown = [subject + ", ".join(filter(None, what)) for subject, what in grouped.items()
+             if subject.removesuffix(" recorded") + " mentions " not in grouped]  # a file it mentions is there
+    return ", ".join(shown) or "no evidence"
 
 
 def _task_line(ledger: Ledger, row) -> tuple[str, str]:
@@ -138,7 +160,8 @@ def status(ledger: Ledger) -> str:
         if row["state"] == "dropped":
             continue
         label, detail = _task_line(ledger, row)
-        lines.append(f"{label:<9} #{row['id']} {clip(row['title'], 40):<40} {detail}".rstrip())
+        head = f"{label:<9} #{row['id']} {clip(row['title'], 40):<40} "
+        lines.append((head + clip(detail, _columns() - len(head))).rstrip())
     for decision in ledger.decisions("waiting"):
         lines.append(f"{'waiting':<9} D{decision['id']} {clip(decision['what'], 40):<40} "
                      f"{decision['kind']} · artemis approve {decision['id']}")
@@ -192,11 +215,12 @@ def digest(ledger: Ledger, *, mark: bool = True) -> str:
              f"asked you {n['asked']}× · {stuck}"]
     touched = {event["task_id"] for event in events if event["task_id"]}
     rows = [row for row in ledger.work() if row["id"] in touched and row["state"] != "dropped"]
-    columns = max(shutil.get_terminal_size((100, 24)).columns, 60)  # the narrowest layout the lines are cut for
+    columns = _columns()
     width = max((len(clip(row["title"], 34)) for row in rows), default=0)
     for row in rows:
         label, detail = _task_line(ledger, row)
-        lines.append(f"{label:<9} #{row['id']} {clip(row['title'], 34):<{width}}  {detail}".rstrip())
+        head = f"{label:<9} #{row['id']} {clip(row['title'], 34):<{width}}  "
+        lines.append((head + clip(detail, columns - len(head))).rstrip())
     decided = {event["decision_id"] for event in events if event["decision_id"]}
     for decision in ledger.decisions():
         if decision["id"] not in decided and decision["state"] != "waiting":

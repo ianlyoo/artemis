@@ -79,7 +79,7 @@ outbox = Path("outbox")
 outbox.mkdir(exist_ok=True)
 with (outbox / "team.md").open("a", encoding="utf-8") as stream:
     stream.write(" ".join(sys.argv[1:]) + "\\n")
-print("Posted to the team outbox (outbox/team.md). Nothing left this machine.")
+print("posted to the demo outbox (outbox/team.md); nothing left this machine")
 '''
 
 README = """\

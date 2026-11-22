@@ -9,7 +9,7 @@ import time
 import unittest
 
 from artemis.agents import AGENTS
-from artemis.attention import _alive, _one_line, _ready, clip
+from artemis.attention import _alive, _joined, _one_line, _ready, _said, clip
 from artemis.cli import _check, _criteria
 from artemis.config import Config, detect_checks, ledger_path
 from artemis.lead import plan, session_settings
@@ -191,6 +191,14 @@ class Pieces(unittest.TestCase):
                          "decided   D1 Post a note  you declined")
         self.assertEqual(clip("one\ntwo  three", 9), "one two…")
         self.assertEqual(clip("unbreakable", 5), "unbr…")
+
+    def test_evidence_reads_in_words_and_once_per_file(self):
+        phrases = [_said(["grep", "-q", "--", "--json", "README.md"], 0), _said(["grep", "-q", "--done", "README.md"], 0),
+                   "README.md recorded", _said(["python3", "-m", "unittest"], 0), _said(["grep", "-q", "x", "a"], 1)]
+        self.assertEqual(_joined(phrases), "README.md mentions --json, --done, python3 -m unittest exit 0, "
+                                           "grep -q x a exit 1")
+        self.assertEqual(_joined(["notes.md recorded"]), "notes.md recorded")
+        self.assertEqual(_joined([]), "no evidence")
 
     def test_the_lead_session_cannot_approve(self):
         settings = session_settings()

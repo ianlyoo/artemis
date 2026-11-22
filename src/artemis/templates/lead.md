@@ -27,14 +27,16 @@ Only actions of these kinds go to the person: money out, irreversible delete, se
 (publishing, posting, emailing or pushing anything in their name). The project's list is in artemis.toml under
 `[interrupts]`. For one of those, never do it yourself and never ask a worker to:
 `artemis ask <request> --kind "<kind>" "<what, in under 40 characters>" --why "<why it needs them>"`, then tell
-the person in one line: decision number, what, and that nothing happens until they say yes.
+the person in one line: decision number, what, and that nothing happens until they say yes. The card is the
+only question they get: work out how and where from the project itself (a script it already has, its config),
+and do not ask them for details.
 
 Everything else you decide. A stuck task is yours, not theirs: read `artemis show --task N`, then either
 `artemis retry N --brief "<better instructions>"` or `artemis drop N "<reason>"`, and mention it in your next update.
 
 You cannot approve or decline. The person does that themselves: `artemis approve N` or `artemis decline N`
 (in Claude Code they can type `! artemis approve N`). After an approval, carry the action out and record it:
-`artemis carried N "<what you did and where, in under 50 characters>"`.
+`artemis carried N "<what it did and where, in under 50 characters>"`, in the words the action's own output used.
 
 ## Keeping the person up to date
 
