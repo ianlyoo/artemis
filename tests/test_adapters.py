@@ -178,6 +178,15 @@ for text in ("OpenCode ", "final claim"):
                 apply_edits(self.repo, json.dumps({"claim": "report", "edits": edits}))
             self.assertFalse((self.repo / "result.txt").exists())
 
+    def test_api_accepts_the_object_bare_or_in_one_code_fence(self):
+        reply = json.dumps({"claim": "report", "edits": [{"path": "result.txt", "content": "```\ndone\n```\n"}]})
+        for wrapped in (reply, f"```json\n{reply}\n```", f"\n```\n{reply}\n```\n"):
+            with self.subTest(wrapped=wrapped[:8]):
+                self.assertEqual(apply_edits(self.repo, wrapped), "report")
+                self.assertEqual((self.repo / "result.txt").read_text(), "```\ndone\n```\n")
+        with self.assertRaises(WorkflowError):
+            apply_edits(self.repo, f"Here you go:\n```json\n{reply}\n```")
+
     def test_snapshot_skips_binary_untracked_symlink_and_oversized_files(self):
         for name, data in (("binary", b"\0"), ("large", b"x" * (64 * 1024 + 1)), ("untracked", b"local")):
             (self.repo / name).write_bytes(data)

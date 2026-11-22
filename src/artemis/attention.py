@@ -192,7 +192,7 @@ def digest(ledger: Ledger, *, mark: bool = True) -> str:
              f"asked you {n['asked']}× · {stuck}"]
     touched = {event["task_id"] for event in events if event["task_id"]}
     rows = [row for row in ledger.work() if row["id"] in touched and row["state"] != "dropped"]
-    columns = shutil.get_terminal_size((100, 24)).columns
+    columns = max(shutil.get_terminal_size((100, 24)).columns, 60)  # the narrowest layout the lines are cut for
     width = max((len(clip(row["title"], 34)) for row in rows), default=0)
     for row in rows:
         label, detail = _task_line(ledger, row)

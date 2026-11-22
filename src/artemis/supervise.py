@@ -90,13 +90,14 @@ def _run_agent(config: Config, ledger: Ledger, agent: Agent, tree: Path, text: s
     checks = tuple(c.command for c in criteria if c.command)
     argv, env, decode = agent.worker_launch(config, tree, checks)
     with (log.open("ab") as stream, TemporaryFile(dir=log.parent) as stdin,
-          TemporaryFile(mode="w+", encoding="utf-8", errors="replace", dir=log.parent) as output):
+          TemporaryFile(mode="w+", encoding="utf-8", errors="replace", dir=log.parent) as output,
+          TemporaryFile(mode="w+", encoding="utf-8", errors="replace", dir=log.parent) as errors):
         stdin.write(text.encode("utf-8"))
         stdin.seek(0)
         stream.write(f"\n--- {agent.name} worker: {shlex.join(argv[:3])} ...\n".encode())
         stream.flush()
         try:
-            process = subprocess.Popen(argv, cwd=tree, stdin=stdin, stdout=output, stderr=stream,
+            process = subprocess.Popen(argv, cwd=tree, stdin=stdin, stdout=output, stderr=errors,
                                        env=checkout_env() | env, start_new_session=os.name != "nt")
         except OSError as error:
             return "failed", f"{argv[0]} could not start: {error.strerror}"
@@ -122,6 +123,11 @@ def _run_agent(config: Config, ledger: Ledger, agent: Agent, tree: Path, text: s
                 outcome = "failed"
         if decode and outcome == "done" and not claim:
             outcome, claim = "failed", "The worker finished without a final message."
+        errors.seek(0)
+        said = errors.read()
+        stream.write(said.encode())
+        if outcome == "failed" and not claim:
+            claim = " ".join(said.split()[-60:])  # a worker that fails often says why only on stderr
         stream.write(claim.encode() + b"\n")
     return outcome, claim[-1500:]
 
