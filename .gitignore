@@ -1,7 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
-.harness/
+.artemis/
 .pytest_cache/
 dist/
 build/

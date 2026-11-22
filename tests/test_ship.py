@@ -1,215 +1,101 @@
-from contextlib import closing
-from hashlib import sha256
 from pathlib import Path
-import sqlite3
-import subprocess
 import sys
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
 
-from harness.config import DEFAULT_LEDGER
-from harness.demo import _change, _commit, _sample
-from harness.judge import ArtifactEvidence, CommandEvidence, Criterion, RuleJudge
-from harness.ledger import Ledger
-from harness.roles import Role, WorkflowError
-from harness.ship import checkout, git, ship
+from artemis.judge import CommandEvidence, Criterion, RuleJudge
+from artemis.ledger import Ledger
+from artemis.roles import Role, WorkflowError
+from artemis.ship import ship
+
+from helpers import commit, git, repository
+
+
+CHECK = (sys.executable, "-m", "unittest")
 
 
 class ShipTests(unittest.TestCase):
     def setUp(self):
-        root = Path(self.enterContext(TemporaryDirectory()))
-        self.repo = root / "project"
-        self.repo.mkdir()
-        _sample(self.repo)
-        self.base = git(self.repo, "rev-parse", "HEAD")
-        info = self.repo / ".git" / "info"
-        info.mkdir(exist_ok=True)
-        (info / "exclude").write_text(".harness/\nlocal-*.txt\n", encoding="utf-8")
-        self.ledger = Ledger(self.repo / DEFAULT_LEDGER)
+        self.repo = repository(Path(self.enterContext(TemporaryDirectory())) / "project")
+        (self.repo / ".artemis").mkdir()
+        (self.repo / ".git" / "info" / "exclude").write_text(".artemis/\n", encoding="utf-8")
+        self.ledger = Ledger(self.repo / ".artemis" / "ledger.db")
         self.ledger.initialize()
-        request = self.ledger.request(Role.OWNER, "Export a list")
-        goal = self.ledger.set_goal(Role.LEAD, request, "Add structured output")
-        self.ledger.plan(Role.CTO, goal, "Add a JSON flag")
-        project = self.ledger.open_project(Role.PM, goal, "Todo CLI")
-        self.task = self.ledger.assign(Role.PM, project, "Add JSON output",
-                                       (Criterion("Source", artifact="todo.py"),))
+        self.request = self.ledger.request(Role.OWNER, "Two changes")
 
-    def candidate(self):
-        commit, artifact = _change(self.repo)
-        git(self.repo, "switch", "main")
-        self.pass_candidate(commit, artifact)
-        return commit
+    def passed(self, sha: str) -> int:
+        task = self.ledger.add_task(Role.LEAD, self.request, "Change", "", (Criterion("tests", command=CHECK),))
+        self.ledger.submit(Role.WORKER, task, sha, "Done", {1: CommandEvidence(CHECK, 0, "OK")})
+        self.assertEqual(self.ledger.judge(Role.JUDGE, task, RuleJudge()).kind, "pass")
+        return task
 
-    def pass_candidate(self, commit, artifact):
-        self.ledger.submit(Role.WORKER, self.task, commit, "Ready", {1: artifact})
-        self.assertEqual(self.ledger.judge(Role.CQO, self.task, RuleJudge()).kind, "pass")
+    def land(self, task: int, sha: str):
+        return ship(self.ledger, task, sha, self.repo, "Change", commands=(CHECK,))
 
-    def ship(self, commands=((sys.executable, "test_todo.py"),)):
-        return ship(self.ledger, self.task, self.repo, "json-output", commands=commands)
+    def test_parallel_branches_each_land_through_a_checked_merge(self):
+        first = commit(self.repo, "one", "one.txt", "1\n")
+        second = commit(self.repo, "two", "two.txt", "2\n")
+        a, b = self.passed(first), self.passed(second)
+        self.assertEqual(self.land(a, first).state, "applied")
+        self.assertEqual(git(self.repo, "rev-parse", "main"), first)
+        landing = self.land(b, second)
+        self.assertEqual(landing.state, "applied")
+        main = git(self.repo, "rev-parse", "main")
+        self.assertEqual(landing.candidate, main)
+        self.assertEqual(git(self.repo, "rev-list", "--parents", "-n1", main).split()[1:], [first, second])
+        self.assertTrue((self.repo / "one.txt").exists() and (self.repo / "two.txt").exists())
+        self.assertEqual([row["state"] for row in self.ledger.work()], ["shipped", "shipped"])
+        with self.assertRaisesRegex(WorkflowError, "already has a ship receipt"):
+            self.land(b, second)
 
-    def test_checks_in_disposable_worktree_and_rerun_is_idempotent(self):
-        commit = self.candidate()
-        result = self.ship()
-        self.assertEqual(result.state, "applied")
-        self.assertEqual(result.commit, commit)
-        self.assertEqual(git(self.repo, "rev-parse", "main"), commit)
-        self.assertEqual(self.ledger.open_work(), [])
-        self.assertEqual(git(self.repo, "worktree", "list", "--porcelain").count("worktree "), 1)
-        timeline = list(self.ledger.timeline())
-        with patch("harness.ship.CommandEvidence.capture", side_effect=AssertionError("check rerun")):
-            self.assertEqual(self.ship(), result)
-        self.assertEqual(timeline, self.ledger.timeline())
+    def test_a_conflict_leaves_main_alone_and_records_no_receipt(self):
+        first = commit(self.repo, "one", "app.py", "VALUE = 2\n")
+        second = commit(self.repo, "two", "app.py", "VALUE = 3\n")
+        a, b = self.passed(first), self.passed(second)
+        self.land(a, first)
+        landing = self.land(b, second)
+        self.assertEqual(landing.state, "conflict")
+        self.assertEqual(git(self.repo, "rev-parse", "main"), first)
+        self.assertEqual(self.ledger.work(b)[0]["state"], "verified")
+        self.assertEqual(git(self.repo, "worktree", "list").count("\n"), 0)
 
-    def test_red_check_keeps_main_and_records_the_failure(self):
-        self.candidate()
-        result = self.ship(((sys.executable, "-c", "print('broken'); raise SystemExit(7)"),))
-        self.assertEqual(result.state, "red")
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
-        self.assertEqual(self.ledger.open_work()[0]["state"], "checks failed")
-        self.assertEqual(result.checks[0].exit_code, 7)
-        self.assertEqual(result.checks[0].output_sha256, sha256(b"broken\n").hexdigest())
-        self.assertEqual(self.ledger.timeline()[-1]["kind"], "red")
-        self.assertEqual(self.ship(), result)
+    def test_red_checks_on_the_merge_keep_main(self):
+        broken = commit(self.repo, "bad", "app.py", "VALUE = 0\n")
+        task = self.passed(broken)
+        before = git(self.repo, "rev-parse", "main")
+        landing = self.land(task, broken)
+        self.assertEqual(landing.state, "red")
+        self.assertIn("exited 1", landing.detail)
+        self.assertEqual(git(self.repo, "rev-parse", "main"), before)
+        self.assertEqual(self.ledger.work(task)[0]["state"], "stuck")
 
-    def test_branch_movement_requires_judging_the_new_commit(self):
-        original = self.candidate()
-        with self.assertRaisesRegex(WorkflowError, "Finish shipping"):
-            self.ledger.submit(Role.WORKER, self.task, original, "Already passed", {})
-        git(self.repo, "switch", "json-output")
-        (self.repo / "extra.txt").write_text("more work", encoding="utf-8")
-        updated = _commit(self.repo, "Add another change")
-        artifact = ArtifactEvidence.capture(self.repo, "todo.py")
-        git(self.repo, "switch", "main")
-        with self.assertRaisesRegex(WorkflowError, "exact commit"):
-            self.ship()
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
+    def test_a_commit_that_tracks_artemis_state_is_refused(self):
+        git(self.repo, "switch", "-q", "-c", "sneaky")
+        (self.repo / ".artemis" / "notes").write_text("x", encoding="utf-8")
+        git(self.repo, "add", "-f", ".artemis/notes")
+        git(self.repo, "commit", "-qm", "Track local state")
+        sneaky = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "switch", "-q", "main")
+        task = self.passed(sneaky)
+        self.assertEqual(self.land(task, sneaky).state, "blocked")
+        self.assertEqual(self.ledger.work(task)[0]["state"], "stuck")
 
-        self.ledger.submit(Role.WORKER, self.task, updated, "Updated candidate", {1: artifact})
-        with self.assertRaisesRegex(WorkflowError, "exact commit"):
-            self.ship()
-        self.assertEqual(self.ledger.judge(Role.CQO, self.task, RuleJudge()).kind, "pass")
-        receipt = self.ship()
-        self.assertEqual((receipt.state, receipt.commit), ("applied", updated))
-        self.assertEqual(git(self.repo, "rev-parse", "main"), updated)
+    def test_main_moves_by_compare_and_swap_when_another_branch_is_checked_out(self):
+        sha = commit(self.repo, "one", "one.txt", "1\n")
+        task = self.passed(sha)
+        git(self.repo, "switch", "-q", "-c", "elsewhere")
+        self.assertEqual(self.land(task, sha).state, "applied")
+        self.assertEqual(git(self.repo, "rev-parse", "main"), sha)
+        self.assertEqual(git(self.repo, "symbolic-ref", "--short", "HEAD"), "elsewhere")
 
-    def test_reserved_in_project_ledger_is_red_and_a_corrected_commit_ships(self):
-        good = self.candidate()
-        history = self.ledger.timeline(self.task)
-        with checkout(self.repo, good) as tree:
-            target = tree / DEFAULT_LEDGER
-            target.parent.mkdir()
-            target.write_bytes(b"fictional candidate content")
-            git(tree, "add", "-f", DEFAULT_LEDGER.as_posix())
-            blocked = _commit(tree, "Add a reserved local file")
-            artifact = ArtifactEvidence.capture(tree, "todo.py")
-        git(self.repo, "branch", "-f", "json-output", blocked)
-        self.pass_candidate(blocked, artifact)
+    def test_local_edits_in_the_way_block_without_losing_them(self):
+        sha = commit(self.repo, "one", "app.py", "VALUE = 5\n")
+        task = self.passed(sha)
+        (self.repo / "app.py").write_text("VALUE = 9  # mine\n", encoding="utf-8")
+        landing = self.land(task, sha)
+        self.assertEqual(landing.state, "blocked")
+        self.assertEqual((self.repo / "app.py").read_text(encoding="utf-8"), "VALUE = 9  # mine\n")
 
-        with patch("harness.ship.CommandEvidence.capture", side_effect=AssertionError("ran checks")):
-            receipt = self.ship()
-        self.assertEqual((receipt.state, receipt.commit, receipt.checks), ("red", blocked, ()))
-        timeline = self.ledger.timeline(self.task)
-        self.assertEqual(timeline[:len(history)], history)
-        self.assertEqual(timeline[-1]["kind"], "red")
-        self.assertIn("reserved path .harness", timeline[-1]["detail"])
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
 
-        git(self.repo, "branch", "-f", "json-output", good)
-        self.pass_candidate(good, artifact)
-        self.assertEqual(self.ship().state, "applied")
-        self.assertEqual(git(self.repo, "rev-parse", "main"), good)
-
-    def test_ignored_file_collision_preserves_local_data_and_allows_retry(self):
-        self.candidate()
-        name = "local-note.txt"
-        git(self.repo, "switch", "json-output")
-        (self.repo / name).write_text("candidate text", encoding="utf-8")
-        git(self.repo, "add", "-f", name)
-        commit = _commit(self.repo, "Add a note")
-        artifact = ArtifactEvidence.capture(self.repo, "todo.py")
-        git(self.repo, "switch", "main")
-        self.pass_candidate(commit, artifact)
-        local = self.repo / name
-        local.write_text("local draft", encoding="utf-8")
-        with self.assertRaises(subprocess.CalledProcessError):
-            self.ship()
-        self.assertEqual(local.read_text(encoding="utf-8"), "local draft")
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
-        self.assertEqual(self.ledger.timeline()[-1]["kind"], "checked")
-
-        saved = local.rename(self.repo / "local-saved.txt")
-        self.assertEqual(self.ship().state, "applied")
-        self.assertEqual(local.read_text(encoding="utf-8"), "candidate text")
-        self.assertEqual(saved.read_text(encoding="utf-8"), "local draft")
-
-    def test_ship_overrides_a_squash_preference_and_records_the_applied_commit(self):
-        commit = self.candidate()
-        git(self.repo, "config", "branch.main.mergeOptions", "--squash")
-        receipt = self.ship()
-        self.assertEqual((receipt.state, receipt.commit), ("applied", commit))
-        self.assertEqual(git(self.repo, "rev-parse", "main"), commit)
-
-    def test_unrelated_history_can_be_replaced_with_a_descendant_of_main(self):
-        good = self.candidate()
-        tree = git(self.repo, "rev-parse", f"{good}^{{tree}}")
-        unrelated = git(
-            self.repo, "-c", "user.name=Example", "-c", "user.email=example", "commit-tree",
-            tree, "-m", "Create a second root",
-        )
-        git(self.repo, "branch", "-f", "json-output", unrelated)
-        with checkout(self.repo, unrelated) as root:
-            artifact = ArtifactEvidence.capture(root, "todo.py")
-        self.pass_candidate(unrelated, artifact)
-        self.assertEqual(self.ship().state, "stale")
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
-
-        git(self.repo, "branch", "-f", "json-output", good)
-        self.pass_candidate(good, artifact)
-        receipt = self.ship()
-        self.assertEqual((receipt.state, receipt.commit), ("applied", good))
-        self.assertEqual(git(self.repo, "rev-parse", "main"), good)
-
-    def test_divergent_main_leaves_a_receipt_and_allows_a_new_submission(self):
-        self.candidate()
-        (self.repo / "extra.txt").write_text("another change", encoding="utf-8")
-        advanced = _commit(self.repo, "Advance main separately")
-        self.assertEqual(self.ship().state, "stale")
-        self.assertEqual(git(self.repo, "rev-parse", "main"), advanced)
-        self.ledger.submit(Role.WORKER, self.task, advanced, "Updated candidate", {})
-        self.assertEqual(self.ledger.open_work()[0]["state"], "reported")
-
-    def test_stop_during_checks_prevents_apply(self):
-        commit = self.candidate()
-
-        def stop_during_check(tree, argv):
-            self.assertNotEqual(tree, self.repo)
-            self.assertTrue((tree / "test_todo.py").is_file())
-            self.ledger.stop(Role.OWNER, "Pause before apply")
-            return CommandEvidence(argv, 0, "OK")
-
-        with patch("harness.ship.CommandEvidence.capture", side_effect=stop_during_check):
-            with self.assertRaisesRegex(WorkflowError, "stopped"):
-                self.ship()
-        self.assertEqual(git(self.repo, "rev-parse", "main"), self.base)
-        self.ledger.resume(Role.OWNER, "Resume delivery")
-        self.assertEqual(self.ship().commit, commit)
-
-    def test_retry_recovers_a_git_apply_without_a_final_receipt(self):
-        commit = self.candidate()
-        with closing(sqlite3.connect(self.ledger.path)) as db, db:
-            db.execute("""
-                CREATE TRIGGER fail_apply BEFORE INSERT ON events WHEN NEW.kind = 'applied'
-                BEGIN SELECT RAISE(ABORT, 'cannot append apply event'); END
-            """)
-        with self.assertRaises(sqlite3.IntegrityError):
-            self.ship()
-        self.assertEqual(git(self.repo, "rev-parse", "main"), commit)
-        self.assertEqual(self.ledger.timeline()[-1]["kind"], "checked")
-        with self.assertRaisesRegex(WorkflowError, "Finish shipping"):
-            self.ledger.submit(Role.WORKER, self.task, "b" * 40, "New candidate", {})
-        with closing(sqlite3.connect(self.ledger.path)) as db, db:
-            db.execute("DROP TRIGGER fail_apply")
-        with patch("harness.ship.CommandEvidence.capture", side_effect=AssertionError("check rerun")):
-            self.assertEqual(self.ship().state, "applied")
-        self.assertEqual(self.ledger.timeline()[-1]["kind"], "applied")
+if __name__ == "__main__":
+    unittest.main()

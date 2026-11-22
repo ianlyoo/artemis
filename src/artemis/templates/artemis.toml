@@ -1,0 +1,25 @@
+# Artemis settings for this project. Edit freely; artemis init never overwrites this file.
+
+[agents]
+# Who you talk to: claude, or chat (built in). auto takes the first one installed.
+lead = "auto"
+# Who does the tasks: claude, or mock. auto takes the first one installed.
+# mock is not an AI: it makes canned changes so you can try the flow without an account.
+worker = "auto"
+max_workers = 3
+worker_minutes = 20
+
+[interrupts]
+# The only kinds of action Artemis puts to you. Everything else goes ahead and shows in the digest.
+ask = ["money out", "irreversible delete", "send as you"]
+
+[ship]
+# The branch checked work lands on. Artemis moves it only through the ship lane and never pushes it.
+target = "main"
+# Run on the merged result before the target moves, and as a task's check when the lead names none.
+# artemis init fills this from the project (npm test, cargo test, go test, pytest or unittest).
+checks = [["python3", "-m", "unittest"]]
+
+# [commands]
+# Replace the command that starts a worker. The task prompt arrives on standard input.
+# claude = ["claude", "-p", "--permission-mode", "acceptEdits"]

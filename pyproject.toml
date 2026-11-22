@@ -3,20 +3,20 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "harness"
-version = "0.1.0"
-description = "A local harness for evidence-driven task delivery"
+name = "artemis-harness"
+version = "0.2.0"
+description = "Talk to one lead agent while many coding agents work in parallel; you are asked only for real decisions."
+readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICES.md"]
 
 [project.scripts]
-harness = "harness.cli:main"
+artemis = "artemis.cli:main"
 
 [tool.setuptools]
-packages = ["harness", "harness.examples", "harness.runbooks"]
-package-dir = { harness = "src/harness", "harness.examples" = "examples", "harness.runbooks" = "examples/runbooks" }
+packages = ["artemis", "artemis.templates"]
+package-dir = { "" = "src" }
 
 [tool.setuptools.package-data]
-"harness.runbooks" = ["*.toml"]
-"harness.examples" = ["*.toml"]
+"artemis.templates" = ["*.toml", "*.md"]

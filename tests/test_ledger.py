@@ -1,44 +1,30 @@
 from contextlib import closing
 import sqlite3
-import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from harness.agents import ScriptedRunner
-from harness.judge import CommandEvidence, Criterion, RuleJudge
-from harness.ledger import Ledger
-from harness.roles import OwnerAction, Role, WorkflowError, runbook
+from artemis.judge import CommandEvidence, Criterion, RuleJudge
+from artemis.ledger import Check, Ledger
+from artemis.roles import Interrupt, Role, WorkflowError
 
 
 COMMIT = "a" * 40
-COMMAND = (sys.executable, "test_todo.py")
+CHECK = ("python3", "-m", "unittest")
 
 
 class LedgerTests(unittest.TestCase):
     def setUp(self):
-        root = self.enterContext(TemporaryDirectory())
-        self.ledger = Ledger(Path(root) / ".harness" / "ledger.db")
+        root = Path(self.enterContext(TemporaryDirectory()))
+        self.ledger = Ledger(root / ".artemis" / "ledger.db")
         self.ledger.initialize()
-        self.request = self.ledger.request(Role.OWNER, "Export a list")
-        self.goal = self.ledger.set_goal(Role.LEAD, self.request, "Support scripts")
+        self.request = self.ledger.request(Role.OWNER, "Export the list as JSON")
 
-    def task(self, criteria=(Criterion("Tests", command=COMMAND),)):
-        self.ledger.plan(Role.CTO, self.goal, "Add an output flag")
-        project = self.ledger.open_project(Role.PM, self.goal, "Todo CLI")
-        return self.ledger.assign(Role.PM, project, "Add JSON output", criteria)
+    def task(self, title="Add JSON output"):
+        return self.ledger.add_task(Role.LEAD, self.request, title, "", (Criterion("tests", command=CHECK),))
 
-    def test_state_and_event_roll_back_together(self):
-        with closing(sqlite3.connect(self.ledger.path)) as db, db:
-            db.execute("""
-                CREATE TRIGGER fail_event BEFORE INSERT ON events WHEN NEW.kind = 'plan'
-                BEGIN SELECT RAISE(ABORT, 'cannot append plan'); END
-            """)
-        with self.assertRaises(sqlite3.IntegrityError):
-            self.ledger.plan(Role.CTO, self.goal, "Add an output flag")
-        with self.assertRaisesRegex(WorkflowError, "needs a CTO plan"):
-            self.ledger.open_project(Role.PM, self.goal, "Todo CLI")
-        self.assertEqual([row["kind"] for row in self.ledger.timeline()], ["request", "goal"])
+    def state(self, task):
+        return self.ledger.work(task)[0]["state"]
 
     def test_events_are_append_only(self):
         with closing(sqlite3.connect(self.ledger.path)) as db, db:
@@ -46,80 +32,77 @@ class LedgerTests(unittest.TestCase):
                 with self.assertRaisesRegex(sqlite3.IntegrityError, "append-only"):
                     db.execute(statement)
 
-    def test_role_chain_and_independent_judge(self):
+    def test_state_and_event_roll_back_together(self):
+        with closing(sqlite3.connect(self.ledger.path)) as db, db:
+            db.execute("CREATE TRIGGER fail BEFORE INSERT ON events WHEN NEW.kind = 'task' "
+                       "BEGIN SELECT RAISE(ABORT, 'no'); END")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.task()
+        self.assertEqual(self.ledger.work(), [])
+
+    def test_roles_are_enforced(self):
         task = self.task()
-        with self.assertRaisesRegex(WorkflowError, "Only cqo"):
+        with self.assertRaisesRegex(WorkflowError, "Only the judge"):
             self.ledger.judge(Role.WORKER, task, RuleJudge())
-        with self.assertRaisesRegex(WorkflowError, "Only worker"):
-            self.ledger.submit(Role.CQO, task, COMMIT, "Ready", {})
-        with self.assertRaisesRegex(WorkflowError, "Only pm"):
-            self.ledger.open_project(Role.WORKER, self.goal, "Todo CLI")
-        self.assertIn("criteria", runbook(Role.CQO))
+        with self.assertRaisesRegex(WorkflowError, "Only the lead"):
+            self.ledger.add_task(Role.WORKER, self.request, "x", "", (Criterion("t", command=CHECK),))
+        decision = self.ledger.ask(Role.LEAD, self.request, Interrupt.SEND, "Post it", "it speaks for you")
+        with self.assertRaisesRegex(WorkflowError, "Only the you"):
+            self.ledger.decide(Role.LEAD, decision, True)
 
-    def test_reject_then_pass_preserves_the_history(self):
+    def test_task_states_follow_runs_verdicts_and_receipts(self):
         task = self.task()
+        self.assertEqual(self.state(task), "queued")
+        run = self.ledger.claim_run(Role.LEAD, task, "mock")
+        self.assertEqual(self.state(task), "running")
+        with self.assertRaisesRegex(WorkflowError, "running"):
+            self.ledger.claim_run(Role.LEAD, task, "mock")
         self.ledger.submit(Role.WORKER, task, COMMIT, "Ready", {})
-        self.assertEqual(self.ledger.open_work()[0]["state"], "reported")
-        verdict = self.ledger.judge(Role.CQO, task, RuleJudge())
-        self.assertEqual(verdict.gaps, ("Tests: missing command evidence",))
-        self.assertEqual(self.ledger.open_work()[0]["state"], "needs evidence")
-        self.ledger.submit(Role.WORKER, task, COMMIT, "Tests recorded",
-                           {1: CommandEvidence(COMMAND, 0, "OK")})
-        self.assertEqual(self.ledger.judge(Role.CQO, task, RuleJudge()).kind, "pass")
-        self.assertEqual(self.ledger.open_work()[0]["state"], "verified")
-        self.ledger.request(Role.OWNER, "An unrelated request")
-        self.assertEqual(
-            [row["kind"] for row in self.ledger.timeline(task)],
-            ["request", "goal", "plan", "project", "assigned", "reported", "reject", "reported", "pass"],
-        )
+        self.ledger.judge(Role.JUDGE, task, RuleJudge())
+        self.ledger.end_run(Role.WORKER, run, "stuck", "judge: tests: missing command evidence")
+        self.assertEqual(self.state(task), "stuck")
+        run = self.ledger.claim_run(Role.LEAD, task, "mock")
+        self.ledger.submit(Role.WORKER, task, COMMIT, "Tests recorded", {1: CommandEvidence(CHECK, 0, "OK")})
+        self.assertEqual(self.ledger.judge(Role.JUDGE, task, RuleJudge()).kind, "pass")
+        self.ledger.end_run(Role.WORKER, run, "done", "verified")
+        self.assertEqual(self.state(task), "verified")
+        receipt = self.ledger.record_checks(task, COMMIT, "b" * 40, (Check(CHECK, 0, "0" * 64),))
+        self.assertEqual(receipt.state, "checked")
+        self.ledger.land(task, COMMIT, True)
+        self.assertEqual(self.state(task), "shipped")
+        self.assertEqual(self.ledger.work(task)[0]["landed"], "b" * 40)
 
-    def test_restricted_actions_require_individual_owner_approval(self):
-        task = self.task()
-        for kind in OwnerAction:
-            with self.subTest(kind=kind):
-                card = self.ledger.request_action(Role.PM, task, kind, "Release action")
-                another = self.ledger.request_action(Role.PM, task, kind, "Separate release action")
-                with self.assertRaisesRegex(WorkflowError, "unused owner approval"):
-                    self.ledger.simulate_action(Role.WORKER, card)
-                with self.assertRaisesRegex(WorkflowError, "Only owner"):
-                    self.ledger.approve(Role.PM, card)
-                self.ledger.approve(Role.OWNER, card)
-                with self.assertRaisesRegex(WorkflowError, "unused owner approval"):
-                    self.ledger.simulate_action(Role.WORKER, another)
-                self.ledger.simulate_action(Role.WORKER, card)
-                with self.assertRaisesRegex(WorkflowError, "unused owner approval"):
-                    self.ledger.simulate_action(Role.WORKER, card)
+    def test_decisions_wait_for_the_person_and_are_used_once(self):
+        decision = self.ledger.ask(Role.LEAD, self.request, Interrupt.SEND, "Post the note", "it speaks for you")
+        with self.assertRaisesRegex(WorkflowError, "approved"):
+            self.ledger.carried_out(Role.LEAD, decision, "posted")
+        self.ledger.decide(Role.OWNER, decision, True)
+        with self.assertRaisesRegex(WorkflowError, "no longer waiting"):
+            self.ledger.decide(Role.OWNER, decision, False)
+        self.ledger.carried_out(Role.LEAD, decision, "posted")
+        self.assertEqual(self.ledger.decisions()[0]["state"], "done")
+        declined = self.ledger.ask(Role.LEAD, self.request, Interrupt.SPEND, "Buy a domain", "it spends money")
+        self.ledger.decide(Role.OWNER, declined, False)
+        with self.assertRaisesRegex(WorkflowError, "approved"):
+            self.ledger.carried_out(Role.LEAD, declined, "bought")
 
-    def test_stop_blocks_runner_and_actions_even_after_approval(self):
+    def test_a_stop_holds_every_automatic_step_until_the_person_resumes(self):
         task = self.task()
-        card = self.ledger.request_action(Role.PM, task, OwnerAction.SEND, "Release note")
         self.ledger.stop(Role.OWNER, "Pause")
-        self.ledger.approve(Role.OWNER, card)
+        self.assertTrue(self.ledger.stopped())
         with self.assertRaisesRegex(WorkflowError, "stopped"):
-            self.ledger.submit(Role.WORKER, task, COMMIT, "Ready", {})
-        with self.assertRaisesRegex(WorkflowError, "stopped"):
-            self.ledger.simulate_action(Role.WORKER, card)
-        with self.assertRaisesRegex(WorkflowError, "stopped"):
-            ScriptedRunner(self.ledger).run(Role.WORKER, lambda _: self.fail("ran during stop"))
-        with self.assertRaisesRegex(WorkflowError, "Only owner"):
-            self.ledger.resume(Role.CTO, "Try again")
-        self.ledger.resume(Role.OWNER, "Resume")
-        self.ledger.simulate_action(Role.WORKER, card)
+            self.ledger.claim_run(Role.LEAD, task, "mock")
+        self.ledger.resume(Role.OWNER, "Go on")
+        self.assertFalse(self.ledger.stopped())
+        self.ledger.claim_run(Role.LEAD, task, "mock")
 
-    def test_judge_stop_requires_owner_resume_for_that_task(self):
-        task = self.task(())
-        self.ledger.submit(Role.WORKER, task, COMMIT, "Ready", {})
-        self.assertEqual(self.ledger.judge(Role.CQO, task, RuleJudge()).kind, "stop")
-        self.assertEqual(self.ledger.open_work()[0]["state"], "stopped")
-        request = self.ledger.request(Role.OWNER, "Another request")
-        goal = self.ledger.set_goal(Role.LEAD, request, "Improve another command")
-        self.ledger.plan(Role.CTO, goal, "Add a help example")
-        with self.assertRaisesRegex(WorkflowError, "This task is stopped"):
-            self.ledger.submit(Role.WORKER, task, COMMIT, "Ready", {})
-        with self.assertRaisesRegex(WorkflowError, "This task is stopped"):
-            self.ledger.judge(Role.CQO, task, RuleJudge())
-        self.ledger.resume(Role.OWNER, "Continue")
-        self.ledger.submit(Role.WORKER, task, COMMIT, "Ready again", {})
-        self.assertEqual(self.ledger.judge(Role.CQO, task, RuleJudge()).kind, "stop")
-        with self.assertRaisesRegex(WorkflowError, "This task is stopped"):
-            self.ledger.submit(Role.WORKER, task, COMMIT, "Ready again", {})
+    def test_an_older_ledger_is_refused(self):
+        other = self.ledger.path.with_name("old.db")
+        with closing(sqlite3.connect(other)) as db, db:
+            db.execute("CREATE TABLE requests (id INTEGER PRIMARY KEY, text TEXT)")
+        with self.assertRaisesRegex(WorkflowError, "another Artemis version"):
+            Ledger(other).initialize()
+
+
+if __name__ == "__main__":
+    unittest.main()

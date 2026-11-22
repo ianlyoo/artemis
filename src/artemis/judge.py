@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 import subprocess
 
-from .process import checkout_env
+from .process import checkout_env, executable as default_executable
 
 
 @dataclass(frozen=True)
@@ -21,8 +21,9 @@ class CommandEvidence:
         env = checkout_env()
         try:
             result = subprocess.run(
-                argv, executable=executable, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace", check=False, timeout=60, env=env,
+                argv, executable=executable or default_executable(argv), cwd=root, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                check=False, timeout=600, env=env,
             )
         except subprocess.TimeoutExpired:
             return cls(argv, 124, "Check timed out.")

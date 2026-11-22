@@ -4,7 +4,7 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
-from harness.judge import ArtifactEvidence, Case, CommandEvidence, Criterion, RuleJudge
+from artemis.judge import ArtifactEvidence, Case, CommandEvidence, Criterion, RuleJudge
 
 
 class JudgeTests(unittest.TestCase):

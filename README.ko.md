@@ -6,225 +6,149 @@
 </p>
 
 <p align="center">
-  <b>Multi-agent orchestration harness</b><br>
-  에이전트는 여럿, 장부는 하나.<br>
-  자기 일은 자기가 판정하지 않는다.
+  <b>리드 하나와 이야기하면, 여러 에이전트가 동시에 일합니다.</b><br>
+  진짜 결정만 당신에게 묻고, 돌아오면 작업마다 한 줄로 따라잡습니다.
 </p>
 
 <p align="center">
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="라이선스: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 이상" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#실행해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS, Linux, Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-installable%20core-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 설치형 코어" src="https://img.shields.io/badge/status-installable%20core-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="빠른 시작 CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
+  <a href="#1분-만에-해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS, Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-early%20release-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 초기 릴리스" src="https://img.shields.io/badge/status-early%20release-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="Quickstart CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#실행해-보기">데모 실행</a>
+  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-해-보기">해 보기</a>
 </p>
 
 <p align="center">
   <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/ledger-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ledger-narrow.svg">
-    <img src="assets/readme/ledger.svg" width="100%" alt="데모 작업 하나의 장부 열네 줄. 판정자는 테스트 증거가 빠진 워커의 첫 완료 주장을 반려하고 두 번째 주장을 통과시킨다. 배포 레인은 main에 그 커밋이 들어갔다고 기록한다.">
+    <source media="(max-width: 1080px)" srcset="assets/readme/digest-narrow.svg">
+    <img src="assets/readme/digest.svg" width="100%" alt="리드에게 한 문장을 줍니다. 작업자 셋이 동시에 일하고 상태 줄이 남은 수를 셉니다. 결정 하나가 당신을 기다립니다. 다이제스트는 다섯 줄로, 작업 셋이 반영됐고 당신에게는 한 번 물었다고 말합니다.">
   </picture>
 </p>
 
 <p align="center">
-  <sub>지어낸 작업 하나의 장부다. 판정자가 증거 빠진 첫 주장을 반려하고 두 번째를 통과시키면, 배포 레인이 영수증을 남긴다.<br>
-  행은 <a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>에서 가져왔고, 그림은 <a href="assets/readme/render.py">assets/readme/render.py</a>가 그린다.</sub>
+  <sub><a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>의 실행 기록을 <a href="assets/readme/render.py">assets/readme/render.py</a>가 그린 그림입니다. 기록은 <code>artemis demo</code>가 남겼습니다.<br>
+  여기 작업자는 AI 없이 정해진 변경만 하는 모의 작업자(mock)입니다. <code>artemis demo --agent claude</code>는 같은 대본을 Claude Code 작업자로 돌립니다.</sub>
 </p>
 
-한 사람이 여러 AI 에이전트에게 일을 맡기다 보면, 무엇이 정해졌고 무엇이 끝났으며 무엇이 실제로 확인됐는지 금방 알 수 없게 된다.
+코딩 에이전트를 여럿 돌리면 곧 사람이 병목이 됩니다. 따라갈 수 있는 만큼만 세션을 열거나, 읽지 않고 전부 승인하게 됩니다.
 
-Artemis는 이 세 가지를 따로 기록해 두는 하네스다. 요청과 결정, 완료 주장과 증거는 모두 장부라는 데이터베이스 한 곳에 들어가고, 채팅과 대시보드는 장부에 있는 것을 보여 줄 뿐이다. 완료 주장은 그 일을 하지 않은 판정자가 판정한다. 모든 변경은 배포 레인 하나를 거쳐 main 브랜치에 들어가고, 들어갈 때마다 영수증이 남는다.
+Artemis는 당신과 작업자 사이에 리드 하나를 둡니다. 리드는 당신의 말을 작업으로 나눠 동시에 돌리고, 작업마다 자기 Git 워크트리에서 일합니다. 판정자는 각 결과를 명령으로 확인하고, 배포 레인은 메인과 합친 결과에서 검사가 통과해야 작업을 올립니다. 당신에게 돌아오는 것은 미리 정해 둔 종류의 결정뿐입니다. 돌아오면 다이제스트가 무엇이 반영됐고, 무엇이 당신을 기다리고, 무엇이 막혔는지, 그리고 각 줄을 어떻게 아는지를 몇 줄로 알려 줍니다.
 
-코딩 에이전트 하나를 위한 설정 묶음(한 세션에서 쓰는 스킬과 지침 파일)이 아니다. 여러 에이전트를 둘러싼 조직, 즉 누가 결정하고, 상태를 어디에 두고, 누가 결과를 확인하고, 변경이 어떻게 반영되는지를 다룬다.
+실행마다 당신이 치른 비용을 셉니다: **작업 3개 완료 · 당신에게 1번 물음** (화면에는 `3 tasks done · asked you 1×`).
 
-## 역할
-
-<p align="center">
-  <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/roles-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/roles-narrow.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/roles-dark.svg">
-    <img src="assets/readme/roles-light.svg" width="100%" alt="오너, 리드, CTO, PM, 워커가 일을 차례로 넘기고, 저마다 자기 단계를 장부 하나에 적는다. 이 사슬 밖의 판정자는 완료 주장을 읽고 판정을 적는다. 배포 레인은 영수증을 적고 main을 옮긴다.">
-  </picture>
-</p>
-
-에이전트는 저마다 범위가 글로 정해진 역할 하나를 맡고, 받은 일을 더 작게 나눠 다음 역할에 넘긴다. 오너가 요청하면 리드가 무엇을 왜 할지 정하고, CTO가 어떻게 할지 정한다. PM은 프로젝트 하나를 맡고, 워커는 작업 하나를 한다. 누구든 자기 단계를 장부에 적은 다음에 일을 넘긴다.
-
-이 사슬 밖에 판정자가 있다. 코드에서는 CQO라고 부른다. 판정자는 일을 하지 않는다. 완료 주장과 증거를 읽고 통과, 반려, 정지 가운데 하나로 판정한다. 반려할 때는 빠진 것을 적고, 판정할 수 없을 때는 정지한다.
-
-코드: [roles.py](src/harness/roles.py) · [judge.py](src/harness/judge.py) · [ledger.py](src/harness/ledger.py)
-
-## 배포 레인
-
-누가 만든 변경이든 이 길 하나로만 main에 들어간다.
-
-<p align="center">
-  <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/ship-lane-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ship-lane-narrow.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/ship-lane-dark.svg">
-    <img src="assets/readme/ship-lane-light.svg" width="100%" alt="커밋 하나에 고정된 브랜치가 정지 확인, 일회용 작업트리, 검사, fast-forward를 거쳐 main에 들어간다. 정지가 걸려 있으면 멈춘다. 검사가 실패하면 red 영수증, 그사이 main이 움직였으면 stale 영수증, 성공하면 applied 영수증이 남는다.">
-  </picture>
-</p>
-
-브랜치는 커밋 하나에 고정된 채로 들어온다. 사람이 정지를 걸어 두었으면 사람이 풀 때까지 아무것도 실행되지 않는다. 정지가 없으면 `harness.toml`의 `[ship]`에 적힌 검사가 일회용 작업트리에서 돈다. 검사가 실패하면 main은 그대로 두고 red 영수증을 남긴다. 검사를 통과하면 main을 fast-forward하고 영수증을 applied로 적는다. 그사이 main이 앞서 나갔으면 영수증은 stale이 되고, 그 변경은 새 커밋으로 다시 들어와야 한다.
-
-코드: [ship.py](src/harness/ship.py) · [test_ship.py](tests/test_ship.py)
-
-## 원칙
-
-- **상태는 장부에만 있다.** 채팅 답변과 대시보드, 파일은 장부의 행을 보여 줄 뿐이다. 장부에 적지 않은 사실은 세션이 끝나면 사라진다.
-- **판정하는 쪽과 일하는 쪽은 다르다.** 증거란 출력과 함께 남긴 명령이거나 직접 열어 볼 수 있는 결과물이다. 증거 없는 주장에는 "보고됨"이라고 적는다.
-- **사람이 건 정지는 모든 자동화보다 앞선다.** 타이머와 재시도, 대기열, 장애 복구는 움직이기 전에 정지가 걸렸는지부터 본다. 정지는 사람만 풀 수 있다.
-- **세 가지 일은 오너가 승낙해야 한다.** 돈을 쓰는 일, 되돌릴 수 없는 삭제, 오너 이름으로 말하는 일이다. 나머지는 먼저 하고 나서 알린다.
-- **절차는 필요할 때 읽는다.** 역할은 절차마다 한 줄짜리 안내만 지니고, 그 순간이 오면 전문을 연다. 데모의 절차는 [examples/runbooks](examples/runbooks)에 있다.
-- **증상이 아니라 설계를 고친다.** 무언가 실패하면 그 실패를 허용한 설계를 바꾼다. 실패가 드러난 자리에 덧대지 않는다.
-
-[docs/design.ko.md](docs/design.ko.md)에 원칙마다 설명이 있고, 그 원칙이 `src/harness/`의 어느 모듈에 구현돼 있는지도 적혀 있다.
-
-## 실행해 보기
-
-이 페이지 맨 위의 장부가 바로 이 실행의 결과다. 데모는 지어낸 작업 하나를 역할과 판정자, 배포 레인에 차례로 통과시키고, 로컬 장부에는 지어낸 데이터만 들어간다. 전체 출력은 [docs/demo/transcript.txt](docs/demo/transcript.txt)에 있다.
-
-빠른 시작은 macOS나 Linux에서 실행한다. 데모와 테스트는 Windows에서도 실행할 수 있다.
+## 1분 만에 해 보기
 
 <!-- quickstart:begin -->
-Python 3.11 이상, Git, POSIX 셸이 필요하다. Git 훅이나 `GIT_DIR`를 설정하는 도구 밖의 일반 셸에서 실행한다.
+macOS나 Linux에 Python 3.11 이상, Git, [pipx](https://pipx.pypa.io/)가 있으면 됩니다. 이 단계에는 계정이 필요 없습니다.
 
 ### 설치
 
-Artemis를 클론한 디렉터리에서 다음 명령을 실행한다.
-
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install .
+pipx install git+https://github.com/ianlyoo/artemis
 ```
 
-### 프로젝트 실행
-
-가상 환경을 활성화한 채 빈 디렉터리에서 아래 명령을 실행한다. 새 Git 저장소에 가상의 텃밭 목록을 만든다.
+### 데모 실행
 
 ```sh
-set -eu
-mkdir garden-list
-cd garden-list
-git init -q -b main
-git config user.name "Garden Example"
-git config user.email garden-example
-git config commit.gpgsign false
-printf '.harness/\n' > .gitignore
-harness init
-
-printf 'print("basil")\n' > garden.py
-git add .gitignore harness.toml \
-  garden.py
-git commit -qm "Start a garden list"
-
-request=$(harness request \
-  "Make the list script-readable")
-goal=$(harness goal "$request" \
-  "Print the list as a JSON array")
-harness plan "$goal" \
-  "Use JSON and check the output"
-project=$(harness project "$goal" \
-  "Garden list")
-task=$(harness assign \
-  "$project" "Print JSON" \
-  --criterion \
-    'Source=file:garden.py' \
-  --criterion \
-    'JSON output=cmd:python check.py')
-approval=$(harness request-action \
-  --task "$task" \
-  --kind 'send as owner' \
-  "Publish a sample note")
-
-git switch -qc json-list
-cat > garden.py <<'EOF'
-import json
-
-print(json.dumps(["basil"]))
-EOF
-cat > check.py <<'EOF'
-import json
-import subprocess
-import sys
-
-output = subprocess.check_output(
-    [sys.executable, "garden.py"],
-    text=True,
-)
-assert json.loads(output) == ["basil"]
-print("JSON check passed")
-EOF
-git add garden.py check.py
-git commit -qm \
-  "Print the list as JSON"
-commit=$(git rev-parse HEAD)
-
-harness stop "Pause before submitting"
-if harness submit --task "$task" \
-  --commit "$commit" --claim "Ready"
-then
-  exit 1
-else
-  test "$?" -eq 1
-fi
-harness resume "Continue the example"
-
-harness submit --task "$task" \
-  --commit "$commit" \
-  --claim "JSON is ready" \
-  --evidence 'file:garden.py'
-if harness judge --task "$task"; then
-  exit 1
-else
-  test "$?" -eq 3
-fi
-harness submit --task "$task" \
-  --commit "$commit" \
-  --claim "JSON check recorded" \
-  --evidence 'file:garden.py' \
-  --evidence 'cmd:python check.py'
-harness judge --task "$task"
-
-git switch -q main
-harness ship --task "$task" \
-  --branch json-list
-test "$(git rev-parse main)" \
-  = "$commit"
-if harness action \
-  --approval "$approval"
-then
-  exit 1
-else
-  test "$?" -eq 1
-fi
-harness approve --approval "$approval"
-harness action --approval "$approval"
-harness show --task "$task"
+artemis demo
 ```
 
-정지 중에는 제출이 막힌다. 재개하면 명령 증거가 빠진 제출을 판정자가 반려한다. 증거를 보완하면 판정이 통과하고 배포 영수증이 남는다. 게시 요청은 승인을 기다리며 승인 뒤 게시를 모의 실행한다. 타임라인과 영수증은 `garden-list/.harness/ledger.db`에 저장한다. 텃밭 프로젝트에서 `harness show`로 다시 볼 수 있다.
-
-자기 저장소에서는 루트에서 `harness init`을 실행하고 `harness.toml`에서 `ship.checks`와 역할별 런북 경로를 설정한다. `.harness/`는 Git에 넣지 않고, 배포하기 전에 작업 트리가 깨끗한 `main`을 체크아웃한다. 후보 커밋은 체크아웃한 `main`의 `harness.toml`에 지정된 명령으로 검사한다. 증거 수집과 검사 명령은 일회용 Git 작업 트리에서 현재 프로세스 권한으로 실행한다. 신뢰할 수 있는 명령과 커밋을 사용한다. 명령마다 역할이 정해져 있으므로 로컬 작업자는 모든 역할을 실행할 수 있다.
-
-로컬 워커를 연결하려면 `[roles.worker]` 아래의 `run` 주석을 풀고 실행할 명령을 지정한다. `harness run --task N --commit SHA`는 런북, 작업 번호, 커밋, 완료 기준을 표준 입력으로 전달한다. 표준 출력을 완료 주장으로 기록한다. 검증에 쓸 증거는 `--evidence`로 수집한다. `harness runbook worker`로 설정된 지침을 읽는다.
-
-종료 코드는 성공 시 0, 워크플로 또는 로컬 작업 오류 시 1, 명령 문법이 잘못되면 2다. 판정 반려는 3, 정지는 4다. 검사에 실패하거나 후보 커밋이 `main`과 갈라졌으면 배포 명령은 5를 반환한다.
+데모는 임시 폴더에 작은 할 일 프로젝트를 만들고 리드에게 한 문장을 줍니다. 모의 작업자 셋이 동시에 일하고, 결정 하나가 당신을 기다렸다가 당신 이름으로 승인되며, 다이제스트로 끝납니다.
 <!-- quickstart:end -->
+
+## Claude Code로 쓰기
+
+[Claude Code](https://code.claude.com/docs/en/quickstart)를 설치하고 로그인한 Git 저장소 안에서:
+
+```sh
+artemis start
+```
+
+처음 시작할 때 `artemis.toml`을 만들고, `package.json`, `Cargo.toml`, `go.mod`나 Python 테스트에서 프로젝트의 테스트 명령을 찾아 적습니다. 한 번 확인하세요. 배포 레인이 병합마다 이 명령을 돌립니다. 그다음 당신의 Claude Code 세션이 리드로 열립니다. Artemis 지침, 상태 줄, `artemis` 명령이 함께 붙습니다. 원하는 것을 말하세요:
+
+> Add a --json flag and a --done filter, document both in the README, then post a release note to the team.
+
+- 리드는 당신의 말을 기록하고, 작업으로 나눠 시작합니다. 작업마다 판정자가 돌릴 검사가 붙습니다.
+- 작업자는 각자 자기 워크트리와 브랜치에서 도는 헤드리스 `claude -p`입니다. 당신의 작업 폴더는 건드리지 않습니다.
+- 상태 줄은 묻지 않아도 수를 셉니다: `● 3 running · 1 decision for you · asked you 1× · 0 done`.
+- 판정자가 결과마다 판정합니다. 배포 레인은 버리는 워크트리에서 결과를 지금의 main과 합치고, 합친 결과에서 검사를 돌려 통과할 때만 main을 옮깁니다. 실패나 충돌은 작업자에게, 그다음 리드에게 돌아갑니다. 당신에게는 오지 않습니다.
+- 릴리스 노트 게시는 당신 이름으로 말하는 일이라, 리드가 한 번 묻고 기다립니다. `! artemis approve 1`로 답하세요. `!`는 명령을 당신이 직접 실행하게 하고, 리드 세션 설정의 규칙이 리드에게 `approve`를 막습니다. 벽이 아니라 규칙입니다. 리드도 당신 권한으로 돌기 때문에, 이 규칙을 돌아갈 다른 길을 리드에게 주지 마세요.
+
+돌아와서 리드에게 "무슨 일이 있었어?"라고 묻거나 `artemis digest`를 실행하세요. 먼저 버려도 되는 프로젝트에서 해 보려면 `artemis start --demo`를 실행하세요.
+
+## 당신에게 오는 것
+
+Artemis가 당신에게 가져오는 행동은 세 종류뿐입니다:
+
+- **돈이 나가는 일**: 결제, 구매, 유료 요금제
+- **되돌릴 수 없는 삭제**: 복구할 수 없는 모든 것
+- **당신 이름으로 보내는 일**: 당신 이름의 게시, 글, 이메일, 푸시
+
+하나하나가 따로 카드로 옵니다. 정확히 무슨 행동인지, 왜 당신이 정할 일인지, 무엇을 근거로 하는지가 적혀 있습니다. 카드를 내버려 두면 아무것도 바뀌지 않고, 다른 작업은 그대로 진행됩니다. 반려된 작업, 병합 충돌, 비정상 종료, 권한 거부는 리드가 맡습니다. 다이제스트에 `stuck`으로 나오고, 리드가 다시 시키거나 접습니다. 묻는 종류를 줄이려면 `artemis.toml`의 `[interrupts]`를 고치세요. `artemis stop`은 모든 자동 작업을 한 번에 멈추고, `artemis resume`을 실행할 때까지 아무것도 다시 시작하지 않습니다.
+
+## 다이제스트
+
+```text
+Last under a minute · 3 tasks done · asked you 1× · nothing stuck
+shipped   #1 Add a --json flag            main 2d1c61c · python3 -m unittest exit 0
+shipped   #2 Add a --done filter          main 02446a5 · python3 -m unittest exit 0
+shipped   #3 Document both in the README  main dd72f65 · README mentions --json, --done
+decided   D1 Post a release note to the team  you approved · posted to the demo outbox
+```
+
+모든 줄은 그 내용을 어떻게 아는지로 시작합니다.
+
+| 라벨 | 뜻 |
+|---|---|
+| `shipped` | 합친 결과에서 검사가 통과한 뒤 main에 반영됨 |
+| `verified` | 판정자가 증거를 통과시킴; 아직 main에는 없음 |
+| `reported` | 작업자가 그렇다고 말함; 아직 아무것도 확인 안 됨 |
+| `inferred` | 리드 자신의 판단 |
+| `decided` | 당신이 결정한 것 |
+| `running` | 지금 작업자가 하는 중 |
+| `stuck` | 리드가 처리 중: 세 번 시도가 실패했거나 비정상 종료 |
+
+다이제스트는 당신이 마지막으로 읽은 뒤 바뀐 것을 다룹니다. `artemis status`는 언제든 같은 수를 보여 줍니다.
+
+## 에이전트
+
+| 에이전트 | 리드로 | 작업자로 | |
+|---|---|---|---|
+| Claude Code | `artemis start` | `claude -p`. 자기 워크트리에서 읽고 고치고 작업의 검사를 돌림; 그 밖의 것은 묻지 않고 거부 | 지원 |
+| mock | 내장 대화 | 데모 프로젝트용 정해진 변경, AI 없음 | 흐름 체험과 CI용 |
+
+Codex, OpenCode, OpenAI 호환 API 작업자가 다음 어댑터입니다.
+
+Artemis는 당신이 설치한 Claude Code를 고치지 않은 그대로, Claude Code가 관리하는 당신의 로그인이나 API 키로 실행합니다. Artemis는 자격 증명을 보지 않습니다. 작업자는 당신의 세션과 같은 요금제 사용량을 씁니다. Artemis는 Anthropic과 관계없는 프로젝트입니다.
+
+## 믿을 수 있는 이유
+
+- **장부는 하나.** 요청, 작업, 실행, 증거, 판정, 결정, 영수증은 프로젝트 안의 SQLite 파일 `.artemis/ledger.db`에 있습니다. 상태 줄, 결정함, 다이제스트는 모두 그 위의 조회입니다. 이벤트는 덧붙이기만 합니다.
+- **하는 사람이 판정하지 않습니다.** 작업자의 주장은 보고일 뿐입니다. 판정자는 기록된 것으로만 판정합니다. 작업자 커밋의 깨끗한 체크아웃에서 잡은 검사별 종료 코드와 필요한 파일의 다이제스트입니다.
+- **배포 레인은 하나.** 작업이 main에 닿는 길은 하나입니다: 버리는 워크트리에서 병합, 병합 결과에서 검사, 빨리 감기, 영수증. Artemis는 푸시하지 않습니다.
+- **멈춤이 모든 자동화를 이깁니다.** 작업자, 재시도, 배포 레인은 단계마다 당신의 멈춤을 확인합니다.
+
+작업자는 당신 권한으로 돕니다. Claude Code 작업자는 자기 워크트리에서 읽고 고치고, Git을 보고, 작업의 검사를 돌릴 수 있고, 그 밖의 것은 묻지 않고 거부됩니다. 검사는 에이전트가 쓴 코드를 당신 권한으로, 버리는 워크트리에서 실행합니다. 당신이 직접 돌려도 괜찮은 코드에만 Artemis를 쓰세요.
+
+[docs/design.ko.md](docs/design.ko.md)는 각 생각과 그것이 `src/artemis/`의 어디에 있는지 설명합니다.
+
+## 명령
+
+| 당신 | 리드 | 누구나 |
+|---|---|---|
+| `artemis start` · `artemis approve N` · `artemis decline N` · `artemis stop` · `artemis resume` | `artemis request` · `task` · `ask` · `carried` · `retry` · `drop` · `note` · `wait` | `artemis status` · `inbox` · `digest` · `show` · `demo` |
+
+설정은 `artemis.toml`에 있습니다: 누가 리드이고 누가 작업자인지, 동시에 몇 명이 일하는지, 결정 목록, 작업이 반영될 브랜치, 검사.
 
 ## 상태
 
-설계 문서와 설치형 코어, 미리 정한 역할별 동작을 실행하는 로컬 데모를 담았다. 사람이 필요한 단계에서는 시스템이 기다린다. 빠른 시작은 macOS와 Linux에서 실행한다. 데모와 단위 테스트는 Windows에서도 실행할 수 있다.
+초기 릴리스입니다: 리드, 동시 작업자, 결정함, 다이제스트를 Claude Code와 mock으로 씁니다. 빠른 시작은 CI의 새 macOS와 Linux 머신에서 돕니다. 단위 테스트는 Windows에서도 돌지만, Windows의 실제 작업자는 아직 지원하지 않습니다.
 
-이 프로젝트가 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있다.
+이 프로젝트에 영향을 준 오픈 소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있습니다.
 
 <p align="center">
   <sub>Apache-2.0 · <a href="LICENSE">LICENSE</a></sub>

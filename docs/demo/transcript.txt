@@ -1,33 +1,31 @@
-Todo CLI demo
-01  owner   request    Make the todo list readable by scripts
-02  lead    goal       Offer JSON alongside plain text
-03  cto     plan       Add an opt-in flag and test both output formats
-04  pm      project    Todo CLI
-05  pm      assigned   Add --json to todo.py [CLI artifact, Output tests]
-06  pm      waiting    Publish release note (send as owner)
-07  worker  reported   JSON flag ready (1/2 evidence)
-08  cqo     reject     Output tests: missing command evidence
-09  worker  reported   Output tests recorded (2/2 evidence)
-10  cqo     pass       All done criteria supported
-11  ship    checked    python test_todo.py exit 0
-12  ship    applied    main contains 05167cfbfc6e, receipt saved
-13  owner   approved   Publish release note
-14  worker  simulated  Publish release note
+Artemis 0.2.0 · project artemis-demo · lead: chat · workers: mock ×3 (no AI; for trying the flow)
+Workers run in their own git worktrees. Only checked work reaches main.
+You are asked only for: money out · irreversible delete · send as you.
 
-Ledger timeline | task 1
-01  owner   request    Make the todo list readable by scripts
-02  lead    goal       Offer JSON alongside plain text
-03  cto     plan       Add an opt-in flag and test both output formats
-04  pm      project    Todo CLI
-05  pm      assigned   Add --json to todo.py [CLI artifact, Output tests]
-06  pm      waiting    Publish release note (send as owner)
-07  worker  reported   JSON flag ready (1/2 evidence)
-08  cqo     reject     Output tests: missing command evidence
-09  worker  reported   Output tests recorded (2/2 evidence)
-10  cqo     pass       All done criteria supported
-11  ship    checked    python test_todo.py exit 0
-12  ship    applied    main contains 05167cfbfc6e, receipt saved
-13  owner   approved   Publish release note
-14  worker  simulated  Publish release note
+you › Add a --json flag and a --done filter, document both in the README, then post a release note to the team.
+lead (mock) › Three tasks, running in parallel:
+  #1 Add a --json flag            check: python3 -m unittest
+  #2 Add a --done filter          check: python3 -m unittest
+  #3 Document both in the README  check: README mentions --json, README mentions --done
+  Post a release note to the team — it speaks in your name, so it waits in your inbox (decision 1).
+● 3 running · 1 decision for you · asked you 1× · 0 done
+● 2 running · 1 decision for you · asked you 1× · 1 done
+● 1 running · 1 decision for you · asked you 1× · 2 done
+● 0 running · 1 decision for you · asked you 1× · 3 done
+Decision 1 · send as you
+  Post a release note to the team
+  Why you: it speaks in your name.
+  If you do nothing: nothing happens.
+  Ready because: tasks #1–#3 shipped, checks green on main dd72f65.
+  artemis approve 1   ·   artemis decline 1
 
-Ledger: .harness/ledger.db
+you › artemis approve 1
+approved: 1 · the lead carries it out
+lead (mock) › Decision 1: posted to the demo outbox (outbox/team.md; nothing left this machine).
+
+you › artemis digest
+Last under a minute · 3 tasks done · asked you 1× · nothing stuck
+shipped   #1 Add a --json flag            main 2d1c61c · python3 -m unittest exit 0
+shipped   #2 Add a --done filter          main 02446a5 · python3 -m unittest exit 0
+shipped   #3 Document both in the README  main dd72f65 · README mentions --json, --done
+decided   D1 Post a release note to the team  you approved · posted to the demo outbox

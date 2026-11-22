@@ -4,7 +4,7 @@ This repository redistributes no third-party source code.
 
 ## Acknowledgements
 
-The projects below informed this showcase. Their upstream licences are listed for reference.
+The projects below informed this project. Their upstream licences are listed for reference.
 
 | Project | Licence | Link |
 |---|---|---|
@@ -16,6 +16,5 @@ The projects below informed this showcase. Their upstream licences are listed fo
 | Astryx | MIT | <https://github.com/meta/astryx> |
 | Frontend Slides | MIT | <https://github.com/zarazhangrui/frontend-slides> |
 | Gitleaks | MIT | <https://github.com/gitleaks/gitleaks> |
-| Mermaid | MIT | <https://github.com/mermaid-js/mermaid> |
 
 Unslop is by Damir Sokolovsky and is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

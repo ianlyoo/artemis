@@ -2,161 +2,148 @@
 
 English · [한국어](design.ko.md)
 
-This document explains how Artemis is put together and why. The main text describes the private design. Each section ends with the behavior implemented by the local demo.
+This document explains how Artemis is put together and why. Each section ends with where the idea lives in `src/artemis/`.
 
 ## The problem
 
-A single AI agent in a single session is easy to follow. You read what it did and you check it. The trouble starts when one person directs many agents at once, over days, across sessions that forget everything when they end.
+One AI agent in one session is easy to follow: you read what it did and you check it. The trouble starts when one person directs several agents at once.
 
-Three things go wrong, and they go wrong quietly.
+**The person becomes the bottleneck.** If every agent asks before every action, the person spends the day approving things they cannot evaluate, and learns to approve without reading. If no agent asks, risky actions happen unseen. Either way the number of agents a person can run is set by their attention, not by the machine.
 
-**Decisions get lost.** A decision made in a chat scrolls out of view. The next session starts without it and either asks again or guesses. Two agents working in parallel can each act on a different version of the same instruction.
+**Context gets lost.** Each session sees only its own work. A decision made in one chat is not in the next, and the person ends up as the only place where the whole picture lives, re-reading logs to remember what happened.
 
-**"Done" stops meaning done.** The agent that did the work is also the one that says it is finished. It reports in good faith, but a report is not a check. After a few rounds the person can no longer tell which results were tested and which were only described.
+**"Done" stops meaning done.** The agent that did the work is also the one that says it is finished. A report is not a check, and after a few rounds nobody can tell which results were tested and which were only described.
 
-**Changes arrive by many roads.** One agent commits straight to the main branch, another asks a person to merge, a third edits a file in place. Nobody can say what is running now, which checks it passed, or which change broke something.
+**Changes arrive by many roads.** One agent commits to main, another leaves a branch, a third edits in place. Nobody can say what landed, which checks it passed, or what broke it.
 
-A fourth problem sits underneath the other three: the person becomes the bottleneck. If every agent asks before every action, the person spends the day approving things they cannot evaluate, and learns to approve without reading. If no agent asks, risky actions happen unseen.
+Artemis answers each with one structural mechanism rather than more instructions: one lead you talk to, workers that run in parallel in their own worktrees, a judge separate from the work, one ship lane, a short written list of decisions that wait for a person, and one ledger that everything else is a view of.
 
-Artemis answers each of these with one structural mechanism rather than with more instructions: roles with written scope, one ledger as the only state, a judge that is separate from the work, one ship lane, and a short list of decisions that wait for a person.
+## The attention budget
 
-## Roles and authority
+The claim Artemis makes is about the person's attention, and it counts it. An interruption is one decision put in the person's inbox. A finished task is one task whose work reached the target branch through the ship lane. Every status line and every digest shows both numbers, for example `3 tasks done · asked you 1×`.
 
-Work moves down a chain of roles. Each role receives a piece of work, narrows it, and hands smaller pieces to the next.
+Three kinds of action reach the person, and nothing else:
 
-| Role | Owns | Hands down |
-|---|---|---|
-| Owner | the intent and the few decisions that are theirs alone | a request |
-| Lead | what is wanted and why | a goal with done criteria |
-| CTO | how it will be built | projects, each with a brief |
-| PM | one project, until it is done | tasks, each with a brief |
-| Worker | one task | a report with evidence |
-| Judge | nothing in the work | a verdict |
+- **money out**: a payment, a purchase, a paid plan
+- **irreversible delete**: anything that cannot be restored
+- **send as you**: publishing, posting, emailing or pushing in the person's name
 
-The judge is called the CQO (chief quality officer) in the code, and its role name there is `cqo`.
+The line is drawn at irreversibility and at acting in someone's name, because those are the mistakes the system cannot repair on its own. Below that line, asking costs attention and teaches the person to approve without reading, which is worse than not asking. A project can narrow the list in `artemis.toml`, but not extend it beyond these three.
 
-Each role has a short card describing its responsibility, its limits and the shape of what it returns. Work is handed down as a brief with five fixed parts: the task, the expected deliverable, the scope (which paths or systems may be touched), how the result will be checked, and the condition for finishing. The worker keeps going until that condition is true and then reports once. Because every report has the same fields (outcome, changes, checks run with their results, risks, suggested next step), a PM can compare them side by side. A worker that sends back a plan of things still to do has not reported; it does those things first.
+Each decision arrives as its own card, at the point where the work reaches it: what exactly, why it needs the person, what it rests on, and what happens if they do nothing. The answer to the last is always "nothing happens". Holding one decision back does not pause the rest of the work.
 
-Approval happens at the plan level. Once the owner has said yes to a plan, nothing inside it comes back for another yes. A PM does not ask the CTO whether it may start a worker; a worker does not ask whether it may run the tests. What does go back up the chain is a block that only the level above can lift, and the short list of owner-only decisions described below.
+Everything else belongs to the lead: a rejected result, a failed check, a merge conflict, a crash, a permission refusal. These show in the digest as `stuck`, and the lead retries or drops them. They never become questions for the person.
 
-There is one launcher and no other way to start an agent. Before an agent runs, the launcher records its role, its brief and the agent that asked for it. That record is how a person can see every agent at work and halt any of them; an agent started some other way would leave no such record.
+In the code: `src/artemis/roles.py` names the three kinds as `Interrupt`. `src/artemis/config.py` reads the project's list from `[interrupts]` in `artemis.toml` and refuses anything outside the three. `src/artemis/attention.py` computes the two counts from ledger events.
 
-In the code: `src/harness/roles.py` names the roles and holds the shared check that the right role is acting. Each transition in `src/harness/ledger.py` states which role may make it. `src/harness/agents.py` hands a step to a local callback; the demo has no registry of running agents.
+## The lead
+
+The person talks to one agent. The lead turns what they say into tasks, starts them, keeps track of them, and tells the person what changed.
+
+With Claude Code, the lead is the person's own interactive session, started by `artemis start` with the Artemis instructions appended to its system prompt. The lead records the person's words as they said them, splits them into tasks that can run at the same time, gives each a check, and starts them. It then runs `artemis wait` in the background, which returns when something worth telling happens: a task shipped or got stuck, a decision was asked or answered. The lead reports that in a line or two and waits again. A status line under the prompt keeps the counts in view without anyone asking.
+
+The lead is denied approving its own questions. Its session is started with settings that deny `artemis approve`, `artemis decline` and `artemis resume` to the agent. This is a rule, not a security boundary: the lead runs as the same user and could in principle write the ledger another way, so Artemis does not claim that only the person can approve. The person runs them directly (in Claude Code, `! artemis approve 1` runs the command as the person, outside the agent's permissions). After an approval the lead carries the action out and records what it did.
+
+The demo uses a built-in chat lead with a fixed rule-based planner, so the whole flow can be tried without an account. It prints `mock` on every line it speaks.
+
+In the code: `src/artemis/lead.py` starts the lead session (`start_cli`, `session_settings`) and holds the chat lead and its planner (`plan`, `chat`). `src/artemis/templates/lead.md` is the lead's instructions. `artemis wait` and `artemis statusline` are in `src/artemis/attention.py`.
+
+## Workers in parallel
+
+Each task runs in its own Git worktree on its own branch (`artemis/task-N`), so workers never touch the person's checkout or each other's files. Up to `max_workers` run at once; the rest queue and start as others finish.
+
+A detached supervisor runs each task to its end without the person. It gives the worker the task on standard input, waits for it, and treats what the worker printed as a claim, not as a result. Then the supervisor, not the worker, commits whatever the worker changed. Workers only edit. They need no write access to Git's shared files, and a worker that wrote conflict markers or nothing at all is caught before anything is judged.
+
+If the judge rejects the work, a check fails on the merged result, or the target branch moved and the branch now conflicts, the supervisor tries again with the reason attached: up to three attempts per task. For a conflict, the supervisor merges the current target into the task branch and asks the worker to resolve it. After the last attempt the task is `stuck` and goes to the lead.
+
+Headless workers run as the person, so they are fenced. A Claude Code worker may read and edit files in its worktree, look at Git, and run its task's checks; anything else is refused without asking anyone, because nobody is there to approve.
+
+In the code: `src/artemis/supervise.py` (`dispatch`, `supervise`, the retry loop, `_commit`, `_merge_target`). `src/artemis/agents.py` lists the agents and builds each worker's command, including the Claude Code allowlist. `src/artemis/mock_worker.py` is the worker without AI used by the demo and CI.
 
 ## The ledger as the only state
 
-The ledger is one database. It holds everything the system knows: the requests as they were written, the goals and their criteria, the projects and tasks, the agents and their briefs, every claim and its evidence, every verdict, and every ship receipt.
+The ledger is one SQLite file, `.artemis/ledger.db`, in the project. It holds everything Artemis knows: the person's requests as they wrote them, tasks and their criteria, runs, submissions, evidence, verdicts, decisions and ship receipts.
 
-Two kinds of record live in it.
+Two kinds of record live in it. **Tables** hold the current state of things. **Events** form an append-only history: every change of state writes an event in the same transaction as the table change, and database triggers refuse any edit or delete of an event.
 
-**Tables** hold the current state of things. A task row says which project it belongs to, which agent holds it, and where it stands.
+Everything the person sees is a **view** over those rows: the status line, the inbox, the digest, `artemis show`. None of them holds state of its own. That is what makes sessions disposable. The lead can be closed and reopened, a supervisor can crash, and the next reader finds the same facts.
 
-**Events** form an append-only history. Every change of state writes an event in the same transaction as the table change: task assigned, evidence attached, claim made, verdict given, change shipped. Nothing is edited after the fact. When something needs correcting, a new event records the correction.
-
-Everything else is a **view**. A chat reply that says a project is waiting on review reads that from the ledger. A dashboard is a set of queries. A report file is rendered from rows. None of these is a place where state lives. If a fact appears only in a chat message, then as far as the system is concerned it does not exist, and the next session will not see it.
-
-This rule is what makes sessions disposable. An agent can be stopped and replaced at any moment, because what it knew that mattered is already in the ledger. A new session reads its brief and the rows it needs, and carries on.
-
-The ledger is a database rather than a folder of files for ordinary reasons: many agents write at once, a state change and its event must land together or not at all, and every role needs to ask questions such as "which tasks under this goal are still open" without reading everything.
-
-In the code: `src/harness/ledger.py` keeps the records in a local SQLite file. Each transition opens one write transaction, checks for a stop, and saves the change together with its event; database triggers refuse any edit or delete of an event. `src/harness/cli.py` prints the timeline by querying those rows.
+In the code: `src/artemis/ledger.py` keeps the tables, the events, the triggers and the `work` view that gives every task one current state. Each transition opens one write transaction, checks the person's stop, and saves the change with its event.
 
 ## Evidence and the judge
 
-The agent that did the work does not decide whether the work is done. A separate judge does.
+The agent that did the work does not decide whether it is done. A judge does, and it rules only on what was recorded.
 
-When a PM believes a project is finished, it makes a **done claim**: for each criterion, the evidence that meets it. Evidence here means one of two things. Either a command that was run, kept with what it printed, or a thing that can be inspected directly, such as a commit, a file, a screenshot or a ship receipt. A sentence saying that something works does not qualify; it is a report.
+Each task has criteria. A command criterion is met when the command, run in a clean checkout of the worker's commit, exits 0 (and prints the expected text, if one is named). A file criterion is met when the commit contains the file; its digest is recorded. The supervisor captures this evidence itself; the worker's claim is kept but carries no weight. The judge gives one of three verdicts: pass, reject with the list of unmet criteria, or stop when the case cannot be judged (a task with no criteria, for instance).
 
-Every factual statement in the system carries one of four labels:
+Every line the person reads says how it is known:
 
-- **shipped**: came in through the ship lane and is live
-- **verified**: the writer can point to the command output or artifact
-- **reported**: stated by someone, checked by no one
-- **inferred**: concluded from other facts, not seen directly
+| Label | Meaning |
+|---|---|
+| `shipped` | on the target branch, after the checks passed on the merged result |
+| `verified` | the judge passed the evidence; not landed yet |
+| `reported` | a worker says so; nothing checked yet |
+| `inferred` | the lead's own reading |
+| `decided` | the person ruled on a decision |
+| `running` | a worker is on it now |
+| `stuck` | the lead is handling it |
 
-The labels keep a report honest about how much is known. A summary full of "reported" lines reads very differently from one full of "verified" lines, and the reader can tell at a glance.
-
-The judge is a fresh session that took no part in the work. It cannot change anything; it can only read the claim, the criteria, the evidence, and the original request, and give one verdict.
-
-- **Pass.** Every criterion is met by evidence. The claim becomes fact in the ledger.
-- **Reject with gaps.** One or more criteria are not met. Each gap names the criterion and quotes what in the evidence falls short. The gaps go back to the doer as a fixed list.
-- **Stop.** The judge cannot rule. The request can be read two ways that lead to different verdicts, or a criterion depends on something the evidence does not show. The question goes to the lead, and the judge does not guess.
-
-Criteria come in two kinds, and each is tested against what was recorded. A command criterion is met when the recorded exit code is zero and, if the criterion names some expected text, the recorded output contains it. A file criterion is met when the evidence names the expected path and carries a well-formed digest. Any criterion left unmet becomes a gap, and the gaps together make a reject. A task with no criteria at all cannot be judged, so the judge stops.
-
-The repair round has a rule that keeps it finite. After a reject, the doer fixes the named gaps and claims again. The second judge rules only on those gaps, and on anything the repair broke. If it notices something the first judge missed, that goes to the lead as a question, not back to the doer as a new list. The doer is never chasing a target that moves each round.
-
-In the code: `src/harness/judge.py` defines the evidence records, the case, the judge interface and the three verdicts. Its rule-based judge reads the commit, the claim, the criteria and the recorded evidence, and gives the same verdict on every run. It does not reopen files or run anything, and it checks every criterion on each submission; the case carries neither the original request nor an earlier gap list.
+In the code: `src/artemis/judge.py` defines the evidence records, the criteria and the rule-based judge, which reads only recorded evidence and gives the same verdict on every run. The labels are computed in `src/artemis/attention.py` from the `work` view.
 
 ## The ship lane
 
-Every change reaches the main branch through one command. No agent and no person edits main directly.
+Work reaches the target branch by one route.
 
-1. The lane takes a branch, pinned at one commit, so that what is checked is exactly what lands.
-2. It reads the ledger for a person's stop. If one is in force, nothing runs.
-3. It creates a disposable worktree and merges the branch onto main there.
-4. It runs the checks this change needs: the tests the changed files can affect, and a scan for secrets in the new commits.
-5. **Green:** main is fast-forwarded to the tested commit, and a receipt goes into the ledger with the commit, the checks run, their results and their timings.
-6. **Red:** main is not touched. The failure, with the check that failed, goes into the ledger.
-7. The worktree is removed either way.
+1. Take the judged commit, pinned, so that what was checked is exactly what lands.
+2. Look for the person's stop. If one is set, nothing runs.
+3. Merge the commit onto the current target in a disposable worktree.
+4. Run the project's checks on that merge.
+5. **Green:** move the target to the tested commit, only if it has not moved since step 3, and save a receipt with the commit, the target, and each check's command, exit code and output digest.
+6. **Red or conflict:** leave the target alone and send the reason back to the task's supervisor.
 
-A branch ships whole or not at all. The receipt describes the tested tip, so landing only some of its commits would leave a receipt describing something that never ran.
+Landings are serial: one lock per project, so two tasks never race to move the same branch. If the target is the branch checked out in the person's working copy, the lane fast-forwards it only when no local edits are in the way; otherwise it moves the branch reference with a compare-and-swap. Artemis never pushes. Publishing your branch is a decision of the `send as you` kind.
 
-The value of one lane is that the main branch always has an explanation. For any commit on main there is a receipt that says which checks it passed and when. A failure is equally visible: it is a row, not a message someone may or may not have read.
+The target is `main` by default and is set under `[ship] target` in `artemis.toml`. A commit that tracks files under `.artemis/` is refused.
 
-In the code: `src/harness/ship.py` checks out the pinned commit, detached, in a disposable worktree, runs the checks there, removes the worktree and fast-forwards main in the local repository. `src/harness/ledger.py` will not record checks or apply a commit unless the latest verdict passed that exact commit. Deploying to services, restarting them and migrating live data belong to the private system and are not part of this code. The ship checks are the commands listed under `[ship]` in the operator's harness.toml; they run against the pinned commit. Each check record contains the command, exit code and output digest.
+In the code: `src/artemis/ship.py` (`ship`, `_merge`, `_advance`, `lane`). `src/artemis/ledger.py` will not record checks or a receipt unless the latest verdict passed that exact commit.
 
-## Owner-only decisions and the stop
+## The decision inbox and the stop
 
-Three kinds of action wait for the owner's explicit yes:
+A decision is created by the lead (`artemis ask`) with its kind, what exactly, and why it needs the person. It waits in the inbox until the person approves or declines it; the card also says what the request's tasks have done so far, so the person decides with the evidence in front of them. An approval lets the action happen once.
 
-- **spending money**, such as paying for something or placing a trade
-- **deleting something that cannot be restored**
-- **speaking in the owner's name**, such as sending a message or publishing
+The **stop** works the other way. `artemis stop` writes a stop to the ledger. Supervisors, retries and the ship lane look for it before every step and do nothing while it is set; nothing new can be started. A stop has no expiry and no automatic release. Only the person clears it with `artemis resume`, which the lead's session cannot run.
 
-The owner never receives a bundle of approvals. A payment, a deletion or a message to send each arrives as a separate question at the point where the work reaches it, and holding one of them back does not pause anything else in the project.
+In the code: decisions and the stop are ledger transitions in `src/artemis/ledger.py`; the cards and the inbox are drawn by `src/artemis/attention.py`; `src/artemis/cli.py` exposes `approve`, `decline`, `stop` and `resume`.
 
-Below that bar, agents act first and tell the owner afterwards, and that covers edits to the system's own role cards and runbooks too. The line is drawn at irreversibility and at acting in the owner's name, because those are the cases where a mistake cannot be repaired by the system itself. Below that line, asking costs the owner attention and teaches them to approve without reading, which is worse than not asking.
+## The digest
 
-The **stop** works the other way. A person can stop any work, at any level, and the stop is written to the ledger. Anything that acts on its own, whether a scheduled job, a retry, a queued task, crash recovery or the ship lane, looks for a stop before doing anything and does nothing while one is set. A stop has no expiry and no automatic release; a person clears it. In the same spirit, the lead and the CTO can be halted by a person but not by another agent.
+The digest is how a person catches up. It covers what changed since they last read it: one header line with the window, the counts and whether anything is stuck, then one line per task touched and per decision made, each starting with its label.
 
-When a step needs a person, the system waits.
+```text
+Last 9 min · 3 tasks done · asked you 1× · nothing stuck
+shipped   #1 Add a --json flag            main 2d1c61c · python3 -m unittest exit 0
+shipped   #2 Add a --done filter          main 02446a5 · python3 -m unittest exit 0
+shipped   #3 Document both in the README  main dd72f65 · README mentions --json, --done
+decided   D1 Post a release note to the team  you approved · posted to the demo outbox
+```
 
-In the code: `src/harness/roles.py` lists the three owner-only actions. `src/harness/ledger.py` checks for the owner's stop inside every write, the final fast-forward included, and lets an owner-only action run once for each approval granted. `harness show`, in `src/harness/cli.py`, prints the timeline.
+Reading it marks the window as read, so the next digest starts from there. The window is relative ("Last 9 min"), not a clock time. A task line names its evidence by the check's label, so the person sees what was checked without opening anything.
 
-## On-demand runbooks
-
-An agent's instructions compete for its attention. Every rule placed in every prompt makes the other rules a little weaker, and most rules apply only at a particular moment: before deleting something, before shipping, before writing a brief for another agent.
-
-So a role card is short, and procedures live in separate runbooks. Each runbook starts with a few lines of metadata: its name, the roles it applies to, and a one-line trigger that names the moment, such as "before changing a database schema". From that metadata the system builds, for each role, an index of one line per runbook. The index goes into the role's prompt. The full procedure does not.
-
-An agent that finds itself at one of those moments opens the matching runbook and works through it. A worker sees a short index; a PM sees a longer one; the judge sees none, because judging has no procedure beyond its card.
-
-Adding a procedure is adding one file. The index is regenerated from the metadata, so there is no second list to keep in step.
-
-In the code: just before a step is handed to a role, `src/harness/agents.py` asks `src/harness/roles.py` for that role's card, one packaged TOML file per role, with examples in `examples/runbooks/`. The demo's scripted steps receive the card but do not act on it, and the per-role index described above is not built here.
+In the code: `src/artemis/attention.py` (`digest`, `window`, `counts`, `status`, `statusline`).
 
 ## Failure handling
 
-When something fails, the fix goes where the failure came from.
+When something fails, the fix goes where the failure came from. The reflex with agents is to add a guard where the problem showed: a retry, a wait, a special case, another line in the prompt. Each guard works for a while; together they make a system nobody can reason about. Artemis asks what in the design produced the failure and changes that. For example, workers once committed their own changes, and one agent's sandbox could not write Git's shared files. The fix was not a permission exception: the supervisor now owns commits, and workers only edit.
 
-The usual reflex with agents is to add a guard where the problem showed: a retry, a wait, a check for this one case, an extra instruction in the prompt. Each guard works for a while. Together they make a system that nobody can reason about, where each guard hides the next failure and the original cause is still there.
+Failures are recorded, not swallowed. A red check is a row with its output digest, a stuck task carries its reason, and the digest shows both.
 
-The rule in Artemis is to ask what in the design produced the failure, and to change that. If a role keeps misreading a brief, the brief's shape changes. If two places hold the same fact and drift apart, one of them is removed. A new capability goes into a single place, and the commit that adds it also removes whatever it makes redundant, such as an older code path and the code that called it, or a manual step. Nobody tries to keep such commits small; a change is as large as the cause requires.
+In the code: a failed transition rolls back together with its event (`src/artemis/ledger.py`); a red check and a conflict are recorded and handed back (`src/artemis/ship.py`, `src/artemis/supervise.py`); a supervisor whose process died is marked stuck the next time anyone reads the ledger (`reap` in `src/artemis/attention.py`).
 
-Reports state failures plainly. A failing test comes with the output that shows it failing, and work that did not happen is listed as not done rather than left out. A hidden failure costs more later than the failure did.
+## What was left out
 
-Closing a project includes a short note from the PM on what should change next time; if nothing should, the note says why. These notes are ledger rows too. When a lesson shows that a role card or a runbook should change, the change goes through the ship lane like any other.
+Artemis began as a larger personal system. This repository is its open version, and some parts are absent on purpose.
 
-In the code: no single module holds this. It can be seen in three places: a failed transition rolls back together with its event, a red check is saved as a row, and a ship that moved main but failed to save its receipt is completed on the next run. The demo keeps no project notes.
-
-## What was deliberately left out
-
-This repository is a rewritten showcase of a private system. Some parts of that system are absent on purpose.
-
-- **Agents.** The showcase runs scripted steps locally.
-- **Deployment.** The private ship lane also deploys services, restarts them and migrates live data. The showcase ship lane stops at the main branch of a local repository.
-- **The interface.** The private system has chat and dashboard front ends. Here the views are the command line and the demo's printed timeline.
-- **Real data.** No row from the private ledger is here. Every request, task, name and number in the code, the tests and the demo is invented.
-
-What remains is the part worth reading: the roles, the ledger, the judge, the ship lane, and the rules that connect them.
+- **Pushing and deploying.** The ship lane stops at a local branch. Pushing is the person's call.
+- **More agents.** Claude Code and the mock work today; Codex, OpenCode and an OpenAI-compatible API worker are next.
+- **Windows workers.** The unit tests run on Windows; real workers there are not supported yet.
+- **Real data.** Every request, task and name in the code, the tests and the demo is invented.

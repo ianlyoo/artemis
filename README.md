@@ -6,223 +6,147 @@
 </p>
 
 <p align="center">
-  <b>Multi-agent orchestration harness</b><br>
-  Many agents, one ledger.<br>
-  No one judges their own work.
+  <b>Talk to one lead. Many agents work at once.</b><br>
+  You are asked only for real decisions, and you catch up in one line per task.
 </p>
 
 <p align="center">
   <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#see-it-run"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="Platform: macOS, Linux, and Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#status"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-installable%20core-e6edf3?style=flat-square&labelColor=30363d"><img alt="Status: installable core" src="https://img.shields.io/badge/status-installable%20core-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#try-it-in-a-minute"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="Platform: macOS and Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#status"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-early%20release-e6edf3?style=flat-square&labelColor=30363d"><img alt="Status: early release" src="https://img.shields.io/badge/status-early%20release-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="Quickstart CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
 <p align="center">
-  <a href="README.ko.md">한국어</a> · <a href="docs/design.md">Design</a> · <a href="#see-it-run">Run the demo</a>
+  <a href="README.ko.md">한국어</a> · <a href="docs/design.md">Design</a> · <a href="#try-it-in-a-minute">Try it</a>
 </p>
 
 <p align="center">
   <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/ledger-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ledger-narrow.svg">
-    <img src="assets/readme/ledger.svg" width="100%" alt="The ledger of one demo task, fourteen rows. The judge rejects the worker's first claim because the test evidence is missing, passes the second, and the ship lane records that main contains the commit.">
+    <source media="(max-width: 1080px)" srcset="assets/readme/digest-narrow.svg">
+    <img src="assets/readme/digest.svg" width="100%" alt="One sentence goes to the lead. Three workers run at once while the status line counts them down. One decision waits for you. The digest then says, in five lines, that three tasks were shipped and you were asked once.">
   </picture>
 </p>
 
 <p align="center">
-  <sub>One invented task: the judge rejects the first claim for missing evidence, passes the second, and the ship lane leaves a receipt.<br>
-  Rows from <a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>, drawn by <a href="assets/readme/render.py">assets/readme/render.py</a>.</sub>
+  <sub>The run in <a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>, from <code>artemis demo</code>, drawn by <a href="assets/readme/render.py">assets/readme/render.py</a>.<br>
+  Its workers are the mock, which makes canned changes without AI. <code>artemis demo --agent claude</code> runs the same script with Claude Code workers.</sub>
 </p>
 
-When one person directs many AI agents, it soon becomes hard to tell what was decided, what was done, and what was actually checked.
+Run several coding agents at once and you soon become the bottleneck. Either you keep to as many sessions as you can follow, or you approve everything without reading it.
 
-Artemis is a harness that keeps those three apart. Every request, decision, claim and piece of evidence goes into one database, the ledger, and chat and dashboards only show what the ledger holds. A judge that did none of the work rules on each claimed completion, and every change reaches the main branch through one ship lane that leaves a receipt.
+Artemis puts one lead between you and the workers. The lead turns what you ask into tasks that run in parallel, each in its own Git worktree. A judge checks each result against commands, and a ship lane lands the work after the checks pass on the merged result. Only the decisions you listed come back to you. When you return, the digest says in a few lines what landed, what is waiting for you and what is stuck, and how each line is known.
 
-It is not a setup kit for one coding agent (skills and instruction files for a single session). It is the organisation around many agents: who decides, where the state lives, who checks the work, and how a change ships.
+Every run counts what it cost you: **3 tasks done · asked you 1×**.
 
-## Roles
-
-<p align="center">
-  <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/roles-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/roles-narrow.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/roles-dark.svg">
-    <img src="assets/readme/roles-light.svg" width="100%" alt="The owner, lead, CTO, PM and worker hand work down a chain, and each writes its step to one ledger. A judge outside the chain reads claims and writes verdicts. The ship lane writes a receipt and moves main.">
-  </picture>
-</p>
-
-Each agent holds one role with a written scope and hands a narrower piece of work to the next. The owner makes a request, the lead decides what and why, the CTO decides how, a PM runs one project and a worker does one task. Each writes its step into the ledger before handing on.
-
-Outside this chain sits the judge, called the CQO in the code. It does none of the work. It reads each completion claim with its evidence and gives one of three verdicts: pass, reject with the gaps listed, or stop when it cannot rule.
-
-Code: [roles.py](src/harness/roles.py) · [judge.py](src/harness/judge.py) · [ledger.py](src/harness/ledger.py)
-
-## The ship lane
-
-Whoever wrote a change, it reaches main by this one route.
-
-<p align="center">
-  <picture>
-    <source media="(max-width: 700px)" srcset="assets/readme/ship-lane-narrow.svg">
-    <source media="(min-width: 768px) and (max-width: 1080px)" srcset="assets/readme/ship-lane-narrow.svg">
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/ship-lane-dark.svg">
-    <img src="assets/readme/ship-lane-light.svg" width="100%" alt="A branch pinned at one commit goes through a stop check, a disposable worktree, the checks and a fast-forward to reach main. A stop holds it. A failed check ends in a red receipt, a main that has moved in a stale receipt, and success in an applied receipt.">
-  </picture>
-</p>
-
-A branch enters pinned at one commit. While a stop set by a person is in force, nothing runs until a person lifts it. Otherwise the checks listed under `[ship]` in `harness.toml` run in a disposable worktree. A failing check leaves main untouched and records a red receipt. When the checks pass, main is fast-forwarded and the receipt is marked applied; if main has moved on in the meantime, the receipt is marked stale and the change needs a new commit.
-
-Code: [ship.py](src/harness/ship.py) · [test_ship.py](tests/test_ship.py)
-
-## Principles
-
-- **State lives in the ledger alone.** A chat reply, a dashboard or a file only displays ledger rows; a fact never written there is gone when the session ends.
-- **The judge is not the doer.** Proof means a command kept with what it printed, or a thing that can be inspected directly. A claim without proof is marked "reported".
-- **A stop set by a person beats every automation.** Timers, retries, queues and crash recovery look for it before acting, and only a person can clear it.
-- **Three kinds of action need the owner's yes:** spending money, deleting what cannot be restored, and speaking in the owner's name. The rest goes ahead and is reported afterwards.
-- **Procedures are read when needed.** A role carries a one-line pointer per procedure and opens the full text when that moment arrives. The demo's are in [examples/runbooks](examples/runbooks).
-- **Repair the design, not the symptom.** When something fails, the part of the design that let it happen is changed. Nothing is bolted on at the spot where the failure surfaced.
-
-[docs/design.md](docs/design.md) explains each idea and points to the module in `src/harness/` where it lives.
-
-## See it run
-
-The ledger at the top of this page is this run. It takes an invented task through the roles, the judge and the ship lane, against a local ledger that holds only made-up data. The full output is in [docs/demo/transcript.txt](docs/demo/transcript.txt).
-
-Use the quickstart on macOS or Linux. The demo and tests also run on Windows.
+## Try it in a minute
 
 <!-- quickstart:begin -->
-You need Python 3.11 or newer, Git, and a POSIX shell. Run the quickstart from a normal shell outside Git hooks and other tools that set `GIT_DIR`.
+You need Python 3.11 or newer, Git and [pipx](https://pipx.pypa.io/), on macOS or Linux. No account is needed for this part.
 
 ### Install
 
-Run these commands from your Artemis clone.
-
 ```sh
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install .
+pipx install git+https://github.com/ianlyoo/artemis
 ```
 
-### Run a project
-
-Keep the virtual environment active and run this block in an empty directory. It creates a fictional garden list in a new Git repository.
+### Run the demo
 
 ```sh
-set -eu
-mkdir garden-list
-cd garden-list
-git init -q -b main
-git config user.name "Garden Example"
-git config user.email garden-example
-git config commit.gpgsign false
-printf '.harness/\n' > .gitignore
-harness init
-
-printf 'print("basil")\n' > garden.py
-git add .gitignore harness.toml \
-  garden.py
-git commit -qm "Start a garden list"
-
-request=$(harness request \
-  "Make the list script-readable")
-goal=$(harness goal "$request" \
-  "Print the list as a JSON array")
-harness plan "$goal" \
-  "Use JSON and check the output"
-project=$(harness project "$goal" \
-  "Garden list")
-task=$(harness assign \
-  "$project" "Print JSON" \
-  --criterion \
-    'Source=file:garden.py' \
-  --criterion \
-    'JSON output=cmd:python check.py')
-approval=$(harness request-action \
-  --task "$task" \
-  --kind 'send as owner' \
-  "Publish a sample note")
-
-git switch -qc json-list
-cat > garden.py <<'EOF'
-import json
-
-print(json.dumps(["basil"]))
-EOF
-cat > check.py <<'EOF'
-import json
-import subprocess
-import sys
-
-output = subprocess.check_output(
-    [sys.executable, "garden.py"],
-    text=True,
-)
-assert json.loads(output) == ["basil"]
-print("JSON check passed")
-EOF
-git add garden.py check.py
-git commit -qm \
-  "Print the list as JSON"
-commit=$(git rev-parse HEAD)
-
-harness stop "Pause before submitting"
-if harness submit --task "$task" \
-  --commit "$commit" --claim "Ready"
-then
-  exit 1
-else
-  test "$?" -eq 1
-fi
-harness resume "Continue the example"
-
-harness submit --task "$task" \
-  --commit "$commit" \
-  --claim "JSON is ready" \
-  --evidence 'file:garden.py'
-if harness judge --task "$task"; then
-  exit 1
-else
-  test "$?" -eq 3
-fi
-harness submit --task "$task" \
-  --commit "$commit" \
-  --claim "JSON check recorded" \
-  --evidence 'file:garden.py' \
-  --evidence 'cmd:python check.py'
-harness judge --task "$task"
-
-git switch -q main
-harness ship --task "$task" \
-  --branch json-list
-test "$(git rev-parse main)" \
-  = "$commit"
-if harness action \
-  --approval "$approval"
-then
-  exit 1
-else
-  test "$?" -eq 1
-fi
-harness approve --approval "$approval"
-harness action --approval "$approval"
-harness show --task "$task"
+artemis demo
 ```
 
-You should see a blocked submission while stopped, a rejection for missing command evidence, then a pass and a ship receipt. The note waits for approval and is simulated after approval. The timeline and receipts live in `garden-list/.harness/ledger.db`. Run `harness show` again from the garden project to read them.
-
-For your own repository, run `harness init` at its root and edit `harness.toml` to set `ship.checks` and the role runbook paths. Keep `.harness/` out of Git and check out a clean `main` before shipping. The checked-out `harness.toml` on `main` selects the checks for the pinned candidate. The evidence and check commands run locally in disposable Git worktrees with your process permissions. Use commands and commits you trust. Each command selects its role, so a local operator can act in every role.
-
-To connect a local worker, uncomment `run` under `[roles.worker]` and set its command. `harness run --task N --commit SHA` passes the runbook, task number, commit and criteria on stdin. It records stdout as the claim. Supply `--evidence` to capture proof separately. `harness runbook worker` prints the configured instructions.
-
-Commands exit with 0 on success, 1 for a workflow or local operation error, and 2 for invalid command syntax. Judgment returns 3 for rejection or 4 for a stop. Shipping returns 5 if checks fail or the candidate diverges from `main`.
+The demo makes a small to-do project in a temporary folder and gives the lead one sentence. Three mock workers run at once, one decision waits for you and is approved as you, and the digest ends the run.
 <!-- quickstart:end -->
+
+## Use it with Claude Code
+
+Inside a Git repository with [Claude Code](https://code.claude.com/docs/en/quickstart) installed and signed in:
+
+```sh
+artemis start
+```
+
+The first start writes `artemis.toml` with your project's test command, found from `package.json`, `Cargo.toml`, `go.mod` or your Python tests. Check it once: the ship lane runs it on every merge. Then your own Claude Code session opens as the lead, with the Artemis instructions, a status line and the `artemis` command. Tell it what you want:
+
+> Add a --json flag and a --done filter, document both in the README, then post a release note to the team.
+
+- The lead records your words, splits them into tasks and starts them. Each task gets a check the judge will run.
+- Each worker is a headless `claude -p` in its own worktree on its own branch. Workers never touch your checkout.
+- The status line keeps count without you asking: `● 3 running · 1 decision for you · asked you 1× · 0 done`.
+- The judge rules on each result. The ship lane merges it with the current main in a throwaway worktree, runs your checks on the merge, and moves main only if they pass. A failure or conflict goes back to the worker, and then to the lead. It never comes to you.
+- Posting the release note speaks for you, so the lead asks once and waits. You answer with `! artemis approve 1`. The `!` runs the command as you; a rule in the lead's session settings denies it `approve`. That is a rule, not a wall: the lead runs as you, so do not give it other ways around it.
+
+Ask the lead "what happened?" when you come back, or run `artemis digest`. To try all of this on a throwaway project first, run `artemis start --demo`.
+
+## What reaches you
+
+Artemis puts three kinds of action to you, and nothing else:
+
+- **money out**: a payment, a purchase, a paid plan
+- **irreversible delete**: anything that cannot be restored
+- **send as you**: publishing, posting, emailing or pushing in your name
+
+Each one comes as a separate card: the exact action, why it is yours to decide, and the evidence behind it. A card you ignore changes nothing, and work on other tasks carries on. Rejected work, merge conflicts, crashes and permission refusals are the lead's problem: they show as `stuck` in the digest while the lead retries or drops them. To be asked about fewer kinds, edit `[interrupts]` in `artemis.toml`. `artemis stop` halts all automatic work at once; nothing starts again until you run `artemis resume`.
+
+## The digest
+
+```text
+Last under a minute · 3 tasks done · asked you 1× · nothing stuck
+shipped   #1 Add a --json flag            main 2d1c61c · python3 -m unittest exit 0
+shipped   #2 Add a --done filter          main 02446a5 · python3 -m unittest exit 0
+shipped   #3 Document both in the README  main dd72f65 · README mentions --json, --done
+decided   D1 Post a release note to the team  you approved · posted to the demo outbox
+```
+
+Every line starts with how it is known.
+
+| Label | Meaning |
+|---|---|
+| `shipped` | on main, after the checks passed on the merged result |
+| `verified` | the judge passed the evidence; not on main yet |
+| `reported` | a worker says so; nothing checked yet |
+| `inferred` | the lead's own reading |
+| `decided` | you ruled on a decision |
+| `running` | a worker is on it now |
+| `stuck` | the lead is handling it: three attempts failed, or a crash |
+
+The digest covers what changed since you last read it. `artemis status` shows the same counts at any time.
+
+## Agents
+
+| Agent | As the lead | As a worker | |
+|---|---|---|---|
+| Claude Code | `artemis start` | `claude -p`, reading and editing in its worktree and running its task's checks; anything else is refused without asking | supported |
+| mock | built-in chat | canned edits for the demo project, no AI | for trying the flow and for CI |
+
+Codex, OpenCode and an OpenAI-compatible API worker are the next adapters.
+
+Artemis runs the unmodified Claude Code you installed, under your own sign-in or API key, which Claude Code manages; Artemis never sees your credentials. Workers draw on the same plan allowance as your own sessions. Artemis is independent of Anthropic.
+
+## How it stays trustworthy
+
+- **One ledger.** Requests, tasks, runs, evidence, verdicts, decisions and receipts live in `.artemis/ledger.db`, a SQLite file in your project. The status line, the inbox and the digest are queries over it. Events are append-only.
+- **The judge is not the doer.** A worker's claim is a report. The judge rules only on what was recorded: the exit code of each check and the digest of each required file, captured in a clean checkout of the worker's commit.
+- **One ship lane.** Work reaches main by one route: merge in a disposable worktree, checks on the merge, fast-forward, receipt. Artemis never pushes.
+- **A stop beats every automation.** Workers, retries and the ship lane look for your stop before each step.
+
+Workers run as you. A Claude Code worker may read and edit in its worktree, look at Git and run its task's checks, and everything else is refused without asking. The checks run agent-written code as you, in disposable worktrees. Use Artemis on code you would run yourself.
+
+[docs/design.md](docs/design.md) explains each idea and where it lives in `src/artemis/`.
+
+## Commands
+
+| You | The lead | Anyone |
+|---|---|---|
+| `artemis start` · `artemis approve N` · `artemis decline N` · `artemis stop` · `artemis resume` | `artemis request` · `task` · `ask` · `carried` · `retry` · `drop` · `note` · `wait` | `artemis status` · `inbox` · `digest` · `show` · `demo` |
+
+Settings are in `artemis.toml`: which agent leads and which works, how many workers run at once, the interrupt list, the branch work lands on, and the checks.
 
 ## Status
 
-This repository includes the design, an installable core, and a local demo with scripted roles. When a step needs a person, the system waits. The quickstart runs on macOS and Linux. The demo and unit tests also run on Windows.
+This is an early release: the lead, parallel workers, the decision inbox and the digest, with Claude Code and the mock. The quickstart runs on fresh macOS and Linux machines in CI. Unit tests also run on Windows; real workers there are not supported yet.
 
 See [NOTICES.md](NOTICES.md) for the open-source projects that informed this project.
 
