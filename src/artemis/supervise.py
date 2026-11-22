@@ -211,7 +211,7 @@ def supervise(root: Path, run: int) -> None:
             problem = _commit(tree, root, task["title"])
             sha = git(tree, "rev-parse", "HEAD")
             if problem or sha == base:
-                note = problem or note or "the worker made no change"
+                note = problem or "the worker made no change"
                 feedback = f"Your last attempt left no usable change: {note}. Finish the change."
                 ledger.retrying(Role.WORKER, task["id"], note)
                 continue

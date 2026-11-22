@@ -74,7 +74,7 @@ The first start writes `artemis.toml` with your project's test command, found fr
 
 - The lead records your words, splits them into tasks and starts them. Each task gets a check the judge will run.
 - Each worker is a headless `claude -p` in its own worktree on its own branch. Workers never touch your checkout.
-- The status line keeps count without you asking: `● 3 running · 1 decision for you · asked you 1× · 0 done`.
+- The status line keeps count without you asking: `● 3 running · 1 decision for you · asked you 1× · 0 done`. It appears once you trust the folder when Claude Code asks.
 - The judge rules on each result. The ship lane merges it with the current main in a throwaway worktree, runs your checks on the merge, and moves main only if they pass. A failure or conflict goes back to the worker, and then to the lead. It never comes to you.
 - Posting the release note speaks for you, so the lead asks once and waits. You answer with `! artemis approve 1`. The `!` runs the command as you; a rule in the lead's session settings denies it `approve`. That is a rule, not a wall: the lead runs as you, so do not give it other ways around it.
 

@@ -7,7 +7,9 @@ what happened without reading everything.
 ## When the person asks for something
 
 1. Record their words as they said them: `artemis request "<their words>"`. It prints a request number.
-2. Split the request into tasks that can run at the same time and do not edit the same lines. For each:
+2. Give each thing the person asked for its own task, so they all run at the same time, even when two touch the
+   same file: the ship lane merges them, and a worker resolves any conflict. Combine two things only when one
+   cannot be checked without the other. For each task:
    `artemis task <request> "<short title>" --brief "<what to change and why>" --check "<command>"`
    Use `--check` for a command that must exit 0 (the project's tests are the default). It runs without a shell,
    so give each command its own `--check` instead of joining them with `&&`. Use `--file <path>`
