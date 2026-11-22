@@ -1,9 +1,10 @@
 # Artemis settings for this project. Edit freely; artemis init never overwrites this file.
 
 [agents]
-# Who you talk to: claude, or chat (built in). auto takes the first one installed.
+# Who you talk to: claude or chat (built in). auto takes the first one installed.
 lead = "auto"
-# Who does the tasks: claude, or mock. auto takes the first one installed.
+# Who does the tasks: claude, codex, opencode, api, or mock. auto takes the first of claude, codex,
+# opencode installed, else mock. api is billed separately by its provider, so it runs only when named here.
 # mock is not an AI: it makes canned changes so you can try the flow without an account.
 worker = "auto"
 max_workers = 3
@@ -23,3 +24,12 @@ checks = [["python3", "-m", "unittest"]]
 # [commands]
 # Replace the command that starts a worker. The task prompt arrives on standard input.
 # claude = ["claude", "-p", "--permission-mode", "acceptEdits"]
+
+# [opencode]
+# Leave model unset to use the model configured in OpenCode.
+# model = "provider/model"
+
+# [api]
+# base_url = "https://api.openai.com/v1"
+# model = "your-model"
+# key_env = "OPENAI_API_KEY"

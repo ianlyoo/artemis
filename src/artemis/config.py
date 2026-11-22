@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from importlib.resources import files
 import json
 import os
+import re
 from pathlib import Path
 import tomllib
+from urllib.parse import urlsplit
 
 from .roles import Interrupt, WorkflowError
 
@@ -33,6 +35,41 @@ def _table(value: object, field_name: str) -> dict:
     return value
 
 
+def _setting(table: dict, name: str, default: str | None, section: str) -> str | None:
+    value = table.get(name, default)
+    if value is not None and (not isinstance(value, str) or not value.strip() or "\0" in value):
+        raise WorkflowError(f"{section}.{name} needs a nonempty string.")
+    return value
+
+
+@dataclass(frozen=True)
+class ApiSettings:
+    model: str
+    base_url: str
+    key_env: str
+
+    @classmethod
+    def load(cls, table: dict) -> "ApiSettings":
+        model = _setting(table, "model", None, "api")
+        base_url = _setting(table, "base_url", "https://api.openai.com/v1", "api")
+        key_env = _setting(table, "key_env", "OPENAI_API_KEY", "api")
+        if model is None:
+            raise WorkflowError("api.model needs a model name.")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", key_env):
+            raise WorkflowError("api.key_env needs an environment variable name.")
+        try:
+            url = urlsplit(base_url)
+            host = url.hostname
+            valid_port = url.port != 0
+        except ValueError:
+            host = None
+        if (not host or not valid_port or url.username is not None or "?" in base_url or "#" in base_url
+                or any(char.isspace() for char in base_url)
+                or not (url.scheme == "https" or (url.scheme == "http" and host in {"localhost", "127.0.0.1", "::1"}))):
+            raise WorkflowError("api.base_url needs HTTPS or loopback HTTP, without credentials, query or fragment.")
+        return cls(model, base_url.rstrip("/"), key_env)
+
+
 @dataclass(frozen=True)
 class Config:
     root: Path
@@ -44,6 +81,8 @@ class Config:
     max_workers: int = 3
     worker_minutes: int = 20
     commands: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    opencode_model: str | None = None
+    api: ApiSettings | None = None
 
     @classmethod
     def load(cls, root: Path) -> "Config":
@@ -81,9 +120,13 @@ class Config:
             if not isinstance(value, str) or not value:
                 raise WorkflowError(f"agents.{role} needs an agent name.")
             names[role] = value
+        opencode = _table(data.get("opencode", {}), "opencode")
+        opencode_model = _setting(opencode, "model", None, "opencode")
+        api = ApiSettings.load(_table(data["api"], "api")) if "api" in data else None
         return cls(root, frozenset(map(Interrupt, asks)),
                    tuple(command(item, "ship.checks") for item in checks), target,
-                   names["lead"], names["worker"], limits["max_workers"], limits["worker_minutes"], commands)
+                   names["lead"], names["worker"], limits["max_workers"], limits["worker_minutes"], commands,
+                   opencode_model, api)
 
     @classmethod
     def initialize(cls, root: Path, target: str = "main") -> "Config":

@@ -14,7 +14,7 @@ from . import attention, sample
 from .agents import pick
 from .config import CONFIG_NAME, Config, command, ledger_path
 from .judge import Criterion
-from .lead import chat, header, pair, start
+from .lead import chat, header, start
 from .ledger import Ledger
 from .roles import Interrupt, Role, WorkflowError
 from .ship import git
@@ -34,7 +34,7 @@ def _parser() -> Parser:
 
     begin = add("start", help="Start the lead you talk to (in a Git repository, or --demo).")
     begin.add_argument("--demo", action="store_true", help="Create ./artemis-demo, a small project to try it on.")
-    begin.add_argument("--agent", metavar="NAME", help="claude or mock for both lead and workers (default: artemis.toml).")
+    begin.add_argument("--agent", metavar="NAME", help="Choose a worker and use Claude as lead for claude or built-in chat otherwise.")
     play = add("demo", help="Run the whole path once, unattended, with mock workers.")
     play.add_argument("--fast", action="store_true", help="Make the mock workers near-instant.")
     play.add_argument("--agent", default="mock", metavar="NAME", help="Worker agent (default: mock).")
@@ -134,8 +134,16 @@ def _init(root: Path) -> Config:
     return config
 
 
+def _agents(config: Config):
+    return pick(config.lead, "lead"), pick(config.worker, "worker", config)
+
+
 def _session(name: str | None, config: Config) -> Config:
-    lead, worker = pair(name, config)
+    if name is None:
+        lead, worker = _agents(config)
+    else:
+        worker = pick(name, "worker", config)
+        lead = pick("claude" if worker.lead else "chat", "lead")
     os.environ["ARTEMIS_LEAD"], os.environ["ARTEMIS_WORKER"] = lead.name, worker.name
     return Config.load(config.root)
 
@@ -148,7 +156,7 @@ def _start(args: argparse.Namespace) -> int:
         os.chdir(target)
     root = _root()
     config = _session(args.agent, _init(root))
-    lead, worker = pair(None, config)
+    lead, worker = _agents(config)
     return start(config, lead, worker)
 
 
@@ -156,15 +164,16 @@ def _demo(fast: bool, agent: str, keep: bool) -> int:
     """The golden path, unattended: one sentence, three workers, one decision, approve, digest."""
     if fast:
         os.environ["ARTEMIS_MOCK_SECONDS"] = "0.2"
-    os.environ["ARTEMIS_LEAD"], os.environ["ARTEMIS_WORKER"] = "chat", pick(agent, "worker").name
     with TemporaryDirectory(prefix="artemis-demo-") as scratch:
         root = (Path.cwd() if keep else Path(scratch)) / "artemis-demo"
         if root.exists():
             raise WorkflowError("./artemis-demo already exists; remove it or run the demo elsewhere.")
         sample.create(root)
         config = _init(root)
+        os.environ["ARTEMIS_LEAD"], os.environ["ARTEMIS_WORKER"] = "chat", pick(agent, "worker", config).name
+        config = Config.load(root)
         ledger = Ledger(ledger_path(root))
-        lead, worker = pair(None, config)
+        lead, worker = _agents(config)
         print(header(config, lead, worker), flush=True)
 
         def scripted():
@@ -237,7 +246,7 @@ def _ledger_command(args: argparse.Namespace, root: Path) -> int:
                 raise WorkflowError(f"Task {args.task} is {row['state']}; only a stuck task is retried.")
             if args.brief:
                 ledger.revise(Role.LEAD, args.task, args.brief)
-            spawn(root, ledger.claim_run(Role.LEAD, args.task, pick(config.worker, "worker").name), args.task)
+            spawn(root, ledger.claim_run(Role.LEAD, args.task, pick(config.worker, "worker", config).name), args.task)
         case "drop":
             ledger.drop(Role.LEAD, args.task, args.reason)
             tree = worktree(root, args.task)

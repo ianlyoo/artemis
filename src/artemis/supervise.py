@@ -10,6 +10,7 @@ import shlex
 import signal
 import subprocess
 import sys
+from tempfile import TemporaryFile
 import time
 
 from .agents import AGENTS, Agent, pick
@@ -39,7 +40,7 @@ def dispatch(config: Config, ledger: Ledger) -> list[int]:
         return []
     rows = ledger.work()
     room = config.max_workers - sum(row["state"] == "running" for row in rows)
-    agent = pick(config.worker, "worker")
+    agent = pick(config.worker, "worker", config)
     started = []
     for row in rows:
         if room <= 0:
@@ -83,18 +84,19 @@ def _run_agent(config: Config, ledger: Ledger, agent: Agent, tree: Path, text: s
                criteria: tuple[Criterion, ...], log: Path) -> tuple[str, str]:
     """Run the worker to its end. Returns (outcome, claim): outcome is done, stopped, timeout or failed.
 
-    The claim is what the worker printed on standard output; its standard error goes to the log only.
+    Normalize the final claim before logging it. Provider progress stays in the temporary stream.
     """
     checks = tuple(c.command for c in criteria if c.command)
-    argv = agent.worker_argv(checks, config.commands.get(agent.name))
-    prompt_file, out_file = log.with_suffix(".prompt"), log.with_suffix(".out")
-    prompt_file.write_text(text, encoding="utf-8")
-    with log.open("ab") as stream, prompt_file.open("rb") as stdin, out_file.open("wb") as out:
+    argv, env, decode = agent.worker_launch(config, tree, checks)
+    with (log.open("ab") as stream, TemporaryFile(dir=log.parent) as stdin,
+          TemporaryFile(mode="w+", encoding="utf-8", errors="replace", dir=log.parent) as output):
+        stdin.write(text.encode("utf-8"))
+        stdin.seek(0)
         stream.write(f"\n--- {agent.name} worker: {shlex.join(argv[:3])} ...\n".encode())
         stream.flush()
         try:
-            process = subprocess.Popen(argv, cwd=tree, stdin=stdin, stdout=out, stderr=stream,
-                                       env=checkout_env(), start_new_session=os.name != "nt")
+            process = subprocess.Popen(argv, cwd=tree, stdin=stdin, stdout=output, stderr=stream,
+                                       env=checkout_env() | env, start_new_session=os.name != "nt")
         except OSError as error:
             return "failed", f"{argv[0]} could not start: {error.strerror}"
         deadline = time.monotonic() + config.worker_minutes * 60
@@ -110,8 +112,15 @@ def _run_agent(config: Config, ledger: Ledger, agent: Agent, tree: Path, text: s
             time.sleep(POLL_S)
         if outcome == "done" and process.returncode:
             outcome = "failed"
-    claim = out_file.read_bytes().decode("utf-8", errors="replace").strip()
-    with log.open("ab") as stream:
+        output.seek(0)
+        try:
+            claim = decode(output) if decode else output.read().strip()
+        except WorkflowError as error:
+            claim = str(error)
+            if outcome == "done":
+                outcome = "failed"
+        if decode and outcome == "done" and not claim:
+            outcome, claim = "failed", "The worker finished without a final message."
         stream.write(claim.encode() + b"\n")
     return outcome, claim[-1500:]
 
@@ -196,6 +205,9 @@ def supervise(root: Path, run: int) -> None:
                         "failed": "the worker exited with an error"}[result] + f": {output[-300:]}"
                 if result == "timeout":
                     return
+                feedback = f"The previous run failed: {note}. Finish the change."
+                ledger.retrying(Role.WORKER, task["id"], note)
+                continue
             problem = _commit(tree, root, task["title"])
             sha = git(tree, "rev-parse", "HEAD")
             if problem or sha == base:

@@ -56,9 +56,9 @@ A detached supervisor runs each task to its end without the person. It gives the
 
 If the judge rejects the work, a check fails on the merged result, or the target branch moved and the branch now conflicts, the supervisor tries again with the reason attached: up to three attempts per task. For a conflict, the supervisor merges the current target into the task branch and asks the worker to resolve it. After the last attempt the task is `stuck` and goes to the lead.
 
-Headless workers run as the person, so they are fenced. A Claude Code worker may read and edit files in its worktree, look at Git, and run its task's checks; anything else is refused without asking anyone, because nobody is there to approve.
+Headless workers run as the person, so they are fenced. A Claude Code worker may read and edit files in its worktree, look at Git, and run its task's checks; anything else is refused without asking anyone, because nobody is there to approve. A Codex worker runs with its shell turned off and reaches files and checks only through a small tool server Artemis starts for that worktree. An OpenCode worker runs under a permission profile that allows reading, editing and the task's checks and denies the rest. The API worker cannot run anything: it sends the tracked files in one request, and Artemis checks every path in the reply before writing it.
 
-In the code: `src/artemis/supervise.py` (`dispatch`, `supervise`, the retry loop, `_commit`, `_merge_target`). `src/artemis/agents.py` lists the agents and builds each worker's command, including the Claude Code allowlist. `src/artemis/mock_worker.py` is the worker without AI used by the demo and CI.
+In the code: `src/artemis/supervise.py` (`dispatch`, `supervise`, the retry loop, `_commit`, `_merge_target`). `src/artemis/agents.py` lists the agents and builds each worker's command, including the Claude Code allowlist; `src/artemis/worker_adapters.py` holds the Codex and OpenCode settings and reads each one's final message as the claim; `src/artemis/codex_tools.py` is the Codex tool server and `src/artemis/api_worker.py` the API worker. `src/artemis/mock_worker.py` is the worker without AI used by the demo and CI.
 
 ## The ledger as the only state
 
@@ -144,6 +144,6 @@ In the code: a failed transition rolls back together with its event (`src/artemi
 Artemis began as a larger personal system. This repository is its open version, and some parts are absent on purpose.
 
 - **Pushing and deploying.** The ship lane stops at a local branch. Pushing is the person's call.
-- **More agents.** Claude Code and the mock work today; Codex, OpenCode and an OpenAI-compatible API worker are next.
+- **Other leads.** Only Claude Code (and the demo's chat lead) can lead, because a lead needs a way to keep approvals with the person; Codex, OpenCode and the API worker take tasks only.
 - **Windows workers.** The unit tests run on Windows; real workers there are not supported yet.
 - **Real data.** Every request, task and name in the code, the tests and the demo is invented.

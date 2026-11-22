@@ -119,11 +119,14 @@ The digest covers what changed since you last read it. `artemis status` shows th
 | Agent | As the lead | As a worker | |
 |---|---|---|---|
 | Claude Code | `artemis start` | `claude -p`, reading and editing in its worktree and running its task's checks; anything else is refused without asking | supported |
+| Codex | — | `codex exec` with its shell turned off: it reads files and runs the task's checks through Artemis tools, and edits with its own patch tool | supported |
+| OpenCode | — | `opencode run` under an Artemis permission profile: read, edit and the task's checks; everything else is denied | tested against a stand-in CLI |
+| OpenAI-compatible API | — | one request carrying the tracked files; Artemis checks the reply's whole-file edits and writes them | tested against a stand-in server |
 | mock | built-in chat | canned edits for the demo project, no AI | for trying the flow and for CI |
 
-Codex, OpenCode and an OpenAI-compatible API worker are the next adapters.
+Choose with `worker = "..."` under `[agents]` in `artemis.toml`. `auto` takes the first of Claude Code, Codex and OpenCode that is installed, and the mock when none is. The API worker is billed separately by its provider, so it runs only when you name it; set `model`, `base_url` and `key_env` (the name of the environment variable that holds your key) under `[api]`.
 
-Artemis runs the unmodified Claude Code you installed, under your own sign-in or API key, which Claude Code manages; Artemis never sees your credentials. Workers draw on the same plan allowance as your own sessions. Artemis is independent of Anthropic.
+Artemis runs the CLIs you installed, unmodified, under the sign-in or API key each one manages; Artemis never sees those credentials. Workers draw on the same plan allowance as your own sessions. The API worker reads its key from the environment variable you name and sends it only to your endpoint. Artemis is independent of Anthropic, OpenAI and OpenCode.
 
 ## How it stays trustworthy
 
@@ -146,7 +149,7 @@ Settings are in `artemis.toml`: which agent leads and which works, how many work
 
 ## Status
 
-This is an early release: the lead, parallel workers, the decision inbox and the digest, with Claude Code and the mock. The quickstart runs on fresh macOS and Linux machines in CI. Unit tests also run on Windows; real workers there are not supported yet.
+This is an early release: the lead, parallel workers, the decision inbox and the digest. Claude Code leads; Claude Code, Codex, OpenCode, an OpenAI-compatible API and the mock work. The quickstart runs on fresh macOS and Linux machines in CI. Unit tests also run on Windows; real workers there are not supported yet.
 
 See [NOTICES.md](NOTICES.md) for the open-source projects that informed this project.
 

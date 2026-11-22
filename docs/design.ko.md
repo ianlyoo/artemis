@@ -56,9 +56,9 @@ Claude Code에서 리드는 그 사람의 대화형 세션 그 자체입니다. 
 
 판정자가 반려하거나, 병합 결과에서 검사가 실패하거나, 대상 브랜치가 움직여 충돌이 나면, 감독은 이유를 붙여 다시 시킵니다. 작업마다 세 번까지입니다. 충돌이면 감독이 지금의 대상을 작업 브랜치에 병합하고 작업자에게 해결을 맡깁니다. 마지막 시도 뒤에도 안 되면 작업은 `stuck`이 되어 리드에게 갑니다.
 
-헤드리스 작업자는 사람의 권한으로 돌기 때문에 울타리를 칩니다. Claude Code 작업자는 자기 워크트리에서 읽고 고치고, Git을 보고, 작업의 검사를 돌릴 수 있습니다. 그 밖의 것은 아무에게도 묻지 않고 거부됩니다. 승인할 사람이 그 자리에 없기 때문입니다.
+헤드리스 작업자는 사람의 권한으로 돌기 때문에 울타리를 칩니다. Claude Code 작업자는 자기 워크트리에서 읽고 고치고, Git을 보고, 작업의 검사를 돌릴 수 있습니다. 그 밖의 것은 아무에게도 묻지 않고 거부됩니다. 승인할 사람이 그 자리에 없기 때문입니다. Codex 작업자는 셸을 끈 채로 돌고, 파일과 검사에는 Artemis가 그 워크트리에 띄운 작은 도구 서버로만 닿습니다. OpenCode 작업자는 읽기, 수정, 작업의 검사만 허용하고 나머지는 거부하는 권한 프로필 아래에서 돕니다. API 작업자는 아무것도 실행할 수 없습니다. 추적 중인 파일을 요청 한 번에 보내고, 답에 담긴 경로를 Artemis가 모두 확인한 뒤에 씁니다.
 
-코드에서는: `src/artemis/supervise.py`(`dispatch`, `supervise`, 재시도 루프, `_commit`, `_merge_target`). `src/artemis/agents.py`는 에이전트 목록과 작업자 명령을 만들며, Claude Code 허용 목록도 여기서 만듭니다. `src/artemis/mock_worker.py`는 데모와 CI가 쓰는, AI 없는 작업자입니다.
+코드에서는: `src/artemis/supervise.py`(`dispatch`, `supervise`, 재시도 루프, `_commit`, `_merge_target`). `src/artemis/agents.py`는 에이전트 목록과 작업자 명령을 만들며, Claude Code 허용 목록도 여기서 만듭니다. `src/artemis/worker_adapters.py`는 Codex와 OpenCode 설정을 가지고 각자의 마지막 메시지를 주장으로 읽습니다. `src/artemis/codex_tools.py`는 Codex 도구 서버, `src/artemis/api_worker.py`는 API 작업자입니다. `src/artemis/mock_worker.py`는 데모와 CI가 쓰는, AI 없는 작업자입니다.
 
 ## 유일한 상태인 장부
 
@@ -144,6 +144,6 @@ decided   D1 Post a release note to the team  you approved · posted to the demo
 Artemis는 더 큰 개인 시스템에서 시작했습니다. 이 저장소는 그 공개판이고, 몇 부분은 일부러 뺐습니다.
 
 - **푸시와 배포.** 배포 레인은 로컬 브랜치에서 멈춥니다. 푸시는 사람이 정합니다.
-- **더 많은 에이전트.** 지금은 Claude Code와 mock이 됩니다. Codex, OpenCode, OpenAI 호환 API 작업자가 다음입니다.
+- **다른 리드.** 리드는 Claude Code(와 데모의 대화 리드)만 맡습니다. 리드에게는 승인을 사람에게 남겨 둘 방법이 필요하기 때문입니다. Codex, OpenCode, API 작업자는 작업만 맡습니다.
 - **Windows 작업자.** 단위 테스트는 Windows에서도 돌지만, Windows의 실제 작업자는 아직 지원하지 않습니다.
 - **실제 데이터.** 코드, 테스트, 데모의 모든 요청, 작업, 이름은 지어낸 것입니다.

@@ -119,11 +119,14 @@ decided   D1 Post a release note to the team  you approved · posted to the demo
 | 에이전트 | 리드로 | 작업자로 | |
 |---|---|---|---|
 | Claude Code | `artemis start` | `claude -p`. 자기 워크트리에서 읽고 고치고 작업의 검사를 돌림; 그 밖의 것은 묻지 않고 거부 | 지원 |
+| Codex | — | 셸을 끈 `codex exec`. 파일 읽기와 작업의 검사는 Artemis 도구로, 수정은 자기 패치 도구로 | 지원 |
+| OpenCode | — | Artemis 권한 프로필 아래의 `opencode run`. 읽기, 수정, 작업의 검사만 허용하고 나머지는 거부 | 대역 CLI로 시험함 |
+| OpenAI 호환 API | — | 추적 중인 파일을 담은 요청 한 번; 답으로 온 파일 단위 수정을 Artemis가 확인하고 씀 | 대역 서버로 시험함 |
 | mock | 내장 대화 | 데모 프로젝트용 정해진 변경, AI 없음 | 흐름 체험과 CI용 |
 
-Codex, OpenCode, OpenAI 호환 API 작업자가 다음 어댑터입니다.
+`artemis.toml`의 `[agents]`에서 `worker = "..."`로 고릅니다. `auto`는 Claude Code, Codex, OpenCode 중 설치된 첫 번째를, 없으면 mock을 씁니다. API 작업자는 그 제공자가 따로 요금을 매기므로 이름을 직접 적었을 때만 돕니다. `[api]`에 `model`, `base_url`, `key_env`(키를 담은 환경 변수의 이름)를 적으세요.
 
-Artemis는 당신이 설치한 Claude Code를 고치지 않은 그대로, Claude Code가 관리하는 당신의 로그인이나 API 키로 실행합니다. Artemis는 자격 증명을 보지 않습니다. 작업자는 당신의 세션과 같은 요금제 사용량을 씁니다. Artemis는 Anthropic과 관계없는 프로젝트입니다.
+Artemis는 당신이 설치한 CLI를 고치지 않은 그대로, 각 CLI가 관리하는 로그인이나 API 키로 실행합니다. Artemis는 그 자격 증명을 보지 않습니다. 작업자는 당신의 세션과 같은 요금제 사용량을 씁니다. API 작업자는 당신이 지정한 환경 변수에서 키를 읽고, 그 키를 당신의 엔드포인트에만 보냅니다. Artemis는 Anthropic, OpenAI, OpenCode와 관계없는 프로젝트입니다.
 
 ## 믿을 수 있는 이유
 
@@ -146,7 +149,7 @@ Artemis는 당신이 설치한 Claude Code를 고치지 않은 그대로, Claude
 
 ## 상태
 
-초기 릴리스입니다: 리드, 동시 작업자, 결정함, 다이제스트를 Claude Code와 mock으로 씁니다. 빠른 시작은 CI의 새 macOS와 Linux 머신에서 돕니다. 단위 테스트는 Windows에서도 돌지만, Windows의 실제 작업자는 아직 지원하지 않습니다.
+초기 릴리스입니다: 리드, 동시 작업자, 결정함, 다이제스트가 있습니다. 리드는 Claude Code가, 작업은 Claude Code, Codex, OpenCode, OpenAI 호환 API, mock이 맡습니다. 빠른 시작은 CI의 새 macOS와 Linux 머신에서 돕니다. 단위 테스트는 Windows에서도 돌지만, Windows의 실제 작업자는 아직 지원하지 않습니다.
 
 이 프로젝트에 영향을 준 오픈 소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있습니다.
 
