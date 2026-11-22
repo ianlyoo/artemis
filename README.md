@@ -135,7 +135,7 @@ Artemis runs the CLIs you installed, unmodified, under the sign-in or API key ea
 - **One ship lane.** Work reaches main by one route: merge in a disposable worktree, checks on the merge, fast-forward, receipt. Artemis never pushes.
 - **A stop beats every automation.** Workers, retries and the ship lane look for your stop before each step.
 
-Workers run as you. A Claude Code worker may read and edit in its worktree, look at Git and run its task's checks, and everything else is refused without asking. The checks run agent-written code as you, in disposable worktrees. Use Artemis on code you would run yourself.
+Workers run as you. A Claude Code worker may read and edit in its worktree, look at Git and run its task's checks, and everything else is refused without asking. The checks run agent-written code as you, in disposable worktrees, and see only PATH, HOME, locale, temp and toolchain variables from your shell; name any others your tests need under `pass_env` in `[ship]`. That keeps tokens in your environment away from the code, not your files: use Artemis on code you would run yourself.
 
 [docs/design.md](docs/design.md) explains each idea and where it lives in `src/artemis/`.
 

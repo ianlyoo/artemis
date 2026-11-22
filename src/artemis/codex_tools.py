@@ -6,7 +6,7 @@ import subprocess
 import sys
 from tempfile import TemporaryFile
 
-from .process import checkout_env, executable
+from .process import check_env, executable
 from .roles import WorkflowError
 from .worker_files import read_text, tracked_paths, worker_path
 
@@ -20,7 +20,7 @@ TOOLS = [
 ]
 
 
-def call(root: Path, checks: tuple[tuple[str, ...], ...], name: str, args: dict) -> str:
+def call(root: Path, checks: tuple[tuple[str, ...], ...], name: str, args: dict, pass_env: tuple[str, ...] = ()) -> str:
     match name:
         case "list_files":
             return "\n".join(tracked_paths(root))[:64_000]
@@ -30,7 +30,7 @@ def call(root: Path, checks: tuple[tuple[str, ...], ...], name: str, args: dict)
             command = checks[args["number"] - 1]
             with TemporaryFile() as output:
                 result = subprocess.run(
-                    command, executable=executable(command), cwd=root, env=checkout_env(),
+                    command, executable=executable(command), cwd=root, env=check_env(pass_env),
                     stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=90, check=False,
                 )
                 output.seek(max(0, output.tell() - 8_000))
@@ -39,7 +39,7 @@ def call(root: Path, checks: tuple[tuple[str, ...], ...], name: str, args: dict)
             raise WorkflowError("Use a worktree path or the number of an available task check.")
 
 
-def serve(root: Path, checks: tuple[tuple[str, ...], ...]) -> None:
+def serve(root: Path, checks: tuple[tuple[str, ...], ...], pass_env: tuple[str, ...] = ()) -> None:
     for line in sys.stdin:
         request = json.loads(line)
         if "id" not in request:
@@ -56,7 +56,7 @@ def serve(root: Path, checks: tuple[tuple[str, ...], ...]) -> None:
                 result = {"tools": TOOLS}
             case "tools/call":
                 try:
-                    text = call(root, checks, params.get("name"), params.get("arguments", {}))
+                    text = call(root, checks, params.get("name"), params.get("arguments", {}), pass_env)
                 except (OSError, ValueError, subprocess.SubprocessError, WorkflowError):
                     result = {"isError": True, "content": [{"type": "text", "text": "Worktree tool refused or failed."}]}
                 else:
@@ -68,4 +68,4 @@ def serve(root: Path, checks: tuple[tuple[str, ...], ...]) -> None:
 
 
 if __name__ == "__main__":
-    serve(Path(sys.argv[1]), tuple(map(tuple, json.loads(sys.argv[2]))))
+    serve(Path(sys.argv[1]), tuple(map(tuple, json.loads(sys.argv[2]))), tuple(json.loads(sys.argv[3])))

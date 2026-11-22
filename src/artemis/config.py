@@ -83,6 +83,7 @@ class Config:
     commands: dict[str, tuple[str, ...]] = field(default_factory=dict)
     opencode_model: str | None = None
     api: ApiSettings | None = None
+    pass_env: tuple[str, ...] = ()
 
     @classmethod
     def load(cls, root: Path) -> "Config":
@@ -102,6 +103,9 @@ class Config:
         checks = ship.get("checks", [])
         if not isinstance(checks, list):
             raise WorkflowError("ship.checks needs a list of commands.")
+        pass_env = ship.get("pass_env", [])
+        if not isinstance(pass_env, list) or not all(isinstance(name, str) and name for name in pass_env):
+            raise WorkflowError("ship.pass_env needs a list of environment variable names.")
         target = ship.get("target", "main")
         if not isinstance(target, str) or not target or target.startswith("-") or " " in target:
             raise WorkflowError("ship.target needs a branch name.")
@@ -126,7 +130,7 @@ class Config:
         return cls(root, frozenset(map(Interrupt, asks)),
                    tuple(command(item, "ship.checks") for item in checks), target,
                    names["lead"], names["worker"], limits["max_workers"], limits["worker_minutes"], commands,
-                   opencode_model, api)
+                   opencode_model, api, tuple(pass_env))
 
     @classmethod
     def initialize(cls, root: Path, target: str = "main") -> "Config":

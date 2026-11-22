@@ -150,6 +150,17 @@ class Pieces(unittest.TestCase):
             self.assertEqual(config.landing_checks(_criteria(config, ["test -f NOTES.md"], [])),
                              (("test", "-f", "NOTES.md"),))
 
+    def test_checks_see_only_allowlisted_variables_and_pass_env(self):
+        from unittest.mock import patch
+        from artemis.judge import CommandEvidence
+        with TemporaryDirectory() as scratch, patch.dict(os.environ, {"SOME_TOKEN": "x", "DATABASE_URL": "db"}):
+            argv = (sys.executable, "-c", "import os; print(sorted(k for k in ('SOME_TOKEN', 'DATABASE_URL', 'PATH') if k in os.environ))")
+            self.assertIn("['PATH']", CommandEvidence.capture(Path(scratch), argv).output)
+            self.assertIn("['DATABASE_URL', 'PATH']",
+                          CommandEvidence.capture(Path(scratch), argv, pass_env=("DATABASE_URL",)).output)
+            (Path(scratch) / "artemis.toml").write_text('[ship]\nchecks = []\npass_env = ["DATABASE_URL"]\n', encoding="utf-8")
+            self.assertEqual(Config.load(Path(scratch)).pass_env, ("DATABASE_URL",))
+
     def test_a_check_is_one_command_without_a_shell(self):
         self.assertEqual(_check("grep -q -- '--json' README.md"), ("grep", "-q", "--", "--json", "README.md"))
         self.assertEqual(_check("grep -q '&&' notes.txt"), ("grep", "-q", "&&", "notes.txt"))

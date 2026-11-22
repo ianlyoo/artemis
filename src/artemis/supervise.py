@@ -4,6 +4,7 @@
 works in its own Git worktree on its own branch, and starts the next queued task when it finishes.
 """
 
+from functools import partial
 import os
 from pathlib import Path
 import shlex
@@ -136,12 +137,12 @@ def _terminate(process: subprocess.Popen) -> None:
         process.kill()
 
 
-def _evidence(root: Path, sha: str, criteria: tuple[Criterion, ...]) -> dict:
+def _evidence(root: Path, sha: str, criteria: tuple[Criterion, ...], pass_env: tuple[str, ...] = ()) -> dict:
     items = {}
     for number, criterion in enumerate(criteria, 1):
         with checkout(root, sha) as tree:
             if criterion.command:
-                items[number] = CommandEvidence.capture(tree, criterion.command)
+                items[number] = CommandEvidence.capture(tree, criterion.command, pass_env=pass_env)
             else:
                 try:
                     git(tree, "--literal-pathspecs", "ls-files", "--error-unmatch", "--", criterion.artifact)
@@ -215,7 +216,7 @@ def supervise(root: Path, run: int) -> None:
                 feedback = f"Your last attempt left no usable change: {note}. Finish the change."
                 ledger.retrying(Role.WORKER, task["id"], note)
                 continue
-            ledger.submit(Role.WORKER, task["id"], sha, output or "(no claim)", _evidence(root, sha, criteria))
+            ledger.submit(Role.WORKER, task["id"], sha, output or "(no claim)", _evidence(root, sha, criteria, config.pass_env))
             verdict = ledger.judge(Role.JUDGE, task["id"], RuleJudge())
             if verdict.kind != "pass":
                 note = "judge: " + "; ".join(verdict.gaps)
@@ -223,7 +224,8 @@ def supervise(root: Path, run: int) -> None:
                 ledger.retrying(Role.WORKER, task["id"], note)
                 continue
             landing = ship(ledger, task["id"], sha, root, task["title"], target=target,
-                           commands=config.landing_checks(criteria))
+                           commands=config.landing_checks(criteria),
+                           capture=partial(CommandEvidence.capture, pass_env=config.pass_env))
             if landing.state == "applied":
                 outcome, note = "done", landing.detail
                 return

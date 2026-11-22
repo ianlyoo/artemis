@@ -74,7 +74,7 @@ In the code: `src/artemis/ledger.py` keeps the tables, the events, the triggers 
 
 The agent that did the work does not decide whether it is done. A judge does, and it rules only on what was recorded.
 
-Each task has criteria. A command criterion is met when the command, run in a clean checkout of the worker's commit, exits 0 (and prints the expected text, if one is named). A file criterion is met when the commit contains the file; its digest is recorded. The supervisor captures this evidence itself; the worker's claim is kept but carries no weight. The judge gives one of three verdicts: pass, reject with the list of unmet criteria, or stop when the case cannot be judged (a task with no criteria, for instance).
+Each task has criteria. A command criterion is met when the command, run in a clean checkout of the worker's commit, exits 0 (and prints the expected text, if one is named). A file criterion is met when the commit contains the file; its digest is recorded. The supervisor captures this evidence itself; the worker's claim is kept but carries no weight. Checks run code the worker wrote, so they get an allowlisted environment (PATH, HOME, locale, temp and toolchain variables, plus what `[ship] pass_env` names) rather than everything in the person's shell. The judge gives one of three verdicts: pass, reject with the list of unmet criteria, or stop when the case cannot be judged (a task with no criteria, for instance).
 
 Every line the person reads says how it is known:
 

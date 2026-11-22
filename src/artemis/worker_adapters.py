@@ -27,7 +27,7 @@ def codex(config: Config, tree: Path, checks: tuple[tuple[str, ...], ...], argv:
                                   for path in (config.root, tree)) + "}",
         "mcp_servers.artemis_worktree.command": json.dumps(sys.executable),
         "mcp_servers.artemis_worktree.args": json.dumps(
-            ["-m", "artemis.codex_tools", str(tree), json.dumps(checks)]),
+            ["-m", "artemis.codex_tools", str(tree), json.dumps(checks), json.dumps(config.pass_env)]),
         "mcp_servers.artemis_worktree.required": "true",
         "mcp_servers.artemis_worktree.default_tools_approval_mode": '"approve"',
         "developer_instructions": json.dumps(

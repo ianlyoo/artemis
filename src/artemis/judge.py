@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 import subprocess
 
-from .process import checkout_env, executable as default_executable
+from .process import check_env, executable as default_executable
 
 
 @dataclass(frozen=True)
@@ -16,9 +16,9 @@ class CommandEvidence:
     output: str
 
     @classmethod
-    def capture(cls, root: Path, argv: tuple[str, ...], *,
-                executable: str | None = None) -> "CommandEvidence":
-        env = checkout_env()
+    def capture(cls, root: Path, argv: tuple[str, ...], *, executable: str | None = None,
+                pass_env: tuple[str, ...] = ()) -> "CommandEvidence":
+        env = check_env(pass_env)
         try:
             result = subprocess.run(
                 argv, executable=executable or default_executable(argv), cwd=root, stdin=subprocess.DEVNULL,

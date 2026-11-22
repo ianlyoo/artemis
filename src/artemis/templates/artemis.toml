@@ -20,6 +20,9 @@ target = "main"
 # Run on the merged result before the target moves, and as a task's check when the lead names none.
 # artemis init fills this from the project (npm test, cargo test, go test, pytest or unittest).
 checks = [["python3", "-m", "unittest"]]
+# Checks run code a worker wrote, with only PATH, HOME, locale, temp and toolchain variables from your shell.
+# Name any others your tests need, for example pass_env = ["DATABASE_URL"].
+pass_env = []
 
 # [commands]
 # Replace the command that starts a worker. The task prompt arrives on standard input.
