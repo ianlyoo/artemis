@@ -23,7 +23,9 @@ from artemis.worker_files import snapshot
 from helpers import git, isolated_env, repository
 
 
-class Adapters(unittest.TestCase):
+class Project:
+    """A throwaway repository with Artemis initialized, and fake agent CLIs on PATH."""
+
     def setUp(self):
         self.scratch = Path(self.enterContext(TemporaryDirectory()))
         self.repo = repository(self.scratch / "repo")
@@ -46,7 +48,7 @@ class Adapters(unittest.TestCase):
 
     def configure(self, worker, extra=""):
         (self.repo / "artemis.toml").write_text(
-            f'[agents]\nworker = "{worker}"\n[ship]\nchecks = [["{sys.executable}", "-m", "unittest"]]\n'
+            f'[agents]\nworker = "{worker}"\n[ship]\nchecks = [[{json.dumps(sys.executable)}, "-m", "unittest"]]\n'
             f'{extra}', encoding="utf-8",
         )
 
@@ -73,6 +75,9 @@ class Adapters(unittest.TestCase):
         self.assertEqual(git(self.repo, "show", "main:result.txt"), "done")
         self.assertEqual(git(self.repo, "log", "-1", "--format=%s", "artemis/task-1"), "Write a result")
 
+
+@unittest.skipIf(os.name == "nt", "workers on Windows are not supported yet")
+class Shipping(Project, unittest.TestCase):
     def test_codex_stream_and_argv_ship_through_the_supervisor(self):
         self.configure("codex")
         self.fake_cli("codex", """
@@ -157,6 +162,8 @@ for text in ("OpenCode ", "final claim"):
         self.assertFalse(key in json.dumps(body))
         self.assertEqual(json.loads(body["messages"][1]["content"])["files"]["app.py"], "VALUE = 1\n")
 
+
+class Pieces(Project, unittest.TestCase):
     def test_auto_takes_installed_clis_and_never_the_separately_billed_api(self):
         self.configure("auto", '\n[api]\nmodel = "test-model"\nkey_env = "CUSTOM_API_KEY"\n')
         config = Config.load(self.repo)

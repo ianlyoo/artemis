@@ -15,10 +15,10 @@ def repository(path: Path) -> Path:
     git(path, "config", "user.name", "Demo User")
     git(path, "config", "user.email", "demo@example.invalid")
     git(path, "config", "commit.gpgsign", "false")
-    (path / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (path / "app.py").write_text("VALUE = 1\n", encoding="utf-8", newline="\n")
     (path / "test_app.py").write_text(
         "import unittest\n\nimport app\n\n\nclass T(unittest.TestCase):\n"
-        "    def test_value(self):\n        self.assertGreater(app.VALUE, 0)\n", encoding="utf-8")
+        "    def test_value(self):\n        self.assertGreater(app.VALUE, 0)\n", encoding="utf-8", newline="\n")
     git(path, "add", ".")
     git(path, "commit", "-qm", "Start")
     return path
@@ -26,7 +26,7 @@ def repository(path: Path) -> Path:
 
 def commit(repo: Path, branch: str, name: str, text: str, *, base: str = "main") -> str:
     git(repo, "switch", "-q", "-c", branch, base)
-    (repo / name).write_text(text, encoding="utf-8")
+    (repo / name).write_text(text, encoding="utf-8", newline="\n")
     git(repo, "add", ".")
     git(repo, "commit", "-qm", f"Change {name}")
     sha = git(repo, "rev-parse", "HEAD")

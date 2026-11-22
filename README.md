@@ -43,7 +43,7 @@ Every run counts what it cost you: **3 tasks done · asked you 1×**.
 ## Try it in a minute
 
 <!-- quickstart:begin -->
-You need Python 3.11 or newer, Git and [pipx](https://pipx.pypa.io/), on macOS or Linux. No account is needed for this part.
+You need Python 3.11 or newer, Git and [pipx](https://pipx.pypa.io/), on macOS or Linux. No account is needed for this part. No pipx yet? `brew install pipx` on macOS, `sudo apt install pipx` on Ubuntu or Debian.
 
 ### Install
 
@@ -51,13 +51,15 @@ You need Python 3.11 or newer, Git and [pipx](https://pipx.pypa.io/), on macOS o
 pipx install git+https://github.com/ianlyoo/artemis
 ```
 
+This puts the `artemis` command on your path. The package is `artemis-harness`, so `pipx uninstall artemis-harness` removes it.
+
 ### Run the demo
 
 ```sh
 artemis demo
 ```
 
-The demo makes a small to-do project in a temporary folder and gives the lead one sentence. Three mock workers run at once, one decision waits for you and is approved as you, and the digest ends the run.
+The demo makes a small to-do project in a temporary folder and gives the lead one sentence. Three mock workers run at once, one decision waits for you and is approved as you, and the digest ends the run. It plays your part too; to play it yourself, use `artemis start --demo` below.
 <!-- quickstart:end -->
 
 ## Use it with Claude Code

@@ -43,7 +43,7 @@ Artemis는 당신과 작업자 사이에 리드 하나를 둡니다. 리드는 �
 ## 1분 만에 해 보기
 
 <!-- quickstart:begin -->
-macOS나 Linux에 Python 3.11 이상, Git, [pipx](https://pipx.pypa.io/)가 있으면 됩니다. 이 단계에는 계정이 필요 없습니다.
+macOS나 Linux에 Python 3.11 이상, Git, [pipx](https://pipx.pypa.io/)가 있으면 됩니다. 이 단계에는 계정이 필요 없습니다. pipx가 없다면 macOS에서는 `brew install pipx`, Ubuntu나 Debian에서는 `sudo apt install pipx`로 설치하세요.
 
 ### 설치
 
@@ -51,13 +51,15 @@ macOS나 Linux에 Python 3.11 이상, Git, [pipx](https://pipx.pypa.io/)가 있�
 pipx install git+https://github.com/ianlyoo/artemis
 ```
 
+`artemis` 명령이 생깁니다. 패키지 이름은 `artemis-harness`라서, 지우려면 `pipx uninstall artemis-harness`를 실행하세요.
+
 ### 데모 실행
 
 ```sh
 artemis demo
 ```
 
-데모는 임시 폴더에 작은 할 일 프로젝트를 만들고 리드에게 한 문장을 줍니다. 모의 작업자 셋이 동시에 일하고, 결정 하나가 당신을 기다렸다가 당신 이름으로 승인되며, 다이제스트로 끝납니다.
+데모는 임시 폴더에 작은 할 일 프로젝트를 만들고 리드에게 한 문장을 줍니다. 모의 작업자 셋이 동시에 일하고, 결정 하나가 당신을 기다렸다가 당신 이름으로 승인되며, 다이제스트로 끝납니다. 당신의 몫도 데모가 대신합니다. 직접 해 보려면 아래의 `artemis start --demo`를 쓰세요.
 <!-- quickstart:end -->
 
 ## Claude Code로 쓰기

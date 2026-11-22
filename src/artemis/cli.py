@@ -10,7 +10,7 @@ import sys
 from tempfile import TemporaryDirectory
 import time
 
-from . import attention, sample
+from . import __version__, attention, sample
 from .agents import pick
 from .config import CONFIG_NAME, Config, command, ledger_path
 from .judge import Criterion
@@ -29,6 +29,7 @@ class Parser(argparse.ArgumentParser):
 def _parser() -> Parser:
     parser = Parser(prog="artemis", description="Talk to one lead while workers run in parallel. "
                     "You are asked only for real decisions.")
+    parser.add_argument("--version", action="version", version=f"artemis {__version__}")
     commands = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     add = commands.add_parser
 
