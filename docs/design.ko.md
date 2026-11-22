@@ -127,7 +127,7 @@ shipped   #3 Document both in the README  main dd72f65 · README mentions --json
 decided   D1 Post a release note to the team  you approved · posted to the demo outbox
 ```
 
-읽으면 그 기간이 읽음으로 표시되고, 다음 다이제스트는 거기서 시작합니다. 기간은 시각이 아니라 상대 시간("Last 9 min")으로 씁니다. 작업 줄은 증거를 검사의 이름으로 밝혀서, 사람은 아무것도 열지 않고 무엇이 검사됐는지 봅니다.
+읽으면 그 기간이 읽음으로 표시되고, 다음 다이제스트는 거기서 시작합니다. 읽음은 사람이 읽었을 때만 셉니다. 리드는 사람이 무슨 일이 있었는지 물을 때 다이제스트를 띄우고, 자기 소식을 전할 때는 아무것도 읽음으로 바꾸지 않는 `artemis status`를 씁니다. 줄마다 터미널 폭에 맞추고, 긴 제목은 낱말 단위로 자릅니다. 기간은 시각이 아니라 상대 시간("Last 9 min")으로 씁니다. 작업 줄은 증거를 검사의 이름으로 밝혀서, 사람은 아무것도 열지 않고 무엇이 검사됐는지 봅니다.
 
 코드에서는: `src/artemis/attention.py`(`digest`, `window`, `counts`, `status`, `statusline`).
 

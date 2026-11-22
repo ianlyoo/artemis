@@ -127,7 +127,7 @@ shipped   #3 Document both in the README  main dd72f65 · README mentions --json
 decided   D1 Post a release note to the team  you approved · posted to the demo outbox
 ```
 
-Reading it marks the window as read, so the next digest starts from there. The window is relative ("Last 9 min"), not a clock time. A task line names its evidence by the check's label, so the person sees what was checked without opening anything.
+Reading it marks the window as read, so the next digest starts from there. Only the person's reading counts: the lead runs the digest when they ask what happened, and uses `artemis status`, which marks nothing, for its own updates. Each line fits the terminal; a long title is cut after a whole word. The window is relative ("Last 9 min"), not a clock time. A task line names its evidence by the check's label, so the person sees what was checked without opening anything.
 
 In the code: `src/artemis/attention.py` (`digest`, `window`, `counts`, `status`, `statusline`).
 

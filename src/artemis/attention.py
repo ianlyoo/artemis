@@ -3,6 +3,7 @@
 import json
 import os
 import shlex
+import shutil
 import time
 
 from .ledger import Ledger
@@ -14,6 +15,15 @@ WAKE = {"finished", "stuck", "stopped", "applied", "asked", "approved", "decline
 
 def visible(text: str) -> str:
     return "".join(char if char.isprintable() else " " for char in text)
+
+
+def clip(text: str, room: int) -> str:
+    """Printable text in at most room characters, cut after a whole word and marked with an ellipsis."""
+    text = " ".join(visible(text).split())
+    if len(text) <= room:
+        return text
+    cut = text[:room].rsplit(" ", 1)[0] if " " in text[:room] else text[:room - 1]
+    return cut.rstrip(" ,;:·-(") + "…"
 
 
 def _plural(count: int, word: str) -> str:
@@ -128,9 +138,9 @@ def status(ledger: Ledger) -> str:
         if row["state"] == "dropped":
             continue
         label, detail = _task_line(ledger, row)
-        lines.append(f"{label:<9} #{row['id']} {visible(row['title'])[:40]:<40} {detail}".rstrip())
+        lines.append(f"{label:<9} #{row['id']} {clip(row['title'], 40):<40} {detail}".rstrip())
     for decision in ledger.decisions("waiting"):
-        lines.append(f"{'waiting':<9} D{decision['id']} {visible(decision['what'])[:40]:<40} "
+        lines.append(f"{'waiting':<9} D{decision['id']} {clip(decision['what'], 40):<40} "
                      f"{decision['kind']} · artemis approve {decision['id']}")
     return "\n".join(lines)
 
@@ -182,29 +192,38 @@ def digest(ledger: Ledger, *, mark: bool = True) -> str:
              f"asked you {n['asked']}× · {stuck}"]
     touched = {event["task_id"] for event in events if event["task_id"]}
     rows = [row for row in ledger.work() if row["id"] in touched and row["state"] != "dropped"]
-    width = max((len(visible(row["title"])[:34]) for row in rows), default=0)
+    columns = shutil.get_terminal_size((100, 24)).columns
+    width = max((len(clip(row["title"], 34)) for row in rows), default=0)
     for row in rows:
         label, detail = _task_line(ledger, row)
-        lines.append(f"{label:<9} #{row['id']} {visible(row['title'])[:34]:<{width}}  {detail}".rstrip())
+        lines.append(f"{label:<9} #{row['id']} {clip(row['title'], 34):<{width}}  {detail}".rstrip())
     decided = {event["decision_id"] for event in events if event["decision_id"]}
     for decision in ledger.decisions():
         if decision["id"] not in decided and decision["state"] != "waiting":
             continue
-        what = visible(decision["what"])[:60]
-        if decision["state"] == "waiting":
-            lines.append(f"{'waiting':<9} D{decision['id']} {what}  for you: artemis approve {decision['id']}")
-        else:
-            result = {"approved": "you approved · the lead is carrying it out", "declined": "you declined",
-                      "done": f"you approved · {visible(decision['note'] or 'done')}"}[decision["state"]]
-            lines.append(f"{'decided':<9} D{decision['id']} {what}  {result}")
+        label, result = {
+            "waiting": ("waiting", f"for you: artemis approve {decision['id']}"),
+            "approved": ("decided", "you approved · the lead is carrying it out"),
+            "declined": ("decided", "you declined"),
+            "done": ("decided", f"you approved · {decision['note'] or 'done'}"),
+        }[decision["state"]]
+        lines.append(_one_line(f"{label:<9} D{decision['id']} ", decision["what"], result, columns))
     for event in events:
         if event["kind"] == "note":
-            lines.append(f"{'inferred':<9} {visible(event['detail'])[:100]}")
+            lines.append(f"{'inferred':<9} {clip(event['detail'], columns - 10)}")
     if len(lines) == 1:
         lines.append("Nothing changed.")
     if mark:
         ledger.mark_read(Role.OWNER)
     return "\n".join(lines)
+
+
+def _one_line(head: str, what: str, result: str, columns: int) -> str:
+    """A decision in one terminal line: what gives up room first, down to 24 characters, then the result."""
+    room = columns - len(head) - 2
+    result = clip(result, room)
+    what = clip(what, max(room - len(result), 24))
+    return f"{head}{what}  {clip(result, room - len(what))}"
 
 
 def wait(ledger: Ledger, timeout_s: float, poll_s: float = 1.0) -> str:

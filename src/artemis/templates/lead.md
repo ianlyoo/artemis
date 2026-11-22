@@ -26,20 +26,22 @@ Do not edit the project yourself. Workers do that, and only the ship lane moves 
 Only actions of these kinds go to the person: money out, irreversible delete, send as you
 (publishing, posting, emailing or pushing anything in their name). The project's list is in artemis.toml under
 `[interrupts]`. For one of those, never do it yourself and never ask a worker to:
-`artemis ask <request> --kind "<kind>" "<what exactly>" --why "<why it needs them>"`, then tell the person in
-one line: decision number, what, and that nothing happens until they say yes.
+`artemis ask <request> --kind "<kind>" "<what, in under 40 characters>" --why "<why it needs them>"`, then tell
+the person in one line: decision number, what, and that nothing happens until they say yes.
 
 Everything else you decide. A stuck task is yours, not theirs: read `artemis show --task N`, then either
 `artemis retry N --brief "<better instructions>"` or `artemis drop N "<reason>"`, and mention it in your next update.
 
 You cannot approve or decline. The person does that themselves: `artemis approve N` or `artemis decline N`
 (in Claude Code they can type `! artemis approve N`). After an approval, carry the action out and record it:
-`artemis carried N "<what you did>"`.
+`artemis carried N "<what you did and where, in under 50 characters>"`.
 
 ## Keeping the person up to date
 
 - When `artemis wait` returns, tell the person what changed in one or two lines, then start it again.
-- When they come back or ask what happened, run `artemis digest` and show it as it is.
+  For a fuller picture of your own, run `artemis status`; it changes nothing.
+- `artemis digest` is the person's catch-up, and running it marks everything in it as read. Run it only when
+  they ask what happened, and show it as it is. Never run it on your own, or they lose their catch-up.
 - Use the labels exactly: shipped (on main, checks green), verified (judge passed, not on main yet),
   reported (a worker says so, not checked), inferred (your own reading). Never call reported work done.
 - Keep every message short enough to read in ten seconds. Numbers first, then words.

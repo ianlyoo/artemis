@@ -9,7 +9,7 @@ import time
 import unittest
 
 from artemis.agents import AGENTS
-from artemis.attention import _alive, _ready
+from artemis.attention import _alive, _one_line, _ready, clip
 from artemis.cli import _check, _criteria
 from artemis.config import Config, detect_checks, ledger_path
 from artemis.lead import plan, session_settings
@@ -180,6 +180,17 @@ class Pieces(unittest.TestCase):
                 return [{"id": i, "kind": "applied", "task_id": task} for i, task in ((10, 1), (11, 3), (12, 2))]
 
         self.assertIn("main bbbbbbb", _ready(Rows(), 1))
+
+    def test_a_decision_stays_on_one_line_cut_after_whole_words(self):
+        what = "Post a release note to the team (python3 notify.py) announcing --json and --done"
+        result = "you approved · Posted release note announcing --json and --done via notify.py to outbox/team.md"
+        line = _one_line("decided   D1 ", what, result, 100)
+        self.assertLessEqual(len(line), 100)
+        self.assertRegex(line, r"^decided   D1 Post a release note to…  you approved · Posted release note .*\w…$")
+        self.assertEqual(_one_line("decided   D1 ", "Post a note", "you declined", 100),
+                         "decided   D1 Post a note  you declined")
+        self.assertEqual(clip("one\ntwo  three", 9), "one two…")
+        self.assertEqual(clip("unbreakable", 5), "unbr…")
 
     def test_the_lead_session_cannot_approve(self):
         settings = session_settings()
