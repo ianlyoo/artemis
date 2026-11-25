@@ -4,19 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "artemis-harness"
-version = "0.2.0"
-description = "Talk to one lead agent while many coding agents work in parallel; you are asked only for real decisions."
+dynamic = ["version"]   # artemis.__version__, the one place it is written
+description = "A personal agent system on your own computer: one lead you talk to, a team of agents from several vendors, a secret vault, and an app for any browser."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICES.md"]
+dependencies = [
+    "cryptography>=43",
+    "keyring>=25",
+    "segno>=1.6",
+]
 
 [project.scripts]
 artemis = "artemis.cli:main"
 
 [tool.setuptools]
-packages = ["artemis", "artemis.templates"]
+packages = ["artemis", "artemis.templates", "artemis.web", "artemis.web.vendor"]
 package-dir = { "" = "src" }
+
+[tool.setuptools.dynamic]
+version = { attr = "artemis.__version__" }
 
 [tool.setuptools.package-data]
 "artemis.templates" = ["*.toml", "*.md"]
+"artemis.web" = ["*.html", "*.js", "*.css", "*.svg", "*.png", "*.webmanifest"]
+"artemis.web.vendor" = ["*"]

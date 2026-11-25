@@ -4,11 +4,9 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from hashlib import sha256
-import os
 from pathlib import Path, PurePosixPath
 import subprocess
 from tempfile import TemporaryDirectory
-import time
 
 from .config import STATE
 from .judge import CommandEvidence
@@ -62,49 +60,6 @@ def checkout(repo: Path, commit: str) -> Iterator[Path]:
             yield tree
         finally:
             git(repo, "worktree", "remove", "--force", str(tree))
-
-
-@contextmanager
-def lane(root: Path, wait_s: float = 600) -> Iterator[None]:
-    """One lander at a time per project. A lock whose holder has died is taken over."""
-    path = root / STATE / "ship.lock"
-    deadline = time.monotonic() + wait_s
-    while True:
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError:
-            try:
-                holder = int(path.read_text(encoding="utf-8") or 0)
-            except (OSError, ValueError):
-                holder = 0
-            if holder and not _alive(holder):
-                path.unlink(missing_ok=True)
-                continue
-            if time.monotonic() > deadline:
-                raise WorkflowError("Another task held the ship lane for too long.")
-            time.sleep(0.2)
-            continue
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
-            stream.write(str(os.getpid()))
-        break
-    try:
-        yield
-    finally:
-        path.unlink(missing_ok=True)
-
-
-def _alive(pid: int) -> bool:
-    if os.name == "nt":  # os.kill would end the process there; a lock on Windows clears by timeout only
-        return True
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
 
 
 def _reserved_entry(repo: Path, sha: str) -> str | None:
@@ -161,39 +116,41 @@ def _advance(repo: Path, ref: str, base: str, candidate: str) -> bool:
 
 def ship(ledger: Ledger, task: int, sha: str, repo: Path, title: str, *,
          commands: tuple[tuple[str, ...], ...], target: str = "main", capture: Capture | None = None) -> Landing:
-    """Land a passed commit: merge onto the target branch, run the checks on the merge, fast-forward it."""
+    """Land a passed commit: merge onto the target branch, run the checks on the merge, fast-forward it.
+
+    One landing at a time per repository: the caller holds the project's lane (Home.lane).
+    """
     capture = CommandEvidence.capture if capture is None else capture
     ref = f"refs/heads/{target}"
-    with lane(repo):
-        ledger.allow_step()
-        if ledger.ship_receipt(task, sha) is not None:
-            raise WorkflowError("This commit already has a ship receipt.")
-        base = git(repo, "rev-parse", "--verify", ref)
-        blocked = _reserved_entry(repo, sha)
-        if blocked is not None:
-            ledger.record_checks(task, sha, sha, (), target=target,
-                                 problem=f"The commit tracks {blocked}, which Artemis keeps local.")
-            return Landing("blocked", f"the commit tracks {blocked}")
-        if is_ancestor(repo, sha, base):
-            candidate = base
-        else:
-            candidate = _merge(repo, base, sha, f"Land task {task}: {title}")
-            if candidate is None:
-                return Landing("conflict", f"the branch conflicts with {target}")
-        reports = []
-        with checkout(repo, candidate) as tree:
-            for argv in commands:
-                ledger.allow_step()
-                result = capture(tree, argv)
-                reports.append(Check(argv, result.exit_code, sha256(result.output.encode()).hexdigest()))
-                if result.exit_code:
-                    ledger.record_checks(task, sha, candidate, tuple(reports), target=target)
-                    tail = result.output.strip()[-800:]
-                    return Landing("red", f"{' '.join(argv)} exited {result.exit_code} on the merged result:\n{tail}",
-                                   candidate)
-        ledger.record_checks(task, sha, candidate, tuple(reports), target=target)
-        moved = _advance(repo, ref, base, candidate)
-        receipt = ledger.land(task, sha, moved)
-        if not moved:
-            return Landing("blocked", f"{target} moved or has local edits in the way", candidate)
-        return Landing("applied", f"{target} is {candidate[:7]}", receipt.candidate)
+    ledger.allow_step()
+    if ledger.ship_receipt(task, sha) is not None:
+        raise WorkflowError("This commit already has a ship receipt.")
+    base = git(repo, "rev-parse", "--verify", ref)
+    blocked = _reserved_entry(repo, sha)
+    if blocked is not None:
+        ledger.record_checks(task, sha, sha, (), target=target,
+                             problem=f"The commit tracks {blocked}, which Artemis keeps local.")
+        return Landing("blocked", f"the commit tracks {blocked}")
+    if is_ancestor(repo, sha, base):
+        candidate = base
+    else:
+        candidate = _merge(repo, base, sha, f"Land task {task}: {title}")
+        if candidate is None:
+            return Landing("conflict", f"the branch conflicts with {target}")
+    reports = []
+    with checkout(repo, candidate) as tree:
+        for argv in commands:
+            ledger.allow_step()
+            result = capture(tree, argv)
+            reports.append(Check(argv, result.exit_code, sha256(result.output.encode()).hexdigest()))
+            if result.exit_code:
+                ledger.record_checks(task, sha, candidate, tuple(reports), target=target)
+                tail = result.output.strip()[-800:]
+                return Landing("red", f"{' '.join(argv)} exited {result.exit_code} on the merged result:\n{tail}",
+                               candidate)
+    ledger.record_checks(task, sha, candidate, tuple(reports), target=target)
+    moved = _advance(repo, ref, base, candidate)
+    receipt = ledger.land(task, sha, moved)
+    if not moved:
+        return Landing("blocked", f"{target} moved or has local edits in the way", candidate)
+    return Landing("applied", f"{target} is {candidate[:7]}", receipt.candidate)

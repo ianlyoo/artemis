@@ -6,52 +6,62 @@
 </p>
 
 <p align="center">
-  <b>리드 하나와 이야기하면, 여러 에이전트가 동시에 일합니다.</b><br>
-  진짜 결정만 당신에게 묻고, 돌아오면 작업마다 한 줄로 따라잡습니다.
+  <b>팀 하나를 거느린 유능한 엔지니어 한 명과 일하는 경험.</b><br>
+  Artemis는 내 컴퓨터에서 돌아요. 어느 브라우저에서든 리드 한 명과 대화하면, 여러 회사의 AI 작업자가 내 규칙 안에서 내 컴퓨터로 일을 하고, 내가 정해야 할 일만 나에게 물어요.
 </p>
 
 <p align="center">
-  <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="라이선스: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="LICENSE"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/license-Apache--2.0-e6edf3?style=flat-square&labelColor=30363d"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
   <a href="pyproject.toml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/python-%E2%89%A53.11-e6edf3?style=flat-square&labelColor=30363d"><img alt="Python 3.11 이상" src="https://img.shields.io/badge/python-%E2%89%A53.11-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#1분-만에-해-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-e6edf3?style=flat-square&labelColor=30363d"><img alt="플랫폼: macOS, Linux" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="#상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-early%20release-e6edf3?style=flat-square&labelColor=30363d"><img alt="상태: 초기 릴리스" src="https://img.shields.io/badge/status-early%20release-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
-  <a href="https://github.com/ianlyoo/artemis/actions/workflows/quickstart.yml"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="Quickstart CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/quickstart.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
+  <a href="#1분-만에-써-보기"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-e6edf3?style=flat-square&labelColor=30363d"><img alt="macOS, Linux, Windows" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="#현재-상태"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/status-early%20release-e6edf3?style=flat-square&labelColor=30363d"><img alt="초기 공개판" src="https://img.shields.io/badge/status-early%20release-1f2328?style=flat-square&labelColor=eaeef2"></picture></a>
+  <a href="https://github.com/ianlyoo/artemis/actions"><picture><source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/ci.yml?style=flat-square&labelColor=30363d&color=e6edf3&label=CI&branch=main"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ianlyoo/artemis/ci.yml?style=flat-square&labelColor=eaeef2&color=1f2328&label=CI&branch=main"></picture></a>
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-해-보기">해 보기</a>
+  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-써-보기">써 보기</a>
 </p>
+
+채팅 비서는 자기 샌드박스 밖으로 못 나가고, 코딩 세션은 창을 닫으면 끝나요. 에이전트 여러 개를 직접 돌리면 결국 내가 병목이 돼요. 프로젝트마다 어디까지 왔는지 머리로 기억하고, 키를 프롬프트에 붙여 넣고, 읽지도 않은 걸 승인하게 되죠.
+
+Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 컴퓨터의 프로세스 하나가 모든 프로젝트를 장부 하나에 담아요. 그래서 대화하는 리드는 프로젝트마다 어디까지 왔는지, 무엇을 배웠는지, 무엇이 나를 기다리는지 알아요. 리드를 다른 회사 모델로 바꿔도 마찬가지예요. 작업자는 Artemis의 도구로만 내 컴퓨터를 건드려요. 관문 하나가 정지 여부, 등록한 폴더, 내 규칙, 금고를 확인하고 무엇을 했는지 기록해요. 나에게 묻는 일은 세 가지뿐이에요. 돈이 나가는 일, 되돌릴 수 없는 삭제, 나 대신 보내는 일. 나머지는 줄마다 근거가 붙은 요약으로 와요.
 
 <p align="center">
   <picture>
-    <source media="(max-width: 1080px)" srcset="assets/readme/digest-narrow.svg">
-    <img src="assets/readme/digest.svg" width="100%" alt="리드에게 한 문장을 줍니다. 작업자 셋이 동시에 일하고 상태 줄이 남은 수를 셉니다. 결정 하나가 당신을 기다립니다. 다이제스트는 다섯 줄로, 작업 셋이 반영됐고 당신에게는 한 번 물었다고 말합니다.">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-board-dark.png">
+    <img src="assets/readme/app-board-light.png" width="100%" alt="Artemis 앱의 보드: 프로젝트 세 개가 나란히 있고, 각 프로젝트 맨 위에 내 결정을 기다리는 일이, 그 아래 작업마다 맡은 에이전트와 증거가 보여요">
   </picture>
+  <br><sub>예시 데이터를 넣은 데모 홈의 보드 (tests/fixtures/app_demo.py)</sub>
 </p>
 
-<p align="center">
-  <sub><a href="docs/demo/transcript.txt">docs/demo/transcript.txt</a>의 실행 기록을 <a href="assets/readme/render.py">assets/readme/render.py</a>가 그린 그림입니다. 기록은 <code>artemis demo</code>가 남겼습니다.<br>
-  여기 작업자는 AI 없이 정해진 변경만 하는 모의 작업자(mock)입니다. <code>artemis demo --agent claude</code>는 같은 대본을 Claude Code 작업자로 돌립니다.</sub>
-</p>
+## 무엇을 하나요
 
-코딩 에이전트를 여럿 돌리면 곧 사람이 병목이 됩니다. 따라갈 수 있는 만큼만 세션을 열거나, 읽지 않고 전부 승인하게 됩니다.
+| | |
+|---|---|
+| **내 컴퓨터에서 진짜 일을 끝까지** | 프로젝트는 Git 저장소일 수도, 아무 폴더일 수도 있어요. 작업자는 거기서 파일을 읽고, 쓰고, 옮기고, 프로그램을 실행해요. 예약한 일은 채팅을 닫아 둬도 돌아요. 작업자가 아닌 판정자가 결과를 확인해요. 종료 코드, 파일 해시, 행 수 같은 것으로요. `artemis undo`로 파일을 원래대로 돌려요. |
+| **비밀값은 지키고, 결정은 내가** | 암호화 금고가 키를 이름으로 보관해요. 웹사이트용 키는 Artemis만, 그 웹사이트로만 보내요. 돈이 나가는 일, 되돌릴 수 없는 삭제, 나 대신 보내는 일은 카드로 내 답을 기다려요. 코드는 반영 경로 하나로만 브랜치에 들어가요. `artemis stop` 한 번이면 전부 멈춰요. |
+| **어느 기기에서나 같은 앱** | PC·맥·폰 브라우저에서 리드와 대화하고, 승인·선택·비밀값 카드에 답하고, 모든 프로젝트의 보드와 요약을 봐요. 폰은 HTTPS로 연결하고 내 컴퓨터에서 확인해 줘야 들어와요. |
+| **실수에서 배워요** | 판정에서 떨어진 결과나 내가 고쳐 준 말이 교훈이 돼요. 교훈은 다음 작업 지시를 바꾸거나, 판정자가 돌릴 검사를 더하거나, 어떤 종류의 일을 어느 모델에 맡길지 바꿔요. 언제 배웠고 언제 썼는지 요약에 나와요. 내가 거절한 카드는 새 규칙이 될 수 있지만, 내가 그렇게 하자고 할 때만요. |
+| **리드 한 명 뒤의 여러 모델 팀** | Claude Code, Codex, Gemini CLI, OpenCode, OpenAI 호환 API가 나란히 일해요. 일의 종류마다 잘 맞는 모델이 맡고, 검토는 늘 작업한 모델과 다른 회사 모델이 해요. 리드의 기억은 장부라서 대화 도중에 리드 모델을 바꿔도 돼요. |
 
-Artemis는 당신과 작업자 사이에 리드 하나를 둡니다. 리드는 당신의 말을 작업으로 나눠 동시에 돌리고, 작업마다 자기 Git 워크트리에서 일합니다. 판정자는 각 결과를 명령으로 확인하고, 배포 레인은 메인과 합친 결과에서 검사가 통과해야 작업을 올립니다. 당신에게 돌아오는 것은 미리 정해 둔 종류의 결정뿐입니다. 돌아오면 다이제스트가 무엇이 반영됐고, 무엇이 당신을 기다리고, 무엇이 막혔는지, 그리고 각 줄을 어떻게 아는지를 몇 줄로 알려 줍니다.
-
-실행마다 당신이 치른 비용을 셉니다: **작업 3개 완료 · 당신에게 1번 물음** (화면에는 `3 tasks done · asked you 1×`).
-
-## 1분 만에 해 보기
+## 1분 만에 써 보기
 
 <!-- quickstart:begin -->
-macOS나 Linux에 Python 3.11 이상, Git, [pipx](https://pipx.pypa.io/)가 있으면 됩니다. 이 단계에는 계정이 필요 없습니다. pipx가 없다면 macOS에서는 `brew install pipx`, Ubuntu나 Debian에서는 `sudo apt install pipx`로 설치하세요.
+macOS, Linux, Windows 어디서든 Python 3.11 이상과 Git만 있으면 돼요. 여기까지는 계정이 필요 없어요.
 
 ### 설치
 
 ```sh
-pipx install git+https://github.com/ianlyoo/artemis
+curl -fsSL https://raw.githubusercontent.com/ianlyoo/artemis/main/install.sh | sh
 ```
 
-`artemis` 명령이 생깁니다. 패키지 이름은 `artemis-harness`라서, 지우려면 `pipx uninstall artemis-harness`를 실행하세요.
+Windows에서는 PowerShell에서:
+
+```powershell
+irm https://raw.githubusercontent.com/ianlyoo/artemis/main/install.ps1 | iex
+```
+
+설치 스크립트는 pipx나 uv가 있으면 그걸 쓰고, 둘 다 없으면 Artemis 전용 가상 환경을 만들어요. 명령 폴더를 새 터미널의 PATH에 넣고(못 넣으면 넣을 줄을 알려 주고), `artemis doctor`로 이 컴퓨터에서 무엇을 돌릴 수 있는지 보여 준 뒤, 마지막 줄에 다시 지우는 명령(`pipx uninstall artemis-harness` 또는 `uv tool uninstall artemis-harness`)을 알려 줘요. 지금 터미널이 `artemis`를 모르면 새 터미널을 여세요.
 
 ### 데모 실행
 
@@ -59,101 +69,146 @@ pipx install git+https://github.com/ianlyoo/artemis
 artemis demo
 ```
 
-데모는 임시 폴더에 작은 할 일 프로젝트를 만들고 리드에게 한 문장을 줍니다. 모의 작업자 셋이 동시에 일하고, 결정 하나가 당신을 기다렸다가 당신 이름으로 승인되며, 다이제스트로 끝납니다. 당신의 몫도 데모가 대신합니다. 직접 해 보려면 아래의 `artemis start --demo`를 쓰세요.
+데모는 임시 폴더에 작은 할 일 목록 프로젝트를 만들고 리드에게 한 문장을 줘요. 작업자 셋이 각자 Git 워크트리에서 동시에 일하고, 검사를 통과한 작업만 반영 경로로 들어가요. 네 번째 일은 팀에 릴리스 노트를 올리는 건데, 나 대신 보내는 일이라서 카드가 돼요. 카드에는 정확한 요청, 본문의 해시, 쓰는 키의 이름이 나오고 키 값은 금고에 그대로 있어요. 데모가 나 대신 승인하면 Artemis가 내 컴퓨터 안의 수신기로 한 번 보내고, 요약이 도착한 내용과 승인한 내용을 비교해요. 작업자는 AI 없이 정해진 수정을 하는 모의 작업자이고 그렇다고 표시돼요. 그래서 계정이 필요 없어요.
 <!-- quickstart:end -->
 
-## Claude Code로 쓰기
-
-[Claude Code](https://code.claude.com/docs/en/quickstart)를 설치하고 로그인한 Git 저장소 안에서:
+## 나의 홈
 
 ```sh
-artemis start
+artemis serve
 ```
 
-처음 시작할 때 `artemis.toml`을 만들고, `package.json`, `Cargo.toml`, `go.mod`나 Python 테스트에서 프로젝트의 테스트 명령을 찾아 적습니다. 한 번 확인하세요. 배포 레인이 병합마다 이 명령을 돌립니다. 그다음 당신의 Claude Code 세션이 리드로 열립니다. Artemis 지침, 상태 줄, `artemis` 명령이 함께 붙습니다. 원하는 것을 말하세요:
+홈을 켜고 브라우저에 앱을 열어요. 홈은 리드, 작업자, 예약, 앱을 돌리고 모든 것을 `~/.artemis`에 둬요(Windows는 `%USERPROFILE%\.artemis`, 옮기려면 `ARTEMIS_HOME`을 지정하세요). 한 폴더에 홈은 하나만 떠요. `artemis serve --background`는 터미널과 떼어서 돌리고, `artemis serve --stop`은 어느 터미널에서든 멈춰요.
 
-> Add a --json flag and a --done filter, document both in the README, then post a release note to the team.
+일할 곳을 알려 주세요.
 
-- 리드는 당신의 말을 기록하고, 작업으로 나눠 시작합니다. 작업마다 판정자가 돌릴 검사가 붙습니다.
-- 작업자는 각자 자기 워크트리와 브랜치에서 도는 헤드리스 `claude -p`입니다. 당신의 작업 폴더는 건드리지 않습니다.
-- 상태 줄은 묻지 않아도 수를 셉니다: `● 3 running · 1 decision for you · asked you 1× · 0 done`. Claude Code가 폴더를 믿을지 물을 때 믿는다고 답하면 나타납니다.
-- 판정자가 결과마다 판정합니다. 배포 레인은 버리는 워크트리에서 결과를 지금의 main과 합치고, 합친 결과에서 검사를 돌려 통과할 때만 main을 옮깁니다. 실패나 충돌은 작업자에게, 그다음 리드에게 돌아갑니다. 당신에게는 오지 않습니다.
-- 릴리스 노트 게시는 당신 이름으로 말하는 일이라, 리드가 한 번 묻고 기다립니다. `! artemis approve 1`로 답하세요. `!`는 명령을 당신이 직접 실행하게 하고, 리드 세션 설정의 규칙이 리드에게 `approve`를 막습니다. 벽이 아니라 규칙입니다. 리드도 당신 권한으로 돌기 때문에, 이 규칙을 돌아갈 다른 길을 리드에게 주지 마세요.
-
-돌아와서 리드에게 "무슨 일이 있었어?"라고 묻거나 `artemis digest`를 실행하세요. 먼저 버려도 되는 프로젝트에서 해 보려면 `artemis start --demo`를 실행하세요.
-
-## 당신에게 오는 것
-
-Artemis가 당신에게 가져오는 행동은 세 종류뿐입니다:
-
-- **돈이 나가는 일**: 결제, 구매, 유료 요금제
-- **되돌릴 수 없는 삭제**: 복구할 수 없는 모든 것
-- **당신 이름으로 보내는 일**: 당신 이름의 게시, 글, 이메일, 푸시
-
-하나하나가 따로 카드로 옵니다. 정확히 무슨 행동인지, 왜 당신이 정할 일인지, 무엇을 근거로 하는지가 적혀 있습니다. 카드를 내버려 두면 아무것도 바뀌지 않고, 다른 작업은 그대로 진행됩니다. 반려된 작업, 병합 충돌, 비정상 종료, 권한 거부는 리드가 맡습니다. 다이제스트에 `stuck`으로 나오고, 리드가 다시 시키거나 접습니다. 묻는 종류를 줄이려면 `artemis.toml`의 `[interrupts]`를 고치세요. `artemis stop`은 모든 자동 작업을 한 번에 멈추고, `artemis resume`을 실행할 때까지 아무것도 다시 시작하지 않습니다.
-
-## 다이제스트
-
-```text
-Last under a minute · 3 tasks done · asked you 1× · nothing stuck
-shipped   #1 Add a --json flag            main 2d1c61c · python3 -m unittest exit 0
-shipped   #2 Add a --done filter          main 02446a5 · python3 -m unittest exit 0
-shipped   #3 Document both in the README  main dd72f65 · README mentions --json, --done
-decided   D1 Post a release note to the team  you approved · posted to the demo outbox
+```sh
+artemis project add ~/code/my-app          # Git 저장소: 작업자는 워크트리에서 일하고, 반영 경로로 들어가요
+artemis project add ~/Documents/Invoices --root ~/Downloads   # 아무 폴더: --root로 다른 폴더에도 닿게 해요
 ```
 
-모든 줄은 그 내용을 어떻게 아는지로 시작합니다.
+설정은 `~/.artemis/config.toml`에 기본값과 설명이 함께 있어요. 누가 리드를 맡을지(`[agents] lead`), 일의 종류마다 누가 맡을지(`[placement]`), 동시에 몇 개를 돌릴지, 직접 쓰는 API 주소(`[api]`)를 정해요. 키는 이름만 적고 값은 적지 않아요. API 키는 따로 정하지 않으면 금고의 `OPENAI_API_KEY`이고, Gemini CLI는 `GEMINI_API_KEY`를 써요.
 
-| 라벨 | 뜻 |
+그다음 앱에서 평소 말투로 시키면 돼요.
+
+> 매주 금요일 18시에 이번 주 다운로드 폴더의 인보이스를 문서/인보이스 아래 월별·거래처별로 정리하고, summary.csv를 만들고, 요약을 팀 채널에 올려 줘.
+
+- 리드는 내 말을 그대로 기록하고, 작업으로 나누고, 일의 종류마다 작업자를 골라요.
+- 예약은 `serve`가 켜져 있는 동안 채팅을 닫아 둬도 돌아요. 컴퓨터가 꺼져 있어서 놓친 회차는 다음에 켤 때 한 번 돌고 `late`로 표시돼요.
+- 판정자는 나도 직접 확인할 수 있는 것을 봐요. 모든 파일 해시가 그대로인지, 14개 파일이 옮겨졌는지, `summary.csv`가 14행인지요.
+- 팀 채널에 올리는 건 나 대신 보내는 일이라서, 정확한 주소와 본문이 적힌 카드로 기다려요. 승인하면 Artemis가 한 번 보내요.
+- 결과가 틀렸으면 `artemis undo 12`로 옮긴 파일을 전부 되돌려요. 그 과정에서 지워지는 건 없어요. 버린 파일은 작업의 되돌리기 폴더에 남아 있어요. 작업 뒤에 내가 바꾼 파일이 있으면 되돌리기를 멈추고 그 파일 이름을 알려 줘요.
+
+호스트 작업은 내가 직접 돌릴 수 있는 프로그램을, 나로서, 내가 등록한 폴더에서 돌려요. Artemis는 마우스를 움직이거나 화면을 읽지 않아요. 앱은 `open`, `xdg-open`, `os.startfile`로 열어요. `undo`는 Artemis 파일 도구로 한 일을 되돌려요. 실행한 프로그램이 스스로 한 일은 기록 밖이에요.
+
+### 폰에서
+
+```sh
+artemis serve --lan
+```
+
+터미널에 주소, QR 코드, 인증서 지문이 나와요. 코드를 찍으면 폰에 숫자 4자리가 떠요. 컴퓨터의 앱이나 `artemis device allow <code>`로 그 숫자를 확인해 주세요. 그 전까지 폰은 아무것도 볼 수 없어요. 연결 링크는 10분 동안 한 번만 쓸 수 있고, `artemis device link`가 새 링크를 출력해요.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-phone-dark.png">
+    <img src="assets/readme/app-phone-light.png" width="300" alt="폰에 뜬 카드: 정확한 명령, 내가 정할 일인 이유, 지금까지의 증거, 쓰는 비밀값 이름, 승인과 거절">
+  </picture>
+  <br><sub>같은 데모 홈의 카드를 폰에서 본 모습</sub>
+</p>
+
+폰은 처음 한 번 인증서 경고를 띄워요. 처음 믿고 쓰는 방식(TOFU)이에요. 처음에 지문을 비교해 두면, 그 뒤로는 같은 네트워크의 누구도 내가 보내는 내용을 읽거나 바꿀 수 없어요. 경고를 피하려면 폰이 이미 믿는 인증서를 `--tls-cert`와 `--tls-key`로 주세요. 연결된 기기는 `artemis device list`로 보고, `artemis device revoke`로 내보내요.
+
+## 나에게 오는 것
+
+Artemis는 돈이 나가는 일, 되돌릴 수 없는 삭제, 나 대신 보내는 일로 알아본 것을 하기 전에 물어요. 알아보는 방법은 세 가지예요. 그 일이 쓰는 키, Artemis 자체 파일 도구, 명령 패턴 목록이에요. 앞의 두 가지는 자격 증명이 금고에만 있는 한 지켜져요. 패턴 목록은 '걸리면 묻는 경보선'이에요. 목록에 없는 프로그램은 그냥 실행되고, 내 컴퓨터에 이미 로그인된 것(git, ssh, 로그인된 브라우저)은 목록으로만 막아요. 벽이 필요하면 프로젝트를 `--no-run`으로 추가하거나, `[run] wrap`에 샌드박스를 지정하거나, Artemis를 별도 OS 사용자로 돌리세요.
+
+카드에는 정확한 작업, 프로젝트, 왜 내가 정해야 하는지, 지금까지의 근거가 나와요. 기본값으로 돈이 나가는 카드는 연결된 폰에서만 승인할 수 있어요(`[cards] phone_only`). 아무것도 안 하면 아무 일도 안 일어나고, 다른 일은 계속 진행돼요. 승인하면 기록된 그 작업이 한 번 실행돼요. 내가 시킨 반복 전송은 카드에서 '계속 허용'을 고를 수 있어요. 그 허용은 예약 하나, 정확한 주소 하나, 키 하나에만 묶이고 언제든 취소할 수 있어요. 돈이 나가는 일은 매번 물어요.
+
+판정에서 떨어진 작업, 충돌, 비정상 종료는 내 일이 아니라 리드의 일이에요. 리드가 다시 시키거나 포기하는 동안 요약에 `stuck`으로 보여요. `artemis stop`은 모든 자동 작업을 멈추고, `artemis resume`을 하기 전까지 아무것도 다시 시작하지 않아요. 규칙은 `~/.artemis/rules.toml`에 있어요.
+
+## 비밀값
+
+```sh
+artemis secret set TEAM_HOOK --origin https://hooks.example.com --kind send
+artemis secret audit
+```
+
+값은 숨김 입력이나 앱의 비밀값 카드에 직접 입력해요. `--origin`은 키를 웹사이트 하나에 묶고, `--env`는 명령에 넘기는 키로 저장해요. `--kind send`면 그 키로 무언가를 바꿀 때마다 '나 대신 보내기' 카드가 뜨고, `--kind spend`면 쓸 때마다 '돈 나감' 카드가 떠요. 에이전트는 이름과 내가 적은 메모만 봐요.
+
+Artemis는 비밀값을 프롬프트, 명령줄, 장부, 로그에 넣지 않고, 도구 출력에서 알려진 인코딩 형태까지 지워요. 웹사이트용 키는 Artemis만, 그 웹사이트로만 보내요. 에이전트가 실행한 프로그램은 그 값을 받지 않아요. 명령용 키는 그 명령에 넘어가고, 그 명령은 그 값으로 무엇이든 할 수 있어요. 지우개가 알아보지 못하는 형태로 출력하는 것도요. 프로그램을 실행할 수 있는 에이전트는 나로서 실행하고, 내 프로그램은 무엇이든 OS 키체인에 Artemis의 키를 물어볼 수 있어요. 암호 문구로 잠금을 풀면 그 길이 없어지고, 샌드박스(`[run] wrap`)나 `--no-run` 프로젝트는 그 길을 닫아요.
+
+금고는 AES-256-GCM이에요. 금고 키는 OS 키체인(macOS 키체인, Windows 자격 증명 관리자, Linux Secret Service)에 둬요. 키체인이 없거나 `[vault] unlock = "passphrase"`로 설정하면, 홈을 켤 때 입력하는 암호 문구로 키를 감싸요. `artemis secret audit`는 장부, 로그, 워크트리에서 저장된 모든 값과 그 인코딩을 찾아 몇 개가 나왔는지 알려 줘요.
+
+## 교훈
+
+판정에서 떨어진 결과가 다시 해서 통과하거나, 내가 채팅에서 리드를 바로잡으면 리드가 교훈을 써요. 교훈은 네 종류예요.
+
+| 종류 | 무엇이 바뀌나 |
 |---|---|
-| `shipped` | 합친 결과에서 검사가 통과한 뒤 main에 반영됨 |
-| `verified` | 판정자가 증거를 통과시킴; 아직 main에는 없음 |
-| `reported` | 작업자가 그렇다고 말함; 아직 아무것도 확인 안 됨 |
-| `inferred` | 리드 자신의 판단 |
-| `decided` | 당신이 결정한 것 |
-| `running` | 지금 작업자가 하는 중 |
-| `stuck` | 리드가 처리 중: 세 번 시도가 실패했거나 비정상 종료 |
+| `rule` | 그 프로젝트의 다음 작업 지시에 한 줄이 들어가요 |
+| `check` | 판정자가 돌릴 검사가 하나 늘어요. 지금 작업에서는 통과하고, 떨어진 작업에서는 실패할 때만 남아요 |
+| `placement` | 한 모델이 세 번 실패하면, 그 종류의 일을 어느 모델에 맡길지 바뀌어요 |
+| `guard` | '먼저 물어보기' 규칙이 하나 늘어요. 내가 카드를 거절한 뒤 제안되고, 내가 좋다고 해야 들어가요 |
 
-다이제스트는 당신이 마지막으로 읽은 뒤 바뀐 것을 다룹니다. `artemis status`는 언제든 같은 수를 보여 줍니다.
+요약에는 `learned L4 "README must list every new flag" · from #12 judge reject` 같은 줄이 뜨고, 교훈 화면은 교훈마다 몇 번 쓰였는지, 그 뒤 첫 시도에 몇 번 통과했는지 세요. 교훈을 내리는 건 나만 할 수 있어요. Artemis는 설치된 자기 코드를 스스로 고치지 않아요. `tests/test_lessons.py`가 이 구조를 증명해요. 정해진 대로 움직이는 작업자가 작업에서 떨어지고, 교훈이 생기고, 다음 작업은 첫 시도에 통과하고, 교훈을 내리면 다시 떨어져요. 교훈이 실제로 돌아가는 일을 바꾼다는 증명이지, 모델이 배운다는 증명은 아니에요.
 
-## 에이전트
+## 팀
 
-| 에이전트 | 리드로 | 작업자로 | |
+| 에이전트 | 작업자 | 리드 | 실제 실행 |
 |---|---|---|---|
-| Claude Code | `artemis start` | `claude -p`. 자기 워크트리에서 읽고 고치고 작업의 검사를 돌림; 그 밖의 것은 묻지 않고 거부 | 지원 |
-| Codex | — | 셸을 끈 `codex exec`. 파일 읽기와 작업의 검사는 Artemis 도구로, 수정은 자기 패치 도구로 | 지원 |
-| OpenCode | — | Artemis 권한 프로필 아래의 `opencode run`. 읽기, 수정, 작업의 검사만 허용하고 나머지는 거부 | 대역 CLI로 시험함 |
-| OpenAI 호환 API | — | 추적 중인 파일을 담은 요청 한 번; 답으로 온 파일 단위 수정을 Artemis가 확인하고 씀 | 대역 서버로 시험함 |
-| mock | 내장 대화 | 데모 프로젝트용 정해진 변경, AI 없음 | 흐름 체험과 CI용 |
+| Claude Code | `claude -p`, Artemis 도구만 | 가능 | macOS 27 · 2.1.331 · 리드, 코드, 호스트 · 2026-11-25 |
+| Codex | `codex exec`, 셸 끔, Artemis 도구 | 가능 | macOS 27, Windows 11 · 0.172.0 · 리드, 코드, 호스트 · 2026-11-25 |
+| Gemini CLI | `gemini`, 내장 도구는 정책으로 거부 | — | macOS 27 · 0.71.1 · 코드 · 2026-11-25 |
+| OpenCode | `opencode run`, Artemis 권한 프로필 | — | macOS 27 · 1.19.6 · 코드 · 2026-11-25 |
+| OpenAI 호환 API | Artemis가 직접 돌리는 도구 루프 | 선택 | macOS 27 · Gemini의 OpenAI 호환 주소 · 코드, 리드 · 2026-11-25 |
+| mock | AI 없이 정해진 수정 | 기본 | 데모와 CI용 |
 
-`artemis.toml`의 `[agents]`에서 `worker = "..."`로 고릅니다. `auto`는 Claude Code, Codex, OpenCode 중 설치된 첫 번째를, 없으면 mock을 씁니다. API 작업자는 그 제공자가 따로 요금을 매기므로 이름을 직접 적었을 때만 돕니다. `[api]`에 `model`, `base_url`, `key_env`(키를 담은 환경 변수의 이름)를 적으세요.
+Gemini CLI, OpenCode, API는 무료 Google AI Studio 키와 Gemini Flash-Lite 모델로 돌렸어요. Claude Code와 Codex는 각자의 로그인으로 돌렸어요. 서로 다른 회사의 작업자 둘이 동시에 일했고, 리드를 Claude Code에서 Codex로 바꾼 뒤에도 대화가 이어졌어요.
 
-Artemis는 당신이 설치한 CLI를 고치지 않은 그대로, 각 CLI가 관리하는 로그인이나 API 키로 실행합니다. Artemis는 그 자격 증명을 보지 않습니다. 작업자는 당신의 세션과 같은 요금제 사용량을 씁니다. API 작업자는 당신이 지정한 환경 변수에서 키를 읽고, 그 키를 당신의 엔드포인트에만 보냅니다. Artemis는 Anthropic, OpenAI, OpenCode와 관계없는 프로젝트입니다.
+`artemis doctor providers`는 이 컴퓨터에서 짧은 자격 검사를 돌려 에이전트마다 `live`(여기서 실제로 돎), `contract`(만들고 대역으로 시험했지만 여기서는 아직 안 돎), `unqualified`(없거나 로그인 안 됨)로 표시해요. 위 표는 각 에이전트가 마지막으로 실제로 돈 곳을 적어 둔 거예요.
+
+일은 종류별로 배치돼요. 기본값은 아래와 같고, `~/.artemis/config.toml`의 `[placement]`에서 바꿀 수 있어요.
+
+| 종류 | 순서 |
+|---|---|
+| code | Codex, Claude Code, OpenCode |
+| review | Claude Code, Codex, Gemini CLI |
+| research | Gemini CLI, Claude Code, Codex |
+| docs | Claude Code, Gemini CLI, Codex |
+| host | Claude Code, Codex, API |
+
+검토자는 늘 작업자와 다른 회사 모델이에요. 검토는 빠진 점을 더할 수만 있고, 판정에서 떨어진 작업을 통과시킬 수는 없어요.
+
+Artemis는 내가 설치한 CLI를 손대지 않고, 각 CLI가 관리하는 로그인이나 API 키로 돌려요. 작업자는 내 세션과 같은 요금제 한도를 써요. API 작업자는 그 제공자가 따로 요금을 매기므로, 내가 지정할 때만 써요. 무료 AI Studio 키로 쓰는 Gemini CLI는 Google의 [Gemini API 약관](https://ai.google.dev/gemini-api/terms)을 따르고, 그 약관은 무료 등급에서 보낸 내용을 Google이 제품 개선에 쓸 수 있다고 해요. Artemis는 Anthropic, OpenAI, Google, OpenCode와 관계없는 독립 프로젝트예요.
 
 ## 믿을 수 있는 이유
 
-- **장부는 하나.** 요청, 작업, 실행, 증거, 판정, 결정, 영수증은 프로젝트 안의 SQLite 파일 `.artemis/ledger.db`에 있습니다. 상태 줄, 결정함, 다이제스트는 모두 그 위의 조회입니다. 이벤트는 덧붙이기만 합니다.
-- **하는 사람이 판정하지 않습니다.** 작업자의 주장은 보고일 뿐입니다. 판정자는 기록된 것으로만 판정합니다. 작업자 커밋의 깨끗한 체크아웃에서 잡은 검사별 종료 코드와 필요한 파일의 다이제스트입니다.
-- **배포 레인은 하나.** 작업이 main에 닿는 길은 하나입니다: 버리는 워크트리에서 병합, 병합 결과에서 검사, 빨리 감기, 영수증. Artemis는 푸시하지 않습니다.
-- **멈춤이 모든 자동화를 이깁니다.** 작업자, 재시도, 배포 레인은 단계마다 당신의 멈춤을 확인합니다.
+- **장부 하나.** 프로젝트, 요청, 작업, 실행, 근거, 판정, 카드, 교훈, 영수증이 모두 `~/.artemis/ledger.db`에 있어요. 앱, 보드, 상태 줄, 요약은 그 장부를 보여 주는 화면이에요. 이벤트는 추가만 돼요.
+- **판정자는 작업자가 아니에요.** 작업자의 주장은 보고일 뿐이에요. 판정자는 직접 확보한 것으로만 판단해요. 종료 코드, 파일 해시, 파일의 속성이요.
+- **반영 경로 하나.** 코드는 한 길로만 브랜치에 들어가요. 버리는 워크트리에서 병합하고, 병합 결과로 검사하고, 빨리 감기하고, 영수증을 남겨요. Artemis는 스스로 push하지 않아요. `git push`는 '나 대신 보내기' 목록에 있어요.
+- **정지가 모든 자동화보다 먼저예요.** 작업자, 예약, 재시도, 반영 경로는 단계마다 정지 여부를 확인해요.
+- **관문 하나.** 각 회사 CLI의 자체 셸은 꺼 두고, 작업자는 `artemis mcp`를 통해서만 일해요. 그 관문이 정지, 폴더, 규칙, 금고를 확인하고 호출마다 기록해요.
 
-작업자는 당신 권한으로 돕니다. Claude Code 작업자는 자기 워크트리에서 읽고 고치고, Git을 보고, 작업의 검사를 돌릴 수 있고, 그 밖의 것은 묻지 않고 거부됩니다. 검사는 에이전트가 쓴 코드를 당신 권한으로, 버리는 워크트리에서 실행하고, 셸의 환경 변수 중 PATH, HOME, 로캘, 임시 폴더, 툴체인 변수만 봅니다. 테스트에 다른 변수가 필요하면 `[ship]`의 `pass_env`에 이름을 적으세요. 이것은 환경 변수의 토큰을 그 코드에서 떼어 놓을 뿐 파일까지 막지는 않으니, 당신이 직접 돌려도 괜찮은 코드에만 Artemis를 쓰세요.
-
-[docs/design.ko.md](docs/design.ko.md)는 각 생각과 그것이 `src/artemis/`의 어디에 있는지 설명합니다.
+[docs/design.ko.md](docs/design.ko.md)에 각 아이디어와 그것이 `src/artemis/`의 어디에 있는지 설명해 뒀어요.
 
 ## 명령
 
-| 당신 | 리드 | 누구나 |
+| 나 | 리드 | 누구나 |
 |---|---|---|
-| `artemis start` · `artemis approve N` · `artemis decline N` · `artemis stop` · `artemis resume` | `artemis request` · `task` · `ask` · `carried` · `retry` · `drop` · `note` · `wait` | `artemis status` · `inbox` · `digest` · `show` · `demo` |
+| `serve` · `project add` · `approve N` · `decline N` · `stop` · `resume` · `secret` · `undo` · `lesson` · `device` | `request` · `task` · `ask` · `carried` · `retry` · `drop` · `note` · `wait` | `status` · `inbox` · `digest` · `show` · `doctor` · `demo` |
 
-설정은 `artemis.toml`에 있습니다: 누가 리드이고 누가 작업자인지, 동시에 몇 명이 일하는지, 결정 목록, 작업이 반영될 브랜치, 검사.
+`artemis start`는 v0.2의 방식을 그대로 써요. 내 터미널 세션이 저장소 하나를 이끌어요.
 
-## 상태
+## 현재 상태
 
-초기 릴리스입니다: 리드, 동시 작업자, 결정함, 다이제스트가 있습니다. 리드는 Claude Code가, 작업은 Claude Code, Codex, OpenCode, OpenAI 호환 API, mock이 맡습니다. 빠른 시작은 CI의 새 macOS와 Linux 머신에서 돕니다. 단위 테스트는 Windows에서도 돌지만, Windows의 실제 작업자는 아직 지원하지 않습니다.
+초기 공개판이에요. macOS, Linux, Windows CI에서 실제로 시험한 것: 홈과 앱, 폰 연결, 폴더·저장소 프로젝트, 되돌리기가 되는 파일 도구, 백그라운드 작업이 되는 `run`, 예약, 지우개·감사가 있는 금고, 카드, 정지, 판정자와 반영 경로, 교훈, 모의 작업자와 대역 작업자. 실제로 돈 에이전트는 각각 실제로 돈 곳과 함께 적어 뒀어요. 폰 연결과 카드는 안드로이드 Chrome과 아이폰 크기의 Safari 엔진(WebKit)에서도 확인했어요.
 
-이 프로젝트에 영향을 준 오픈 소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있습니다.
+이번 판에 없는 것: 화면·마우스 조작, 홈을 OS 서비스로 돌리기, 여러 사용자, 푸시 알림, 네이티브 앱.
+
+v0.2에서 올라오는 경우: `artemis project add`로 전에 쓰던 저장소를 등록하세요. 예전 `.artemis/ledger.db`는 그대로 두고, 거기 기록된 정지는 계속 지켜요.
+
+Artemis가 쓰고 참고한 오픈소스 프로젝트는 [NOTICES.md](NOTICES.md)에 있어요.
 
 <p align="center">
   <sub>Apache-2.0 · <a href="LICENSE">LICENSE</a></sub>

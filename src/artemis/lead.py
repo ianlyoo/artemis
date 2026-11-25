@@ -1,32 +1,114 @@
-"""Start the lead you talk to: your own agent CLI session, or the built-in chat lead."""
+"""The lead: one cold, headless turn per message from the person, or per wake from the home.
 
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
-import json
-import os
-from pathlib import Path
-import re
-import shutil
-import subprocess
-import sys
+Each turn starts a fresh process of the configured provider with the static instructions (templates/lead.md) and
+a context packet read from the ledger, and nothing else: no vendor session is resumed, so [agents] lead can change
+between turns. The lead acts only through the Artemis lead tools. Its reply streams to the App as it is written and
+lands in the conversation scrubbed of vault values.
+"""
+
+from importlib.resources import files
+import threading
 import time
+import uuid
 
-from . import __version__
-from .agents import Agent, pick
-from .attention import card, digest, inbox, status, statusline
-from .config import STATE, Config, ledger_path
-from .judge import Criterion
-from .ledger import Ledger
-from .roles import Interrupt, Role, WorkflowError
-from .supervise import dispatch
+from . import agents
+from .mock_worker import plan  # the v0.2 chat lead's planner, below
+from .packet import focus, packet
+from .roles import Role, WorkflowError
+from .worker_adapters import delta, setting
 
+LEAD_RUN = 0        # the broker grant number of a lead turn; turns run one at a time, so one number serves them all
+
+
+def instructions() -> str:
+    return files("artemis.templates").joinpath("lead.md").read_text(encoding="utf-8")
+
+
+def _lessons(ledger, projects: list[int]) -> list[str]:
+    try:
+        from .lessons import prompt_lines
+    except ImportError:
+        return []
+    return list(dict.fromkeys(line for project in projects or [None] for line in prompt_lines(ledger, project)))[:10]
+
+
+class LeadRunner:
+    def __init__(self, home):
+        self.home = home
+        self._lock = threading.RLock()
+
+    def turn(self, message: int) -> None:
+        """Answer one message of the person's. Raises WorkflowError, with the reason, when the lead did not answer."""
+        row = self.home.ledger.message(message)
+        self._run(row, f"you (message #{message}): {row['text']}", "lead.turn",
+                  focus(self.home.ledger, row["text"], row["project_id"]))
+
+    def wake(self, reason: str) -> None:
+        """Let the lead look at something that happened: a request settled, a task stuck, a card answered. At most
+        [lead] wake_per_hour wakes run in any hour (0: none); past that, what happened waits in the ledger for the
+        next turn's packet."""
+        ledger, cap = self.home.ledger, int(setting(self.home.config, "lead", "wake_per_hour", 6))
+        with self._lock:        # counted and run under one lock, so wakes that arrive together cannot pass the cap
+            if len(ledger.events(kind="lead.wake", since=time.time() - 3600)) >= cap:
+                return
+            self._run(None, f"artemis (system): {reason}", "lead.wake", focus(ledger, reason))
+
+    def _run(self, message, line: str, kind: str, projects: list[int]) -> None:
+        home, ledger, config = self.home, self.home.ledger, self.home.config
+        with self._lock:
+            name = agents.lead_provider(config, home.vault, ledger)
+            label = agents.LABELS[name]
+            context = packet(ledger, projects, _lessons(ledger, projects),
+                             history=int(setting(config, "lead", "history", 20)),
+                             before=None if message is None else message["id"])
+            turn = uuid.uuid4().hex
+            folder = home.paths.lead
+            folder.mkdir(parents=True, exist_ok=True)
+            scrubber = agents.scrubber(home.vault)
+            stream = scrubber.stream()
+
+            def shown(piece: str) -> None:
+                if piece:
+                    home.publish("said.delta", {"turn": turn, "text": piece})
+
+            halted = ledger.stopped()
+            started = time.monotonic()
+            token = home.grant(LEAD_RUN, None, projects[0] if projects else None, "lead", folder, "folder")
+            try:
+                spawn = agents.launch(name, role="lead", mode="host", cwd=folder, prompt=f"{context}\n\n{line}\n",
+                                      mcp=home.mcp_command(token), config=config, vault=home.vault,
+                                      scratch=folder / "run", instructions=instructions())
+                outcome = agents.run_turn(
+                    spawn, folder, float(setting(config, "lead", "max_turn_minutes", 5)) * 60,
+                    lambda output: shown(stream.feed(delta(name, output))),
+                    lambda: home.closing.is_set() or (not halted and ledger.stopped()))
+            finally:
+                home.revoke(LEAD_RUN)
+            shown(stream.flush())
+            seconds = round(time.monotonic() - started)
+            project = None if message is None else message["project_id"]
+            data = {"turn": turn, "provider": name, "message": None if message is None else message["id"]}
+            try:
+                reply = agents.answer(spawn, outcome)
+            except WorkflowError as error:
+                reason = scrubber.scrub(f"{label} did not answer after {seconds} s: {error}")
+                ledger.record(Role.HOME, kind, reason[:400], project=project, data=data)
+                raise WorkflowError(reason) from None
+            ledger.record(Role.HOME, kind, f"{label} answered in {seconds} s", project=project, data=data)
+            ledger.say(Role.LEAD, scrubber.scrub(reply), project=project, turn=turn)
+
+
+# v0.2 surface, used by cli.py (`artemis start`, `artemis chat`) and the flow tests until they move to the home;
+# delete it then. Its v0.2 imports are inside the functions, so a rewrite of those modules cannot break LeadRunner.
 
 LEAD_COMMANDS = ("request", "task", "ask", "status", "inbox", "digest", "wait", "show", "retry", "drop",
                  "carried", "note", "statusline")
 PERSON_ONLY = ("approve", "decline", "resume")
 
 
-def header(config: Config, lead: Agent, worker: Agent) -> str:
+def header(config, lead, worker) -> str:
+    from . import __version__
+    from .roles import Interrupt
     workers = f"workers: {worker.name} ×{config.max_workers}"
     if worker.mock:
         workers = f"workers: mock ×{config.max_workers} (no AI; for trying the flow)"
@@ -39,7 +121,7 @@ def header(config: Config, lead: Agent, worker: Agent) -> str:
 
 
 def session_settings() -> dict:
-    """Claude Code settings for the lead: a live status line, Artemis commands allowed, approval kept from it."""
+    """Claude Code settings for the terminal lead: a live status line, Artemis commands allowed, approval kept from it."""
     return {
         "statusLine": {"type": "command", "command": "artemis statusline", "refreshInterval": 2},
         "permissions": {
@@ -51,6 +133,10 @@ def session_settings() -> dict:
 
 def _path_with_artemis() -> dict[str, str]:
     """Make sure `artemis` resolves in the lead's shell to this installation."""
+    import os
+    from pathlib import Path
+    import shutil
+    import sys
     env = dict(os.environ)
     here = Path(sys.argv[0]).resolve().parent
     if shutil.which("artemis") is None and (here / "artemis").exists():
@@ -58,66 +144,26 @@ def _path_with_artemis() -> dict[str, str]:
     return env
 
 
-def start_cli(config: Config, lead: Agent) -> int:
-    instructions = config.instructions("lead.md")
-    if lead.name == "claude":
-        settings = config.root / STATE / "session" / "claude-settings.json"
-        settings.parent.mkdir(parents=True, exist_ok=True)
-        settings.write_text(json.dumps(session_settings(), indent=2), encoding="utf-8")
-        argv = ["claude", "--append-system-prompt", instructions, "--settings", str(settings),
-                "--name", "artemis lead"]
-    else:
+def start_cli(config, lead) -> int:
+    import json
+    import subprocess
+    from .config import STATE
+    instructions_text = config.instructions("lead.md")
+    if lead.name != "claude":
         raise WorkflowError(f"{lead.label} cannot be started as the lead yet.")
+    settings = config.root / STATE / "session" / "claude-settings.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(json.dumps(session_settings(), indent=2), encoding="utf-8")
+    argv = ["claude", "--append-system-prompt", instructions_text, "--settings", str(settings),
+            "--name", "artemis lead"]
     return subprocess.run(argv, cwd=config.root, env=_path_with_artemis(), check=False).returncode
 
 
-# The built-in chat lead. Its planner is a few rules, not a model, so it says mock wherever it speaks.
-
-ASKS = (
-    (Interrupt.SEND, r"\b(post|publish|send|email|e-mail|tweet|announce|push|release it|message)\b"),
-    (Interrupt.SPEND, r"\b(pay|buy|purchase|subscribe|order|upgrade the plan)\b"),
-    (Interrupt.DELETE, r"\b(delete|wipe|erase|destroy|drop the database|remove for good)\b"),
-)
-WHY = {Interrupt.SEND: "it speaks in your name.", Interrupt.SPEND: "it spends money.",
-       Interrupt.DELETE: "it cannot be undone."}
-
-
-@dataclass(frozen=True)
-class Plan:
-    tasks: tuple[tuple[str, tuple[Criterion, ...]], ...]
-    asks: tuple[tuple[Interrupt, str], ...]
-
-
-def _title(clause: str) -> str:
-    clause = clause.strip().rstrip(".!")
-    return clause[:1].upper() + clause[1:]
-
-
-def plan(sentence: str, checks: tuple[tuple[str, ...], ...]) -> Plan:
-    """Split one sentence into parallel tasks and held-back actions, by its commas and conjunctions."""
-    clauses = []
-    for part in re.split(r",?\s+then\s+|;\s*|,\s+", sentence.strip()):
-        pieces = re.split(r"\s+and\s+(?=a |an |the )", part)
-        verb = pieces[0].split(" ", 1)[0]
-        clauses.append(pieces[0])
-        clauses.extend(f"{verb} {piece}" for piece in pieces[1:])
-    tasks, asks = [], []
-    for clause in filter(str.strip, clauses):
-        kind = next((kind for kind, pattern in ASKS if re.search(pattern, clause, re.IGNORECASE)), None)
-        if kind is not None:
-            asks.append((kind, _title(clause)))
-        elif re.search(r"\b(readme|document|docs?)\b", clause, re.IGNORECASE):
-            flags = dict.fromkeys(re.findall(r"(?<!\w)--[a-z][\w-]*", sentence))
-            checks_for_docs = tuple(Criterion(f"README mentions {flag}", command=("grep", "-q", "--", flag, "README.md"))
-                                    for flag in flags) or (Criterion("README.md", artifact="README.md"),)
-            tasks.append((_title(clause), checks_for_docs))
-        else:
-            tasks.append((_title(clause), tuple(Criterion(" ".join(c), command=c) for c in checks)))
-    return Plan(tuple(tasks), tuple(asks))
-
-
-def _carry_out(config: Config, ledger: Ledger, decision) -> str:
+def _carry_out(config, ledger, decision) -> str:
     """The chat lead's one action: the demo project's team post, which writes a local file."""
+    import subprocess
+    import sys
+    from .roles import Interrupt
     script = config.root / "notify.py"
     if decision["kind"] == Interrupt.SEND and script.exists():
         subprocess.run((sys.executable, "notify.py", decision["what"]), cwd=config.root, check=True,
@@ -125,13 +171,13 @@ def _carry_out(config: Config, ledger: Ledger, decision) -> str:
         note = "posted to the demo outbox"
     else:
         note = "recorded only (the mock lead has nothing to run for this)"
-    ledger.carried_out(Role.LEAD, decision["id"], note)
+    ledger.finish_card(Role.LEAD, decision["id"], "done", note)
     return note
 
 
-def chat(config: Config, ledger: Ledger, lines: Iterable[str], say: Callable[[str], None], *,
-         live: bool, tick_s: float = 1.0) -> None:
+def chat(config, ledger, lines, say, *, live: bool, tick_s: float = 1.0) -> None:
     """Run the chat lead over the person's lines (typed, or scripted for the demo)."""
+    from .attention import digest, inbox, status
     for line in lines:
         text = line.strip()
         command = text.removeprefix("artemis ").strip()
@@ -141,8 +187,8 @@ def chat(config: Config, ledger: Ledger, lines: Iterable[str], say: Callable[[st
         if verb in {"quit", "exit"}:
             return
         if verb in {"approve", "decline"} and rest.strip().isdigit():
-            ledger.decide(Role.OWNER, int(rest), verb == "approve")
-            decision = next(d for d in ledger.decisions() if d["id"] == int(rest))
+            ledger.decide_card(Role.OWNER, int(rest), verb == "approve")
+            decision = ledger.card(int(rest))
             if verb == "approve":
                 say(f"approved: {rest} · the lead carries it out")
                 say(f"lead (mock) › Decision {rest}: {_carry_out(config, ledger, decision)} "
@@ -157,14 +203,17 @@ def chat(config: Config, ledger: Ledger, lines: Iterable[str], say: Callable[[st
         _request(config, ledger, text, say, live=live, tick_s=tick_s)
 
 
-def _request(config: Config, ledger: Ledger, text: str, say: Callable[[str], None], *,
-             live: bool, tick_s: float) -> None:
-    request = ledger.request(Role.OWNER, text)
+def _request(config, ledger, text: str, say, *, live: bool, tick_s: float) -> None:
+    from .attention import card
+    from .config import repo_project
+    from .mock_worker import WHY
+    from .supervise import dispatch
+    request = ledger.request(Role.OWNER, text, project=repo_project(ledger, config.root))
     steps = plan(text, config.checks)
     for _, criteria in steps.tasks:
         config.landing_checks(criteria)
     numbers = [ledger.add_task(Role.LEAD, request, title, "", criteria) for title, criteria in steps.tasks]
-    decisions = [ledger.ask(Role.LEAD, request, kind, what, WHY[kind]) for kind, what in steps.asks
+    decisions = [ledger.open_card(Role.LEAD, kind, what, WHY[kind], request=request) for kind, what in steps.asks
                  if kind in config.interrupts]
     rows = [f"lead (mock) › {_plural_tasks(len(numbers))}, running in parallel:"]
     for number, (title, criteria) in zip(numbers, steps.tasks):
@@ -174,8 +223,8 @@ def _request(config: Config, ledger: Ledger, text: str, say: Callable[[str], Non
         rows.append(f"  {what} — {WHY[kind].rstrip('.')}, so it waits in your inbox (decision {decision}).")
     say("\n".join(rows))
     dispatch(config, ledger)
-    _follow(config, ledger, numbers, say, live=live, tick_s=tick_s)
-    for decision in ledger.decisions("waiting"):
+    _follow(ledger, numbers, say, live=live, tick_s=tick_s)
+    for decision in ledger.cards("waiting"):
         say(card(ledger, decision))
 
 
@@ -183,9 +232,10 @@ def _plural_tasks(count: int) -> str:
     return {1: "One task", 2: "Two tasks", 3: "Three tasks"}.get(count, f"{count} tasks")
 
 
-def _follow(config: Config, ledger: Ledger, tasks: list[int], say: Callable[[str], None], *,
-            live: bool, tick_s: float) -> None:
+def _follow(ledger, tasks: list[int], say, *, live: bool, tick_s: float) -> None:
     """Show the status line as it changes until every task of this request has settled."""
+    import sys
+    from .attention import statusline
     last = ""
     while True:
         line = statusline(ledger)
@@ -204,7 +254,10 @@ def _follow(config: Config, ledger: Ledger, tasks: list[int], say: Callable[[str
         sys.stdout.write("\n")
 
 
-def start(config: Config, lead: Agent, worker: Agent) -> int:
+def start(config, lead, worker) -> int:
+    import sys
+    from .config import ledger_path
+    from .ledger import Ledger
     ledger = Ledger(ledger_path(config.root))
     print(header(config, lead, worker), flush=True)
     if lead.name != "chat":
@@ -224,11 +277,3 @@ def start(config: Config, lead: Agent, worker: Agent) -> int:
         print()
     return 0
 
-
-def pair(name: str | None, config: Config) -> tuple[Agent, Agent]:
-    """--agent picks both; otherwise artemis.toml picks each."""
-    if name is None:
-        return pick(config.lead, "lead"), pick(config.worker, "worker")
-    worker = pick(name, "worker")
-    lead = pick("chat", "lead") if worker.mock or name == "api" else pick(name, "lead")
-    return lead, worker

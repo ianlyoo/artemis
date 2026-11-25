@@ -1,0 +1,44 @@
+# What Artemis asks you about before an agent's command runs, and what it never runs.
+#
+# Each pattern is the start of a command: the program, then its first arguments. "*" stands for any one argument,
+# "**" for any number of them, and an argument may be a glob such as "--force*". A program matches by its name,
+# without its folder, .exe or case. On Windows every argument is matched without regard to case.
+#
+# This list is a tripwire. Agents run commands as you, and a command can be written so that no pattern recognises
+# it; logins already on this computer (git, ssh, a signed-in browser) are covered only by this list. What holds
+# besides it: a secret marked send or spend makes any use of it ask first, and Artemis's file tools move files to an
+# undo folder instead of deleting them. For a wall, add a project with --no-run or set [run] wrap to a sandbox.
+
+[match."send as you"]
+argv = [["git", "push"], ["gh", "pr", "create"], ["gh", "pr", "merge"], ["gh", "pr", "comment"], ["gh", "release"],
+        ["gh", "issue", "create"], ["gh", "issue", "comment"], ["npm", "publish"], ["twine", "upload"],
+        ["docker", "push"], ["sendmail"], ["Send-MailMessage"]]
+
+[match."irreversible delete"]
+argv = [["rm"], ["rmdir"], ["unlink"], ["shred"], ["find", "**", "-delete"], ["git", "clean"],
+        ["git", "reset", "--hard"], ["git", "branch", "-D"], ["Remove-Item"], ["del"], ["erase"], ["rd"],
+        ["robocopy", "**", "/PURGE"], ["robocopy", "**", "/MIR"], ["Clear-RecycleBin"]]
+
+[match."money out"]
+argv = [["stripe"], ["terraform", "apply"]]
+
+# Programs that run code they read from a file. They run, and are recorded and counted in the digest as opaque.
+[opaque]
+argv = [["python*"], ["py"], ["node"], ["deno"], ["bun"], ["ruby"], ["perl"], ["php"], ["Rscript"], ["java"],
+        ["npm"], ["npx"], ["pnpm"], ["yarn"], ["make"], ["cargo", "run"], ["go", "run"], ["sh"], ["bash"], ["zsh"],
+        ["powershell"], ["pwsh"], ["cmd"], ["osascript"], ["cscript"], ["wscript"]]
+
+# Never run, with no card, even with your approval. Built in besides these: a delete whose target is a disk's root
+# or your home folder, a shell given an inline command in a project without shell = true, and file-tool access to
+# Artemis's own folder, .env files, ~/.ssh and ~/.aws.
+[deny]
+argv = [["git", "push", "**", "--force*"], ["git", "push", "**", "-f*"], ["git", "push", "**", "-[!-]*f*"],
+        ["git", "push", "**", "--mirror"], ["git", "push", "**", "+*"],
+        ["artemis", "approve"], ["artemis", "decline"], ["artemis", "resume"], ["artemis", "secret"],
+        ["artemis", "device"],
+        ["security", "find-generic-password"], ["security", "find-internet-password"], ["security", "dump-keychain"],
+        ["security", "export"], ["secret-tool", "lookup"], ["secret-tool", "search"], ["kwallet-query"],
+        ["keyring", "get"], ["python*", "-m", "keyring"], ["cmdkey", "/list*"], ["vaultcmd"]]
+
+# The guards you accept from lessons (artemis lesson list) are written below this file's other lines, between two
+# marker lines, as [learned."<kind>"] tables shaped like [match."<kind>"]. Artemis rewrites that block itself.

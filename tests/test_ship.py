@@ -21,7 +21,8 @@ class ShipTests(unittest.TestCase):
         (self.repo / ".git" / "info" / "exclude").write_text(".artemis/\n", encoding="utf-8")
         self.ledger = Ledger(self.repo / ".artemis" / "ledger.db")
         self.ledger.initialize()
-        self.request = self.ledger.request(Role.OWNER, "Two changes")
+        project = self.ledger.add_project(Role.OWNER, "repo", "repo", self.repo)
+        self.request = self.ledger.request(Role.OWNER, "Two changes", project=project)
 
     def passed(self, sha: str) -> int:
         task = self.ledger.add_task(Role.LEAD, self.request, "Change", "", (Criterion("tests", command=CHECK),))

@@ -1,0 +1,69 @@
+# Artemis home settings. Edit freely. Artemis writes this file when it is missing, and after that changes one
+# line only: [agents] lead, when you pick who leads in the App's Settings.
+# Every key below shows its default. An unknown section or field is an error that names it.
+
+[serve]
+# The App and the broker listen here, on this computer only unless you start with --lan.
+port = 7411
+
+[agents]
+# Who you talk to: claude, codex, api or mock. auto takes claude, else codex, else mock.
+lead = "auto"
+# The worker used when this build cannot place a task itself. mock is not an AI: it makes canned changes so you
+# can try the flow without an account. ARTEMIS_WORKER=<name> uses that one worker for everything.
+worker = "auto"
+# How many workers run at once, in total and per provider, and how long one may take.
+max_workers = 4
+worker_minutes = 20
+caps = { claude = 2, codex = 2, gemini = 1, opencode = 1, api = 2, mock = 4 }
+
+[placement]
+# For each kind of task, the providers in order of preference. The first one installed, qualified and under its
+# cap takes the task; when all are busy the task waits. A review always comes from another family than the work.
+code = ["codex", "claude", "opencode"]
+review = ["claude", "codex", "gemini"]
+research = ["gemini", "claude", "codex"]
+docs = ["claude", "gemini", "codex"]
+host = ["claude", "codex", "api"]
+
+[lead]
+# At most this many times an hour the lead is woken by itself: when a request settles, a task gets stuck or you
+# answer a card. 0: only your messages wake it. Schedules never wake it.
+wake_per_hour = 6
+# Messages each lead turn is given, and how long one lead turn may take.
+history = 20
+max_turn_minutes = 5
+
+[run]
+# The longest a command run through Artemis may take, and an optional sandbox prefix such as ["srt", "--"].
+timeout_s = 600
+wrap = []
+# On Windows, the .cmd and .bat programs a worker may start.
+batch_ok = ["npm", "npx", "pnpm", "yarn"]
+
+[vault]
+# How the vault's key is unlocked at start: keyring (the OS keychain), passphrase (typed at the terminal or in
+# the App once per start), or env (ARTEMIS_VAULT_PASSPHRASE, for CI and headless machines).
+unlock = "keyring"
+
+[cards]
+# Card kinds that only a paired phone may approve.
+phone_only = ["money out"]
+
+[api]
+# A direct OpenAI-compatible endpoint. key is the NAME of a secret in the Artemis vault, never the value.
+base_url = "https://api.openai.com/v1"
+model = ""
+key = "OPENAI_API_KEY"
+
+[gemini]
+# Empty: the Gemini CLI's own default. The key comes from the vault secret GEMINI_API_KEY.
+model = ""
+
+[opencode]
+# Empty: the model configured in OpenCode.
+model = ""
+
+[interrupts]
+# The only kinds of action Artemis puts to you as a card. Everything else goes ahead and shows in the digest.
+ask = ["money out", "irreversible delete", "send as you"]

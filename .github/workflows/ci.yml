@@ -1,0 +1,73 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests · ${{ matrix.os }} · Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Make a vault passphrase that exists only in this job
+        run: |
+          passphrase=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+          echo "::add-mask::$passphrase"
+          echo "ARTEMIS_VAULT_PASSPHRASE=$passphrase" >> "$GITHUB_ENV"
+      - name: Install Artemis and the test-only MCP client
+        run: |
+          python -m venv .venv
+          if [ -x .venv/bin/python ]; then py=.venv/bin/python; else py=.venv/Scripts/python.exe; fi
+          echo "PY=$py" >> "$GITHUB_ENV"
+          "$py" -m pip install --quiet .
+          # The official MCP SDK, only to drive `artemis mcp` from tests/e2e; Artemis itself never imports it.
+          "$py" -m pip install --quiet "mcp==2.3.0"
+      - name: Unit and end-to-end tests (mock workers, stand-in API, App API, MCP client)
+        run: '"$PY" -m unittest discover -s tests -v'
+
+  readme:
+    name: README path · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Keep line endings as committed, so sh reads the scripts
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Make a vault passphrase that exists only in this job
+        run: |
+          passphrase=$(python -c "import secrets; print(secrets.token_urlsafe(32))")
+          echo "::add-mask::$passphrase"
+          echo "ARTEMIS_VAULT_PASSPHRASE=$passphrase" >> "$GITHUB_ENV"
+      - name: The README path in sh, as a stranger runs it
+        run: sh tests/readme_quickstart.sh sh
+      - name: The README path in Windows PowerShell, as a stranger runs it
+        if: runner.os == 'Windows'
+        run: sh tests/readme_quickstart.sh powershell
