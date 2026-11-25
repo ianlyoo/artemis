@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from artemis.judge import (ArtifactEvidence, Case, CommandEvidence, ContainsEvidence, CountEvidence, Criterion,
-                          ExistsEvidence, PreservedEvidence, RuleJudge, capture, snapshot)
+                          ExistsEvidence, PreservedEvidence, RuleJudge, capture, snapshot, within)
 from artemis.ledger import evidence_from
 
 
@@ -129,6 +129,29 @@ class JudgeTests(unittest.TestCase):
         self.assertEqual(without[1], ExistsEvidence("notes.md", True))
         self.assertEqual(PreservedEvidence("x/*", "y", 0).gap(Criterion("p", preserved=("x/*", "y"))),
                          "no files matched x/* when the task started")
+
+    def test_a_check_names_a_folder_the_project_reaches_by_its_absolute_path(self):
+        with TemporaryDirectory() as scratch:
+            root, downloads = Path(scratch, "Invoices"), Path(scratch, "Downloads")
+            root.mkdir()
+            downloads.mkdir()
+            (downloads / "a.pdf").write_bytes(b"invoice a")
+            source = (downloads.resolve() / "*.pdf").as_posix()
+            criteria = (Criterion("kept", preserved=(source, "2026-11")),
+                        Criterion("inbox empty", count=(downloads.resolve().as_posix(), 1)))
+            before = json.loads(json.dumps(snapshot(root, criteria, (downloads,))))
+            self.assertEqual(before, {source: {(downloads.resolve() / "a.pdf").as_posix():
+                                               [9, sha256(b"invoice a").hexdigest()]}})
+            self.assertEqual(snapshot(root, criteria), {})   # a folder the project does not reach is not looked at
+            (root / "2026-11").mkdir()
+            (downloads / "a.pdf").rename(root / "2026-11" / "a.pdf")
+            found = capture(root, criteria, before=before, extra=(downloads,))
+            self.assertEqual(found[1], PreservedEvidence(source, "2026-11", 1))
+            self.assertEqual(found[2], CountEvidence(downloads.resolve().as_posix(), 0))
+            with self.assertRaisesRegex(ValueError, "a folder it reaches"):
+                within(root, (Path(scratch).resolve() / "elsewhere").as_posix(), (downloads,))
+            with self.assertRaisesRegex(ValueError, "a folder it reaches"):
+                within(root, "../Downloads", (downloads,))
 
     def test_host_evidence_must_answer_its_own_criterion(self):
         criterion = Criterion("report", contains=("report.md", "filed"))

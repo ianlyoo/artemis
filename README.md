@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>Work with one capable engineer who has a whole team behind them.</b><br>
-  Artemis runs on your own computer. You talk to one lead from any browser. Workers from several AI companies do the work on your machine, inside your rules, and you are asked only what is yours to decide.
+  Artemis is a self-hosted home for AI agents, on your own computer or an always-on server. You talk to one lead from any browser, desktop or phone. Claude Code, Codex, Gemini CLI, OpenCode and other models do the work on your machine, inside your rules, and you are asked only what is yours to decide.
 </p>
 
 <p align="center">
@@ -119,6 +119,39 @@ The terminal prints an address, a QR code and the certificate's fingerprint. Sca
 
 Your phone will warn once about the certificate. That is trust on first use: compare the fingerprint the first time, and after that nobody on the network can read or change what you send. To avoid the warning, give `--tls-cert` and `--tls-key` a certificate your phone already trusts. `artemis device list` shows paired devices; `artemis device revoke` shuts one out.
 
+### On a server
+
+The same home runs on an always-on Linux server, such as a small cloud machine, so work and schedules carry on while your laptop sleeps. We run it on Ubuntu 22.04.
+
+1. **Install** as above. Ubuntu 22.04's own Python is 3.10, so add a newer one first: `sudo apt update && sudo apt install python3.11 python3.11-venv`.
+2. **Sign in to the agents you use** on the server itself, as their own guides describe, or keep an API key in the vault. `artemis doctor` lists what it finds.
+3. **The vault** has no OS keychain on a server. Either type its passphrase in the App after each start (it opens only from the server itself, and the SSH tunnel below counts as that), or set `[vault] unlock = "env"` in `~/.artemis/config.toml` and put the line `ARTEMIS_VAULT_PASSPHRASE=…` (at least 12 characters) in `~/.artemis/vault.env`, readable only by you (`chmod 600`).
+4. **Keep it running** with a systemd user service. Make the folder (`mkdir -p ~/.config/systemd/user`) and write `~/.config/systemd/user/artemis.service`:
+
+   ```ini
+   [Unit]
+   Description=Artemis home
+
+   [Service]
+   ExecStart=%h/.local/bin/artemis serve --no-open
+   EnvironmentFile=-%h/.artemis/vault.env
+   # Add the folders where your agents' commands live
+   Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+   Restart=on-failure
+
+   [Install]
+   WantedBy=default.target
+   ```
+
+   ```sh
+   systemctl --user enable --now artemis
+   sudo loginctl enable-linger "$USER"     # keeps it running after you log out and after a reboot
+   journalctl --user -u artemis            # its log, if it does not start
+   ```
+
+5. **Open the App from your computer** through SSH: run `ssh -N -L 7411:127.0.0.1:7411 you@your-server`, then open the link that `artemis device link` prints on the server.
+6. **From your phone**, put the server and the phone on one private network, such as Tailscale. Add `--lan` with the name the phone uses for the server to the service's `ExecStart` line, for example `ExecStart=%h/.local/bin/artemis serve --no-open --lan my-server.your-tailnet.ts.net`, then run `systemctl --user daemon-reload && systemctl --user restart artemis`. From then on the App speaks HTTPS: `artemis device link` prints an `https://127.0.0.1:7411` link for your computer (its browser warns once about the certificate), then the phone's link with that name, its QR code and the certificate's fingerprint. Pair as in [Your phone](#your-phone). `--lan` listens on all of the server's networks, so keep the port closed to the internet in your provider's firewall.
+
 ## What reaches you
 
 Artemis asks before what it recognises as money out, an irreversible delete or sending as you. It recognises them by the key an action uses, by its own file tools, and by a list of command patterns. The first two hold as long as the credential lives only in the vault. The list is a tripwire: a program it does not recognise runs, and logins already on your machine (git, ssh, a signed-in browser) are covered only by the list. For a wall, add the project with `--no-run`, set `[run] wrap` to a sandbox, or run Artemis as a separate OS user.
@@ -202,9 +235,9 @@ Artemis runs the CLIs you installed, unmodified, under the sign-in or API key ea
 
 ## Status
 
-This is an early release. Real and tested on macOS, Linux and Windows in CI: the home and the App, phone pairing, folder and repository projects, file tools with undo, `run` with background jobs, schedules, the vault with scrubbing and audit, cards, the stop, the judge and ship lane, lessons, and the mock and stand-in workers. Each live agent is listed by where it actually ran. Phone pairing and cards were also checked in Chrome on Android and in Safari's engine (WebKit) at iPhone size.
+This is an early release. Real and tested on macOS, Linux and Windows in CI: the home and the App, phone pairing, folder and repository projects, file tools with undo, `run` with background jobs, schedules, the vault with scrubbing and audit, cards, the stop, the judge and ship lane, lessons, and the mock and stand-in workers. Each live agent is listed by where it actually ran. Phone pairing and cards were also checked in Chrome on Android and in Safari's engine (WebKit) at iPhone size. The home also ran as a systemd service on an always-on Ubuntu 22.04 cloud server, reached over an SSH tunnel and over Tailscale.
 
-Not in this release: screen and mouse control, running the home as an OS service, more than one user, push notifications, and a native app.
+Not in this release: screen and mouse control, a service installer (on Linux, the systemd unit under [On a server](#on-a-server) does that job), more than one user, push notifications, and a native app.
 
 Upgrading from v0.2: `artemis project add` registers a repository you used before. Its old `.artemis/ledger.db` is left as it is, and a stop recorded there is still honoured.
 

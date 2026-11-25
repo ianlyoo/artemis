@@ -7,7 +7,7 @@
 
 <p align="center">
   <b>팀 하나를 거느린 유능한 엔지니어 한 명과 일하는 경험.</b><br>
-  Artemis는 내 컴퓨터에서 돌아요. 어느 브라우저에서든 리드 한 명과 대화하면, 여러 회사의 AI 작업자가 내 규칙 안에서 내 컴퓨터로 일을 하고, 내가 정해야 할 일만 나에게 물어요.
+  Artemis는 내 컴퓨터나 늘 켜 둔 서버에서 직접 돌리는(셀프 호스팅) AI 에이전트의 집이에요. 데스크톱이든 폰이든 어느 브라우저에서나 리드 한 명과 대화하면, Claude Code, Codex, Gemini CLI, OpenCode 같은 여러 회사의 AI가 내 규칙 안에서 내 컴퓨터로 일을 하고, 내가 정해야 할 일만 나에게 물어요.
 </p>
 
 <p align="center">
@@ -119,6 +119,39 @@ artemis serve --lan
 
 폰은 처음 한 번 인증서 경고를 띄워요. 처음 믿고 쓰는 방식(TOFU)이에요. 처음에 지문을 비교해 두면, 그 뒤로는 같은 네트워크의 누구도 내가 보내는 내용을 읽거나 바꿀 수 없어요. 경고를 피하려면 폰이 이미 믿는 인증서를 `--tls-cert`와 `--tls-key`로 주세요. 연결된 기기는 `artemis device list`로 보고, `artemis device revoke`로 내보내요.
 
+### 서버에서
+
+같은 홈을 늘 켜 둔 Linux 서버(작은 클라우드 서버 같은)에서도 돌릴 수 있어요. 노트북을 덮어 둬도 일과 예약이 계속 돌아요. 우리는 Ubuntu 22.04에서 돌려 봤어요.
+
+1. **설치**는 위와 같아요. Ubuntu 22.04의 기본 Python은 3.10이라서, 먼저 새 버전을 넣어 주세요: `sudo apt update && sudo apt install python3.11 python3.11-venv`.
+2. **쓸 에이전트 로그인**은 서버에서 직접, 각 도구의 안내대로 해요. API 키를 금고에 넣어 써도 돼요. `artemis doctor`가 찾은 것을 보여 줘요.
+3. **금고**: 서버에는 OS 키체인이 없어요. 켤 때마다 앱에서 암호를 넣거나(금고는 서버 자신에서만 열리고, 아래 SSH 터널은 서버 자신으로 쳐요), `~/.artemis/config.toml`에 `[vault] unlock = "env"`를 두고 나만 읽을 수 있는 `~/.artemis/vault.env`(`chmod 600`)에 `ARTEMIS_VAULT_PASSPHRASE=…` 한 줄(암호는 12자 이상)을 적어 두세요.
+4. **계속 켜 두기**: systemd 사용자 서비스로 돌려요. 폴더를 만들고(`mkdir -p ~/.config/systemd/user`) `~/.config/systemd/user/artemis.service`를 이렇게 써 주세요.
+
+   ```ini
+   [Unit]
+   Description=Artemis home
+
+   [Service]
+   ExecStart=%h/.local/bin/artemis serve --no-open
+   EnvironmentFile=-%h/.artemis/vault.env
+   # 에이전트 명령이 있는 폴더를 더해 주세요
+   Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+   Restart=on-failure
+
+   [Install]
+   WantedBy=default.target
+   ```
+
+   ```sh
+   systemctl --user enable --now artemis
+   sudo loginctl enable-linger "$USER"     # 로그아웃한 뒤에도, 재부팅한 뒤에도 계속 돌아요
+   journalctl --user -u artemis            # 켜지지 않을 때 로그를 봐요
+   ```
+
+5. **내 컴퓨터에서 앱 열기**: SSH로 `ssh -N -L 7411:127.0.0.1:7411 you@your-server`를 띄우고, 서버에서 `artemis device link`가 출력한 링크를 여세요.
+6. **폰에서**: 서버와 폰을 Tailscale 같은 사설 네트워크 하나에 넣어요. 서비스의 `ExecStart` 줄에 `--lan`과 폰이 서버를 부르는 이름을 더하고(예: `ExecStart=%h/.local/bin/artemis serve --no-open --lan my-server.your-tailnet.ts.net`), `systemctl --user daemon-reload && systemctl --user restart artemis`로 다시 켜요. 이때부터 앱은 HTTPS로 말해요. `artemis device link`가 내 컴퓨터용 `https://127.0.0.1:7411` 링크(브라우저가 인증서 경고를 한 번 띄워요)와, 그 이름이 든 폰 링크, QR 코드, 인증서 지문을 출력해요. 연결은 [폰에서](#폰에서)와 같아요. `--lan`은 서버의 모든 네트워크에서 받으니, 클라우드 방화벽에서 이 포트를 인터넷에 열지 마세요.
+
 ## 나에게 오는 것
 
 Artemis는 돈이 나가는 일, 되돌릴 수 없는 삭제, 나 대신 보내는 일로 알아본 것을 하기 전에 물어요. 알아보는 방법은 세 가지예요. 그 일이 쓰는 키, Artemis 자체 파일 도구, 명령 패턴 목록이에요. 앞의 두 가지는 자격 증명이 금고에만 있는 한 지켜져요. 패턴 목록은 '걸리면 묻는 경보선'이에요. 목록에 없는 프로그램은 그냥 실행되고, 내 컴퓨터에 이미 로그인된 것(git, ssh, 로그인된 브라우저)은 목록으로만 막아요. 벽이 필요하면 프로젝트를 `--no-run`으로 추가하거나, `[run] wrap`에 샌드박스를 지정하거나, Artemis를 별도 OS 사용자로 돌리세요.
@@ -202,9 +235,9 @@ Artemis는 내가 설치한 CLI를 손대지 않고, 각 CLI가 관리하는 로
 
 ## 현재 상태
 
-초기 공개판이에요. macOS, Linux, Windows CI에서 실제로 시험한 것: 홈과 앱, 폰 연결, 폴더·저장소 프로젝트, 되돌리기가 되는 파일 도구, 백그라운드 작업이 되는 `run`, 예약, 지우개·감사가 있는 금고, 카드, 정지, 판정자와 반영 경로, 교훈, 모의 작업자와 대역 작업자. 실제로 돈 에이전트는 각각 실제로 돈 곳과 함께 적어 뒀어요. 폰 연결과 카드는 안드로이드 Chrome과 아이폰 크기의 Safari 엔진(WebKit)에서도 확인했어요.
+초기 공개판이에요. macOS, Linux, Windows CI에서 실제로 시험한 것: 홈과 앱, 폰 연결, 폴더·저장소 프로젝트, 되돌리기가 되는 파일 도구, 백그라운드 작업이 되는 `run`, 예약, 지우개·감사가 있는 금고, 카드, 정지, 판정자와 반영 경로, 교훈, 모의 작업자와 대역 작업자. 실제로 돈 에이전트는 각각 실제로 돈 곳과 함께 적어 뒀어요. 폰 연결과 카드는 안드로이드 Chrome과 아이폰 크기의 Safari 엔진(WebKit)에서도 확인했어요. 늘 켜 둔 Ubuntu 22.04 클라우드 서버에서 systemd 서비스로도 돌려, SSH 터널과 Tailscale로 붙어 봤어요.
 
-이번 판에 없는 것: 화면·마우스 조작, 홈을 OS 서비스로 돌리기, 여러 사용자, 푸시 알림, 네이티브 앱.
+이번 판에 없는 것: 화면·마우스 조작, 서비스 설치기(Linux에서는 [서버에서](#서버에서)의 systemd 유닛이 그 일을 해요), 여러 사용자, 푸시 알림, 네이티브 앱.
 
 v0.2에서 올라오는 경우: `artemis project add`로 전에 쓰던 저장소를 등록하세요. 예전 `.artemis/ledger.db`는 그대로 두고, 거기 기록된 정지는 계속 지켜요.
 

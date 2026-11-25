@@ -118,7 +118,7 @@ class Parts:
     vault: object = None          # Vault(paths, unlock); its .scrubber scrubs every output
     broker: object = None         # Broker(home): carries out approved cards, commands and web requests
     lead: object = None           # LeadRunner(home)
-    web_start: object = None      # start(home, port, lan, tls) -> server
+    web_start: object = None      # start(home, port, lan, tls) -> server; lan is False, True or the name a phone opens
     place: object = None          # place(kind, config, busy, *, vault, ledger, project) -> provider, "" to wait
     launch: object = None         # launch(provider, *, role, mode, cwd, prompt, mcp, config, vault, scratch)
     observe: object = None        # lessons.observe(home, event)
@@ -473,13 +473,20 @@ def hold(paths: Paths, wait_s: float = 2.0) -> sqlite3.Connection | None:
     return db
 
 
-def running(paths: Paths) -> int | None:
-    """The port of the home that runs for these paths (0 if it has not said yet), or None when none runs."""
+def held(paths: Paths) -> bool:
+    """Whether a home runs for these paths: its lock is held. Reads no other file."""
     if not paths.lock.exists():
-        return None
+        return False
     probe = hold(paths, 0)
     if probe is not None:
         probe.close()
+        return False
+    return True
+
+
+def running(paths: Paths) -> int | None:
+    """The port of the home that runs for these paths (0 if it has not said yet), or None when none runs."""
+    if not held(paths):
         return None
     try:
         return int(paths.address.read_text(encoding="utf-8"))
@@ -496,7 +503,7 @@ def listening(port: int) -> bool:
         return False
 
 
-def open(paths: Paths, port: int | None = None, lan: bool = False, tls: tuple[Path, Path] | None = None,
+def open(paths: Paths, port: int | None = None, lan: bool | str = False, tls: tuple[Path, Path] | None = None,
          parts: Parts | None = None) -> Home:
     """Open the home for these paths and start it, without signals: take its lock, bind its port (the App's server
     when this build has it), write its address and token, unlock the vault, write the learned rules and start the
@@ -534,7 +541,13 @@ def open(paths: Paths, port: int | None = None, lan: bool = False, tls: tuple[Pa
     return home
 
 
-def serve(paths: Paths, port: int | None, lan: bool, open_browser: bool, tls: tuple[Path, Path] | None) -> int:
+def _display() -> bool:
+    """A browser can open on this machine's screen: not on a Linux server or an SSH session without one, where
+    webbrowser would start a text browser in the terminal."""
+    return not sys.platform.startswith("linux") or bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def serve(paths: Paths, port: int | None, lan: bool | str, open_browser: bool, tls: tuple[Path, Path] | None) -> int:
     """Run the home until Ctrl-C or a termination signal. Returns the exit status."""
     try:
         home = open(paths, port, lan, tls)
@@ -547,7 +560,7 @@ def serve(paths: Paths, port: int | None, lan: bool, open_browser: bool, tls: tu
     if home.parts.web_start:   # before the ready line, so `serve --background` shows it too
         url = f"{'https' if lan or tls else 'http'}://127.0.0.1:{home.port}/#pair={home.new_pair_token()}"
         print(f"App: {url}\n(The link pairs one browser and works once, for ten minutes.)", flush=True)
-        if open_browser:
+        if open_browser and _display():
             webbrowser.open(url)
     home.log(f"{READY} · {paths.root} · port {home.port}")
     done = home.stop_asked
@@ -565,15 +578,16 @@ def serve(paths: Paths, port: int | None, lan: bool, open_browser: bool, tls: tu
 
 def stop(paths: Paths, wait_s: float = 60) -> int:
     """Ask the home that runs for these paths to close, through its ledger, and wait until its lock is free: the
-    same stop on every OS, for a home in a terminal or in the background."""
-    if running(paths) is None:
+    same stop on every OS, for a home in a terminal or in the background. It waits on the lock alone: on Windows a
+    read of the address file at the moment the home deletes it would make that delete fail."""
+    if not held(paths):
         print(f"No home is running for {paths.root}.")
         return 0
     ledger = Ledger(paths.ledger)
     ledger.initialize()
     ledger.record(Role.OWNER, STOP, "asked to stop from the terminal (artemis serve --stop)")
     deadline = time.monotonic() + wait_s
-    while running(paths) is not None:
+    while held(paths):
         if time.monotonic() > deadline:
             print(f"artemis: the home for {paths.root} has not stopped within {wait_s:.0f} s; it may still be "
                   f"ending a worker. Its log is {paths.logs / 'home.log'}.", file=sys.stderr)

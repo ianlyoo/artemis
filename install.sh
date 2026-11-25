@@ -20,7 +20,8 @@ for candidate in python3.13 python3.12 python3.11 python3 python; do
     fi
 done
 [ -n "$python" ] || fail "Python 3.11 or newer is needed. On macOS: brew install python. \
-On Ubuntu or Debian: sudo apt install python3. Then run this again."
+On Ubuntu 22.04: sudo apt install python3.11 python3.11-venv. On newer Ubuntu or Debian: sudo apt install python3 \
+python3-venv. Then run this again."
 command -v git >/dev/null 2>&1 || fail "Git is needed. On macOS: xcode-select --install. \
 On Ubuntu or Debian: sudo apt install git. Then run this again."
 say "Using $("$python" -c 'import sys; print("Python", sys.version.split()[0])') at $python"
@@ -45,7 +46,8 @@ else
     venv=${XDG_DATA_HOME:-$HOME/.local/share}/artemis/venv bin=$HOME/.local/bin
     ensure() { return 1; }      # nothing here edits a shell profile: the line to add is printed below
     "$python" -m venv --clear "$venv" >/dev/null 2>&1 || fail "Python cannot make a virtual environment here. \
-On Ubuntu or Debian: sudo apt install pipx (or python3-venv). On macOS: brew install pipx. Then run this again."
+On Ubuntu or Debian: sudo apt install python$("$python" -c 'import sys; print("%d.%d" % sys.version_info[:2])')-venv. \
+On macOS: brew install pipx. Then run this again."
     "$venv/bin/python" -m pip install --quiet --upgrade pip >/dev/null 2>&1 || true
     "$venv/bin/python" -m pip install --quiet "$source" || fail "pip could not install Artemis; see above."
     mkdir -p "$bin" && ln -sf "$venv/bin/artemis" "$bin/artemis"

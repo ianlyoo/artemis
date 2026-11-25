@@ -224,6 +224,7 @@ class Supervisor:
         self.task = self.ledger.task_brief(task)
         self.project = self.ledger.project(self.task["project_id"])
         self.root = Path(self.project["path"])
+        self.extra = tuple(map(Path, json.loads(self.project["allowed_roots"] or "[]")))   # project add --root
         self.repo = self.project["kind"] == "repo"
         self.criteria = _criteria(self.task["criteria"])
         self.log = home.paths.log(task)
@@ -330,7 +331,7 @@ class Supervisor:
     def _folder(self, claim: str) -> tuple[bool, str, str]:
         """Judge the folder as it is now. Returns (verified, note, feedback for another attempt)."""
         task = self.task["id"]
-        items = capture(self.root, self.criteria, self.config.pass_env, before=self.start)
+        items = capture(self.root, self.criteria, self.config.pass_env, before=self.start, extra=self.extra)
         self.ledger.submit(Role.WORKER, task, evidence_digest(items), claim, items)
         verdict = self.ledger.judge(Role.JUDGE, task, RuleJudge())
         if verdict.kind != "pass":
@@ -347,7 +348,7 @@ class Supervisor:
         for event in self.ledger.events(task=self.task["id"]):
             if event["kind"] == "inputs" and event["data"]:
                 return json.loads(event["data"])["files"]
-        taken = snapshot(self.root, self.criteria)
+        taken = snapshot(self.root, self.criteria, self.extra)
         found = [entry for files in taken.values() for entry in files.values()]
         if found:
             self.ledger.record(Role.HOME, "inputs", f"{len(found)} input file(s), {sum(size for size, _ in found)} "

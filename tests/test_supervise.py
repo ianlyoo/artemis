@@ -90,9 +90,9 @@ class Supervision(unittest.TestCase):
     def test_a_folder_task_is_judged_against_the_folder_as_it_began_and_verified(self):
         seen = []
 
-        def capture(root, criteria, pass_env=(), before=None):
+        def capture(root, criteria, pass_env=(), before=None, extra=()):
             seen.append(before)
-            return judge.capture(root, criteria, pass_env, before=before)
+            return judge.capture(root, criteria, pass_env, before=before, extra=extra)
 
         worker = Worker(WRITE_SUMMARY)
         home = self.home(worker)
@@ -111,6 +111,26 @@ class Supervision(unittest.TestCase):
         self.assertEqual(json.loads(inputs[0]["data"])["files"], start)
         self.assertTrue(home.ledger.work(task)[0]["sha"].startswith("host:"))
         self.assertFalse((self.paths.runs / "1.token").exists())   # the run's broker token ends with it
+
+    def test_files_moved_in_from_a_folder_the_project_reaches_are_judged_preserved(self):
+        downloads = (self.scratch / "Downloads" / "invoices")
+        downloads.mkdir(parents=True)
+        for number in range(3):
+            (downloads / f"invoice-{number}.pdf").write_bytes(f"invoice {number}".encode())
+        source = downloads.resolve().as_posix()
+        worker = Worker(f"import pathlib, shutil\nsource = pathlib.Path({source!r})\n"
+                        "target = pathlib.Path('2026-11')\ntarget.mkdir(exist_ok=True)\n"
+                        "for path in sorted(source.glob('*.pdf')):\n    shutil.move(str(path), target / path.name)\n"
+                        "print('moved the invoices')")
+        home = self.home(worker)
+        root, task = self.folder(home, criteria=(Criterion("every invoice kept", preserved=(source, "2026-11")),
+                                                 Criterion("three filed", count=("2026-11", 3))))
+        home.ledger.set_project_flags(Role.OWNER, home.ledger.task_brief(task)["project_id"], shell=False,
+                                      no_run=False, allowed_roots=(downloads.parent.resolve(),))
+        self.settle(home)
+        self.assertEqual(self.state(home, task), "verified", home.ledger.work(task)[0]["note"])
+        self.assertEqual(sorted(path.name for path in (root / "2026-11").iterdir()),
+                         ["invoice-0.pdf", "invoice-1.pdf", "invoice-2.pdf"])
 
     def test_a_host_check_on_a_file_the_worker_left_alone_is_a_gap(self):
         home = self.home(Worker("print('did nothing')"))

@@ -346,14 +346,51 @@ export async function loadProjects() {
   set({ projects: Object.fromEntries(found.filter(Boolean).map((item) => [item.project.id, item])) });
 }
 
-// Text the home and the lead write: paragraphs, line breaks and `code`, nothing else is interpreted.
+// Text the home and the lead write: paragraphs, line breaks, lists, **bold** and `code`. Nothing else is interpreted,
+// and the text only ever becomes text nodes inside these elements.
 
 export function Inline({ text }) {
-  return (text || '').split(/(`[^`\n]+`)/).map((part) =>
-    (part.length > 2 && part.startsWith('`') && part.endsWith('`') ? html`<code>${part.slice(1, -1)}</code>` : part));
+  return (text || '').split(/(`[^`\n]+`|\*\*[^*\n]+\*\*)/).map((part) =>
+    (part.length > 2 && part.startsWith('`') && part.endsWith('`') ? html`<code>${part.slice(1, -1)}</code>`
+      : part.length > 4 && part.startsWith('**') && part.endsWith('**') ? html`<strong>${part.slice(2, -2)}</strong>`
+        : part));
+}
+
+const ITEM = /^\s*(?:[-*•]|(\d+)[.)])\s+(.*)$/;   // "- x", "* x", "• x" or "1. x" / "1) x"
+
+// Blocks: a run of list lines is a list, a run of other lines a paragraph; a blank line ends either. A list may
+// follow a paragraph line directly, as a model writes it.
+function blocks(text) {
+  const found = [];
+  let open = null;
+  for (const line of (text || '').split('\n')) {
+    const item = line.match(ITEM);
+    if (!line.trim()) {
+      open = null;
+    } else if (item) {
+      const ordered = item[1] !== undefined;
+      if (!open || !open.list || open.ordered !== ordered) {
+        open = { list: true, ordered, start: ordered ? Number(item[1]) : 1, lines: [] };
+        found.push(open);
+      }
+      open.lines.push(item[2]);
+    } else {
+      if (!open || open.list) {
+        open = { list: false, lines: [] };
+        found.push(open);
+      }
+      open.lines.push(line);
+    }
+  }
+  return found;
 }
 
 export function Prose({ text }) {
-  return (text || '').split(/\n{2,}/).map((paragraph) => html`<p>${paragraph.split('\n').map((line, index) =>
-    html`${index > 0 && html`<br />`}<${Inline} text=${line} />`)}</p>`);
+  return blocks(text).map((block) => {
+    if (!block.list) {
+      return html`<p>${block.lines.map((line, index) => html`${index > 0 && html`<br />`}<${Inline} text=${line} />`)}</p>`;
+    }
+    const items = block.lines.map((line) => html`<li><${Inline} text=${line} /></li>`);
+    return block.ordered ? html`<ol start=${block.start}>${items}</ol>` : html`<ul>${items}</ul>`;
+  });
 }

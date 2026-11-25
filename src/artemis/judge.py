@@ -18,19 +18,47 @@ import subprocess
 from .process import check_env, executable as default_executable
 
 
-def _within(root: Path, path: str) -> Path:
-    """`path` under `root` with symlinks resolved. A path that leaves `root` is refused."""
-    relative = Path(path)
-    target = (root / relative).resolve()
-    if not path or relative.is_absolute() or ".." in relative.parts or not target.is_relative_to(root.resolve()):
-        raise ValueError("Use a path inside the project.")
+OUTSIDE = "Use a path inside the project, or an absolute path inside a folder it reaches (project add --root)."
+
+
+def _given(path: str) -> Path:
+    given = Path(path).expanduser() if path.startswith("~") else Path(path)
+    if not path or ".." in given.parts:
+        raise ValueError(OUTSIDE)
+    return given
+
+
+def _folder(root: Path, extra: tuple[Path, ...], target: Path) -> Path:
+    """The folder that holds `target`, a real absolute path: the project's own, or one it reaches."""
+    for folder in (root, *extra):
+        if target.is_relative_to(Path(folder).resolve()):
+            return Path(folder).resolve()
+    raise ValueError(OUTSIDE)
+
+
+def within(root: Path, path: str, extra: tuple[Path, ...] = ()) -> Path:
+    """`path` with symlinks resolved: relative to `root`, or absolute (or ~/…) inside `root` or one of `extra`, the
+    folders the project reaches. A path anywhere else is refused."""
+    given = _given(path)
+    target = (given if given.is_absolute() else root / given).resolve()
+    _folder(root, extra if given.is_absolute() else (), target)
     return target
 
 
-def _files(root: Path, pattern: str) -> list[Path]:
-    """The files `pattern` names inside root: a folder's files at any depth, a file, or a glob's matches."""
-    if not pattern or Path(pattern).is_absolute():
-        raise ValueError("Use a path or glob inside the project.")
+def _key(root: Path, path: Path) -> str:
+    """How a snapshot names a file: relative to the project's folder, or absolute in a folder it reaches."""
+    return path.relative_to(root.resolve()).as_posix() if path.is_relative_to(root.resolve()) else path.as_posix()
+
+
+def _files(root: Path, pattern: str, extra: tuple[Path, ...] = ()) -> list[Path]:
+    """The files `pattern` names: a folder's files at any depth, a file, or a glob's matches. It is relative to
+    root, or absolute inside root or one of `extra`."""
+    given = _given(pattern)
+    if given.is_absolute():   # the folder holding its literal start, and the rest relative to that folder
+        literal = next((n for n, part in enumerate(given.parts) if any(c in part for c in "*?[")), len(given.parts))
+        start = Path(*given.parts[:literal]).resolve()
+        root = _folder(root, extra, start)
+        pattern = Path(start.relative_to(root), *given.parts[literal:]).as_posix()
     base = root.resolve()
     named = (root / pattern).resolve()
     if ".." not in Path(pattern).parts and named.is_relative_to(base) and named.is_dir():
@@ -48,16 +76,17 @@ def _digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def snapshot(root: Path, criteria: tuple["Criterion", ...]) -> dict[str, dict[str, list]]:
+def snapshot(root: Path, criteria: tuple["Criterion", ...], extra: tuple[Path, ...] = ()) -> dict[str, dict[str, list]]:
     """What the host checks compare with later: for each `exists` path and `preserved` source, the files it names
-    now, as {relative path: [size, SHA-256]}. JSON-ready, so the supervisor can keep it with the run."""
+    now, as {path: [size, SHA-256]} (relative to root, or absolute in a folder of `extra`). JSON-ready, so the
+    supervisor can keep it with the run."""
     taken: dict[str, dict[str, list]] = {}
     for criterion in criteria:
         pattern = criterion.exists or (criterion.preserved[0] if criterion.preserved else "")
         if pattern and pattern not in taken:
             try:
-                taken[pattern] = {path.relative_to(root.resolve()).as_posix(): [path.stat().st_size, _digest(path)]
-                                  for path in _files(root, pattern)}
+                taken[pattern] = {_key(root, path): [path.stat().st_size, _digest(path)]
+                                  for path in _files(root, pattern, extra)}
             except (OSError, ValueError):
                 continue
     return taken
@@ -104,7 +133,7 @@ class ArtifactEvidence:
 
     @classmethod
     def capture(cls, root: Path, path: str) -> "ArtifactEvidence":
-        return cls(Path(path).as_posix(), sha256(_within(root, path).read_bytes()).hexdigest())
+        return cls(Path(path).as_posix(), sha256(within(root, path).read_bytes()).hexdigest())
 
     def gap(self, criterion: "Criterion") -> str | None:
         valid = len(self.sha256) == 64 and all(c in "0123456789abcdef" for c in self.sha256)
@@ -119,13 +148,14 @@ class ExistsEvidence:
     changed: bool | None = None     # since the task started; None when no snapshot was taken
 
     @classmethod
-    def capture(cls, root: Path, path: str, before: dict[str, list] | None = None) -> "ExistsEvidence":
-        target = _within(root, path)
+    def capture(cls, root: Path, path: str, before: dict[str, list] | None = None,
+                extra: tuple[Path, ...] = ()) -> "ExistsEvidence":
+        target = within(root, path, extra)
         if not target.exists():
             return cls(path, False)
         if before is None or not target.is_file():      # a folder has no one digest to compare
             return cls(path, True)
-        was = before.get(Path(path).as_posix())
+        was = before.get(_key(root, target))
         return cls(path, True, was is None or was[1] != _digest(target))
 
     def gap(self, criterion: "Criterion") -> str | None:
@@ -144,8 +174,8 @@ class ContainsEvidence:
     found: bool
 
     @classmethod
-    def capture(cls, root: Path, path: str, text: str) -> "ContainsEvidence":
-        target = _within(root, path)
+    def capture(cls, root: Path, path: str, text: str, extra: tuple[Path, ...] = ()) -> "ContainsEvidence":
+        target = within(root, path, extra)
         found = target.is_file() and text in target.read_text(encoding="utf-8", errors="replace")
         return cls(path, text, found)
 
@@ -162,8 +192,8 @@ class CountEvidence:
     matched: int
 
     @classmethod
-    def capture(cls, root: Path, glob: str) -> "CountEvidence":
-        return cls(glob, len(_files(root, glob)))
+    def capture(cls, root: Path, glob: str, extra: tuple[Path, ...] = ()) -> "CountEvidence":
+        return cls(glob, len(_files(root, glob, extra)))
 
     def gap(self, criterion: "Criterion") -> str | None:
         pattern, minimum = criterion.count
@@ -181,10 +211,11 @@ class PreservedEvidence:
     missing: tuple[str, ...] = ()   # those with no file of the same SHA-256 under the target now
 
     @classmethod
-    def capture(cls, root: Path, source: str, target: str, before: dict[str, list] | None) -> "PreservedEvidence":
+    def capture(cls, root: Path, source: str, target: str, before: dict[str, list] | None,
+                extra: tuple[Path, ...] = ()) -> "PreservedEvidence":
         if before is None:
             raise ValueError("No snapshot was taken at the start, so preserved digests cannot be checked.")
-        now = {_digest(path) for path in _files(root, target)}
+        now = {_digest(path) for path in _files(root, target, extra)}
         return cls(source, target, len(before), tuple(sorted(name for name, (_, digest) in before.items()
                                                              if digest not in now)))
 
@@ -236,6 +267,12 @@ class Criterion:
     def kind(self) -> str:
         return next(kind for kind in KINDS if getattr(self, kind))
 
+    @property
+    def paths(self) -> tuple[str, ...]:
+        """The paths a host check looks at; none for a command or an artifact."""
+        return {"exists": (self.exists,), "contains": self.contains[:1], "count": self.count[:1],
+                "preserved": self.preserved}.get(self.kind, ())
+
     def gap(self, evidence: Evidence | None) -> str | None:
         if evidence is None:
             return f"missing {self.kind} evidence"
@@ -245,9 +282,10 @@ class Criterion:
 
 
 def capture(root: Path, criteria: tuple[Criterion, ...], pass_env: tuple[str, ...] = (),
-            before: dict[str, dict[str, list]] | None = None) -> dict[int, Evidence]:
-    """Look at `root` for every criterion, numbered from 1. `before` is snapshot() from the task's start. A criterion
-    that cannot be looked at gets no evidence, which the judge reports as missing."""
+            before: dict[str, dict[str, list]] | None = None, extra: tuple[Path, ...] = ()) -> dict[int, Evidence]:
+    """Look at `root` (and, for absolute paths, the folders of `extra` the project reaches) for every criterion,
+    numbered from 1. `before` is snapshot() from the task's start. A criterion that cannot be looked at gets no
+    evidence, which the judge reports as missing."""
     items: dict[int, Evidence] = {}
     for number, criterion in enumerate(criteria, 1):
         try:
@@ -258,15 +296,16 @@ def capture(root: Path, criteria: tuple[Criterion, ...], pass_env: tuple[str, ..
                     items[number] = ArtifactEvidence.capture(root, criterion.artifact)
                 case "exists":
                     items[number] = ExistsEvidence.capture(
-                        root, criterion.exists, None if before is None else before.get(criterion.exists, {}))
+                        root, criterion.exists, None if before is None else before.get(criterion.exists, {}), extra)
                 case "contains":
-                    items[number] = ContainsEvidence.capture(root, *criterion.contains)
+                    items[number] = ContainsEvidence.capture(root, *criterion.contains, extra)
                 case "count":
-                    items[number] = CountEvidence.capture(root, criterion.count[0])
+                    items[number] = CountEvidence.capture(root, criterion.count[0], extra)
                 case "preserved":
                     source, target = criterion.preserved
                     items[number] = PreservedEvidence.capture(
-                        root, source, target, None if before is None or source not in before else before[source])
+                        root, source, target, None if before is None or source not in before else before[source],
+                        extra)
         except (OSError, ValueError):
             continue
     return items

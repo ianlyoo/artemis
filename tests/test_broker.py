@@ -799,6 +799,14 @@ class LeadToolTests(BrokerCase):
             self.lead("task_retry", task=made["task"], feedback="again")
         self.assertEqual(self.lead("task_drop", task=made["task"], reason="not needed")["state"], "dropped")
         self.assertEqual(self.ledger.work(task=made["task"])[0]["state"], "dropped")
+        downloads = self.folder.resolve().parent / "Downloads"
+        downloads.mkdir(exist_ok=True)
+        far = [{"type": "preserved", "path": downloads.as_posix(), "to": "2024"}]
+        with self.assertRaisesRegex(ToolError, "a folder it reaches"):   # the judge could never look there
+            self.lead("task_create", project="photos", title="x", brief="x", kind="host", host_checks=far)
+        self.ledger.set_project_flags(Role.OWNER, self.project, shell=False, no_run=False, allowed_roots=(downloads,))
+        self.assertIn("task", self.lead("task_create", project="photos", title="x", brief="x", kind="host",
+                                        host_checks=far))
 
     def test_a_new_task_carries_the_checks_its_project_learned(self):
         other = self.ledger.add_project(Role.OWNER, "other", "folder", self.base)

@@ -81,6 +81,16 @@ def qr_text(url: str) -> str:
                      for top, bottom in zip(rows[::2], rows[1::2]))
 
 
+def address(name: str) -> str | None:
+    """The name a certificate and a link can carry, lower-cased: an IPv4 address or a DNS host name; else None."""
+    try:
+        found = ipaddress.ip_address(name)
+        return str(found) if found.version == 4 else None
+    except ValueError:
+        name = name.lower().rstrip(".")
+        return name if HOST.fullmatch(name) and len(name) <= 253 else None
+
+
 def _canonical(name: str) -> str:
     try:
         return str(ipaddress.ip_address(name))

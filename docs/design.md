@@ -217,7 +217,7 @@ Failures are recorded, not swallowed. A red check is a row with its output diges
 Artemis began as a larger personal system. This repository is its open version, written fresh, and some parts are absent on purpose.
 
 - **Screen and mouse control.** Host tasks run programs; they do not drive the desktop.
-- **An OS service.** The home runs while `artemis serve` runs.
+- **A service installer.** The home runs while `artemis serve` runs; on Linux, a systemd user unit (README, On a server) keeps it running.
 - **More than one user, push notifications and a native app.**
 - **Self-patching.** Lessons change prompts, checks, placement and rules, never Artemis's installed code.
 - **Real data.** Every request, task and name in the code, the tests and the demo is invented.

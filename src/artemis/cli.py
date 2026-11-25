@@ -53,7 +53,10 @@ def _parser() -> Parser:
 
     serve = add("serve", help="Run the home: ledger, workers, schedules and the App. One per ARTEMIS_HOME.")
     serve.add_argument("--port", type=int, help="Default: [serve] port in config.toml; 0 picks a free port.")
-    serve.add_argument("--lan", action="store_true", help="Also serve the App to this network (for your phone).")
+    serve.add_argument("--lan", nargs="?", const=True, default=False, metavar="NAME",
+                       help="Also serve the App to the network, for your phone. NAME is the address the phone opens "
+                            "when it is not on this machine's own network: a Tailscale name, a DNS name or a "
+                            "public address.")
     serve.add_argument("--no-open", action="store_true", help="Do not open the App in a browser.")
     serve.add_argument("--tls-cert", type=Path, metavar="FILE", help="Your own certificate for --lan.")
     serve.add_argument("--tls-key", type=Path, metavar="FILE", help="Its private key.")
@@ -312,15 +315,23 @@ def _project(args: argparse.Namespace, paths: Paths) -> int:
 
 # The home
 
+def _address(name: str) -> str | None:
+    from .tls import address   # with the App part only: it needs cryptography
+    return address(name)
+
+
 def _serve(args: argparse.Namespace, paths: Paths) -> int:
     if (args.tls_cert is None) != (args.tls_key is None):
         raise WorkflowError("--tls-cert and --tls-key go together.")
     tls = (args.tls_cert.resolve(), args.tls_key.resolve()) if args.tls_cert else None
+    if isinstance(args.lan, str) and not _address(args.lan):
+        raise WorkflowError(f"--lan takes a host name or an IPv4 address, not {args.lan!r}.")
     if args.stop:
         return homes.stop(paths)
     if not args.background:
         return homes.serve(paths, args.port, args.lan, not args.no_open, tls)
-    argv = (["--port", str(args.port)] if args.port is not None else []) + (["--lan"] if args.lan else [])
+    argv = ((["--port", str(args.port)] if args.port is not None else [])
+            + (["--lan"] + ([args.lan] if isinstance(args.lan, str) else []) if args.lan else []))
     if tls:
         argv += ["--tls-cert", str(tls[0]), "--tls-key", str(tls[1])]
     return homes.background(paths, argv)
@@ -388,7 +399,10 @@ def _doctor(args: argparse.Namespace, paths: Paths) -> int:
             opened = vault(paths, unlock)
             said = {"open": "open", "new": "no passphrase chosen yet",
                     "locked": "locked until its passphrase is given when the home starts"}[opened.state]
-            line(opened.state != "locked" or unlock != "env",
+            if opened.state != "open" and unlock == "env":   # this shell's view; a service has its own environment
+                said = ("locked in this shell: ARTEMIS_VAULT_PASSPHRASE is not set here, and a home started with it "
+                        "has the vault open")
+            line(True if opened.state == "open" or unlock != "env" else None,
                  f"vault: {said}" + (f"; {opened.notice}" if opened.notice else ""))
         except VaultError as error:
             healthy = False

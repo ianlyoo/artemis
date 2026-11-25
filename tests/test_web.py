@@ -406,6 +406,16 @@ class TlsTest(unittest.TestCase):
                                "Content-Type": "application/json"})
         answer = plain.getresponse()
         self.assertEqual((answer.status, json.loads(answer.read())), (400, {"error": "This run has ended."}))
+        for path in ("/", "/api/me?x=1"):    # a browser that opened http:// goes to https, where its changes count
+            plain.request("GET", path, headers={"Host": f"127.0.0.1:{port}"})
+            moved = plain.getresponse()
+            moved.read()
+            self.assertEqual((moved.status, moved.getheader("Location")), (308, f"https://127.0.0.1:{port}{path}"))
+        plain.request("POST", "/api/pair/new", body=b"{}", headers={
+            "Host": f"127.0.0.1:{port}", "Content-Type": "application/json",
+            "Authorization": "Bearer " + home.paths.token.read_text(encoding="utf-8").strip()})
+        link = plain.getresponse()                # the CLI's own call stays plain (artemis device link)
+        self.assertEqual(link.status, 200, link.read())
         plain.close()
 
 

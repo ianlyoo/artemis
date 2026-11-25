@@ -26,7 +26,7 @@ import threading
 import time
 
 from . import guard, httpop, lessons, undo
-from .judge import Criterion, capture
+from .judge import Criterion, capture, within
 from .process import check_env, executable, join_command, split_command
 from .roles import Interrupt, Role, WorkflowError
 from .schedule import next_after
@@ -72,7 +72,8 @@ CHOICE = _object(("kind", "what", "why", "options"), kind={"enum": ["choice"]}, 
 CHECKS_TEXT = ("checks are commands that must exit 0 (one command each, no shell); files must exist in the commit; "
                "host_checks look at a folder project: exists {path} (and changed since the start), contains "
                "{path, text}, count {path: a folder or glob, min}, preserved {path: the files at the start, to: "
-               "where every one of them must be, byte for byte}.")
+               "where every one of them must be, byte for byte}. A path is relative to the project's folder; one in "
+               "a folder the project reaches (project add --root) is given as its absolute path.")
 
 
 @dataclass(frozen=True)
@@ -842,7 +843,8 @@ class Broker:
         if criterion.kind == "preserved":
             return {**shown, "passed": None, "gap": "The judge compares these files with its snapshot from the "
                     "task's start; that comparison is made when you finish."}
-        gap = criterion.gap(capture(Path(grant.root), (criterion,)).get(1))
+        gap = criterion.gap(capture(Path(grant.root), (criterion,),
+                                    extra=tuple(map(Path, self._flags(grant.project).allowed_roots))).get(1))
         note = {"note": "Whether it changed since the start is judged from the start's snapshot when you finish."}
         return {**shown, "passed": gap is None, "gap": gap, **(note if criterion.kind == "exists" else {})}
 
@@ -959,7 +961,7 @@ class Broker:
     def _task_create(self, grant, project, title: str, brief: str, kind: str, checks=(), files=(),
                      host_checks=(), provider: str | None = None, review: bool = False) -> dict:
         number = self._project(project)[0]
-        criteria = _criteria(checks, files, host_checks)
+        criteria = self._reachable(number, _criteria(checks, files, host_checks))
         # the checks this project learned from earlier rejections join every new task's own, each command once
         commands = {criterion.command for criterion in criteria}
         criteria += tuple(check for check in lessons.learned_checks(self.home.ledger, number)
@@ -967,6 +969,18 @@ class Broker:
         task = self.home.ledger.add_task(Role.LEAD, self._request(number, title), title, brief, criteria,
                                          project=number, kind=kind, provider=provider, review=review)
         return {"task": task, "checks": [criterion.label for criterion in criteria]}
+
+    def _reachable(self, project: int, criteria: tuple[Criterion, ...]) -> tuple[Criterion, ...]:
+        """Refuse a host check on a path none of the project's folders holds: the judge could never look at it."""
+        row = self.home.ledger.project(project)
+        extra = tuple(map(Path, _Flags.of(row).allowed_roots))
+        for criterion in criteria:
+            for path in criterion.paths:
+                try:
+                    within(Path(row["path"]), path, extra)
+                except ValueError as error:
+                    raise ToolError(f"{criterion.label}: {path}: {error}") from None
+        return criteria
 
     def _task_retry(self, grant, task: int, feedback: str) -> dict:
         ledger = self.home.ledger
@@ -989,7 +1003,8 @@ class Broker:
         if first is None:
             raise ToolError(f"{spec!r} never comes again.")
         schedule = self.home.ledger.add_schedule(Role.LEAD, number, title, brief, kind,
-                                                 _criteria(checks, files, host_checks), spec, first)
+                                                 self._reachable(number, _criteria(checks, files, host_checks)),
+                                                 spec, first)
         return {"schedule": schedule, "next_at": datetime.fromtimestamp(first).astimezone().isoformat()}
 
     def _lesson(self, grant, kind: str, text: str, payload: dict | None = None, project=None) -> dict:

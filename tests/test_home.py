@@ -537,6 +537,25 @@ class OneHome(unittest.TestCase):
         self.assertIn("stopping: ending running workers", (self.paths.logs / "home.log").read_text(encoding="utf-8"))
         self.assertIn(f"No home is running for {self.paths.root}.", self.artemis("serve", "--stop").stdout)
 
+    def test_serve_lan_passes_the_name_a_phone_opens_to_the_background_home(self):
+        with mock.patch.object(homes, "background", return_value=0) as started, \
+                mock.patch.dict(os.environ, self.env, clear=True):
+            self.assertEqual(cli.main(["serve", "--background", "--lan", "artemis.tailnet.ts.net"]), 0)
+            self.assertEqual(cli.main(["serve", "--background", "--lan", "--port", "0"]), 0)
+        self.assertEqual([call.args[1] for call in started.call_args_list],
+                         [["--lan", "artemis.tailnet.ts.net"], ["--port", "0", "--lan"]])
+        refused = self.artemis("serve", "--lan", "my server", "--no-open")
+        self.assertEqual(refused.returncode, 1, refused.stderr)
+        self.assertIn("--lan takes a host name or an IPv4 address", refused.stderr)
+
+    def test_no_browser_is_opened_on_a_linux_machine_without_a_display(self):
+        with mock.patch.object(homes.sys, "platform", "linux"), mock.patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(homes._display())
+            with mock.patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-0"}):
+                self.assertTrue(homes._display())
+        with mock.patch.object(homes.sys, "platform", "darwin"), mock.patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(homes._display())
+
     def test_device_link_prints_a_new_link_that_pairs_a_browser(self):
         first = serve(self, self.env)
         port = int(re.search(r"port (\d+)", "".join(first.said))[1])
@@ -781,6 +800,15 @@ class Verbs(Scratch):
         self.assertIn("missing  OpenCode: not installed", out)
         self.assertIn("ok       keychain: fake keychain (vault unlock: env)", out)
         self.assertIn("missing  home: not running", out)
+
+    def test_doctor_in_a_shell_without_the_vault_passphrase_says_a_home_has_its_own(self):
+        self.paths.vault.parent.mkdir(parents=True, exist_ok=True)
+        self.paths.vault.touch()                                  # a vault exists; this shell has no passphrase
+        with mock.patch.dict(os.environ, {"ARTEMIS_VAULT_PASSPHRASE": ""}), \
+                mock.patch.object(cli, "_keychain", return_value=(False, "fail Keyring")):
+            out = self.ok("doctor")
+        self.assertIn("missing  vault: locked in this shell: ARTEMIS_VAULT_PASSPHRASE is not set here, and a home "
+                      "started with it has the vault open", out)
 
     def test_doctor_providers_probes_each_ready_cli_and_records_what_it_saw(self):
         bin_dir = self.scratch / "bin"

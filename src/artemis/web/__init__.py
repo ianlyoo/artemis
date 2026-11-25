@@ -38,7 +38,7 @@ from ..config import HomeConfig, repo_name, write_lead
 from ..home import PAIR_S
 from ..roles import Interrupt, Role, WorkflowError
 from ..scrub import audit
-from ..tls import ensure_cert, fingerprint, lan_names, qr_text
+from ..tls import address, ensure_cert, fingerprint, lan_names, qr_text
 from ..vault import VaultLocked
 
 
@@ -161,20 +161,24 @@ class Tls:
     names: frozenset[str]
 
 
-def _tls(home, lan: bool, given: tuple[Path, Path] | None) -> Tls:
-    """The App's TLS: the home's own certificate (made for this machine's LAN names) or the one given."""
-    cert, key = given if given is not None else ensure_cert(home.paths, [])[:2]
+def _tls(home, lan: bool | str, given: tuple[Path, Path] | None) -> Tls:
+    """The App's TLS: the home's own certificate (made for this machine's LAN names and the name the phone opens,
+    when one is given) or the one given, which must cover that name."""
+    named = [address(lan)] if isinstance(lan, str) else []
+    cert, key = given if given is not None else ensure_cert(home.paths, named)[:2]
     loaded = x509.load_pem_x509_certificate(cert.read_bytes())
     try:
         alt = loaded.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         covered = {name.lower() for name in alt.get_values_for_type(x509.DNSName)} | {
-            str(address) for address in alt.get_values_for_type(x509.IPAddress)}
+            str(ip) for ip in alt.get_values_for_type(x509.IPAddress)}
     except x509.ExtensionNotFound:
         covered = set()
+    if named and not {named[0], "*." + named[0].partition(".")[2]} & covered:
+        raise WorkflowError(f"The certificate given with --tls-cert does not cover {named[0]}, the name --lan gives.")
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(cert, key)
-    return Tls(context, fingerprint(loaded), frozenset(covered | (set(lan_names()) if lan else set())))
+    return Tls(context, fingerprint(loaded), frozenset(covered | set(named) | (set(lan_names()) if lan else set())))
 
 
 def _host(value: str) -> str:
@@ -212,8 +216,8 @@ class AppServer(http.server.ThreadingHTTPServer):
     block_on_close = False
     allow_reuse_address = sys.platform != "win32"   # on Windows it would let a second home take the same port
 
-    def __init__(self, address: tuple[str, int], home, tls: Tls | None):
-        self.home, self.tls = home, tls
+    def __init__(self, address: tuple[str, int], home, tls: Tls | None, name: str | None = None):
+        self.home, self.tls, self.name = home, tls, name   # name: what a phone opens, when it is not on this LAN
         self.lan = address[0] == "0.0.0.0"
         self.scheme = "https" if tls else "http"
         self.hosts = LOCAL_NAMES | (tls.names if tls else frozenset())
@@ -237,8 +241,9 @@ class AppServer(http.server.ThreadingHTTPServer):
 
     def finish_request(self, request, client_address) -> None:
         """Speak TLS when the home has a certificate, except to a plain request from this computer: an agent's
-        broker call comes as plain HTTP to 127.0.0.1 whether or not the App also serves the LAN. The handshake runs
-        in the request's own thread, so a slow client holds up no one."""
+        broker call and the CLI come as plain HTTP to 127.0.0.1 whether or not the App also serves the LAN, and a
+        browser that does is sent to https (Handler.to_https). The handshake runs in the request's own thread, so a
+        slow client holds up no one."""
         if self.tls is None:
             return super().finish_request(request, client_address)
         request.settimeout(10)
@@ -288,9 +293,12 @@ class AppServer(http.server.ThreadingHTTPServer):
         return f"{self.scheme}://{host}:{self.server_address[1]}/"
 
     def lan_host(self) -> str | None:
-        """The address a phone on the same network should open, if this home serves the LAN."""
+        """The address a phone should open, if this home serves the network: the name given with --lan, else this
+        machine's home-network address."""
         if not self.lan:
             return None
+        if self.name:
+            return self.name
         found = sorted((name for name in self.hosts - LOCAL_NAMES if re.fullmatch(r"[\d.]+", name)),
                        key=lambda name: (not ipaddress.ip_address(name).is_private, name))  # home network first
         return found[0] if found else next(iter(sorted(self.hosts - LOCAL_NAMES)), None)
@@ -375,6 +383,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 raise Refused(403, "This address is not one Artemis answers to.")
             parts = urlsplit(self.path)
             self.query = parse_qs(parts.query)
+            if (self.server.tls and not isinstance(self.connection, ssl.SSLSocket)
+                    and parts.path != "/broker/call" and not self.headers.get("Authorization")):
+                return self.to_https()   # plain HTTP is for programs on this computer: agents and the CLI
             if parts.path == "/broker/call" and method == "POST":
                 return self.broker()
             if parts.path == "/api/pair" and method == "POST":
@@ -401,6 +412,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         for value in self.hidden:
             text = text.replace(value, "[hidden]")
         return text
+
+    def to_https(self) -> None:
+        """Send a browser on this computer that opened http:// to the App's https address. On a plain page every
+        change it sent would carry an http origin, which the App refuses while it speaks HTTPS."""
+        self.send_response(308)
+        self.send_header("Location", f"https://{self.headers['Host']}{self.path}")
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        for name, value in HEADERS.items():
+            self.send_header(name, value)
+        self.end_headers()
 
     def same_origin(self) -> None:
         if self.headers.get("Origin", "").lower() != f"{self.server.scheme}://{self.headers['Host'].lower()}":
@@ -1168,11 +1190,12 @@ def evidence_json(row, labels: list[str]) -> dict:
             "summary": summary, "exit_code": data.get("exit_code"), "output": data.get("output", "")[-2000:]}
 
 
-def start(home, port: int, lan: bool, tls: tuple[Path, Path] | None) -> AppServer:
-    """Serve the App and its API from a daemon thread; on the local network, print the phone's link. HTTPS when lan
-    or tls is given."""
+def start(home, port: int, lan: bool | str, tls: tuple[Path, Path] | None) -> AppServer:
+    """Serve the App and its API from a daemon thread; on the network, print the phone's link. HTTPS when lan or
+    tls is given. lan is True for this machine's own network, or the name a phone opens (a Tailscale or DNS name, a
+    public address), which the certificate covers and the phone's link uses."""
     server = AppServer(("0.0.0.0" if lan else "127.0.0.1", port), home,
-                       _tls(home, lan, tls) if (lan or tls) else None)
+                       _tls(home, lan, tls) if (lan or tls) else None, address(lan) if isinstance(lan, str) else None)
     threading.Thread(target=server.serve_forever, name="artemis-app", daemon=True).start()
     banner = server.banner()
     if banner:

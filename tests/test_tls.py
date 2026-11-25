@@ -62,9 +62,21 @@ class LanNameTests(unittest.TestCase):
 
     def test_the_phone_link_uses_the_home_network_address(self):
         from artemis.web import AppServer
-        server = SimpleNamespace(lan=True, hosts=frozenset({"localhost", "127.0.0.1", "demo-host.local",
-                                                            "203.0.113.7", "192.168.0.20"}))
+        server = SimpleNamespace(lan=True, name=None, hosts=frozenset({"localhost", "127.0.0.1", "demo-host.local",
+                                                                       "203.0.113.7", "192.168.0.20"}))
         self.assertEqual(AppServer.lan_host(server), "192.168.0.20")
+
+    def test_on_a_server_the_phone_link_uses_the_name_given_with_lan(self):
+        from artemis.web import AppServer
+        server = SimpleNamespace(lan=True, name="artemis.tailnet.ts.net",
+                                 hosts=frozenset({"localhost", "127.0.0.1", "10.1.2.3", "artemis.tailnet.ts.net"}))
+        self.assertEqual(AppServer.lan_host(server), "artemis.tailnet.ts.net")
+
+    def test_the_name_a_phone_opens_is_a_host_name_or_an_ipv4_address(self):
+        self.assertEqual(tls.address("Artemis.Tailnet.ts.net."), "artemis.tailnet.ts.net")
+        self.assertEqual(tls.address("198.51.100.23"), "198.51.100.23")
+        for wrong in ("", "::1", "my server", "https://phone.example.com", "phone.example.com:7411"):
+            self.assertIsNone(tls.address(wrong), wrong)
 
     def test_no_network_leaves_the_loopback_names(self):
         self.assertEqual(self.names("demo-host.local", {}), ["127.0.0.1", "demo-host.local", "localhost"])
@@ -116,6 +128,23 @@ class CertificateTests(unittest.TestCase):
         self.assertNotEqual(moved[2], first[2])
         covered = self.load(moved[0]).extensions.get_extension_for_class(x509.SubjectAlternativeName).value
         self.assertIn("192.168.1.21", map(str, covered.get_values_for_type(x509.IPAddress)))
+
+    def test_the_name_given_with_lan_goes_into_the_homes_own_certificate(self):
+        from artemis.web import _tls
+        made = _tls(SimpleNamespace(paths=self.paths), "Artemis.Tailnet.ts.net", None)
+        self.assertIn("artemis.tailnet.ts.net", made.names)
+        covered = self.load(self.paths.tls / "cert.pem").extensions.get_extension_for_class(
+            x509.SubjectAlternativeName).value
+        self.assertIn("artemis.tailnet.ts.net", covered.get_values_for_type(x509.DNSName))
+
+    def test_a_certificate_given_must_cover_the_name_given_with_lan(self):
+        from artemis.roles import WorkflowError
+        from artemis.web import _tls
+        given = tls.ensure_cert(self.paths, ["*.example.com"])[:2]
+        home = SimpleNamespace(paths=self.paths)
+        self.assertIn("phone.example.com", _tls(home, "phone.example.com", given).names)   # by its wildcard
+        with self.assertRaisesRegex(WorkflowError, "does not cover 198.51.100.23"):
+            _tls(home, "198.51.100.23", given)
 
     def test_a_certificate_near_its_end_or_a_mismatched_key_is_replaced(self):
         with mock.patch.object(tls, "DAYS", 10):
