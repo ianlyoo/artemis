@@ -334,7 +334,41 @@ class RunTests(BrokerCase):
         self.assertEqual(first["card"], second["card"])
         self.assertNotEqual(self.python("notify.py", "--other")["card"], first["card"])
         self.ledger.decide_card(Role.OWNER, first["card"], False)
-        self.assertNotEqual(self.python("notify.py")["card"], first["card"])
+        self.assertEqual(self.python("notify.py")["state"], "denied", "the person said no to this exact command")
+
+    def test_a_restarted_run_is_told_what_became_of_the_same_command_on_its_task(self):
+        for ending in ("waiting", "done", "declined", "unknown", "failed"):
+            with self.subTest(ending=ending):
+                task = self.add_task((Criterion("notes", exists="notes.txt"),), title=f"Announce it ({ending})")
+                self.grant("first", Grant(self.ledger.claim_run(Role.HOME, task, "mock"), task, self.project,
+                                          "worker", self.folder, "folder"))
+                card = self.python("notify.py", "--to", "team", token="first")["card"]
+                if ending == "declined":
+                    self.ledger.decide_card(Role.OWNER, card, False)
+                elif ending == "done":
+                    self.ledger.decide_card(Role.OWNER, card, True)
+                    self.broker.run_card(card)
+                elif ending in ("unknown", "failed"):
+                    self.ledger.decide_card(Role.OWNER, card, True)
+                    self.ledger.claim_card(Role.HOME, card)
+                    self.ledger.finish_card(Role.HOME, card, ending, "The home stopped while this ran.")
+                self.ledger.end_run(Role.HOME, self.home.grants["first"].run, "stuck", "the worker made no change")
+                self.grant("again", Grant(self.ledger.claim_run(Role.HOME, task, "other"), task, self.project,
+                                          "worker", self.folder, "folder"))
+                opened = len(self.ledger.cards())
+                answer = self.python("notify.py", "--to", "team", token="again")
+                if ending == "failed":
+                    self.assertEqual(answer["state"], "held")
+                    self.assertNotEqual(answer["card"], card)
+                    continue
+                self.assertEqual((answer["state"], answer["card"]), ({"waiting": "held", "done": "done",
+                                 "declined": "denied", "unknown": "unknown"}[ending], card))
+                self.assertIn(f"card {card}", answer["reason"].lower())
+                self.assertEqual(len(self.ledger.cards()), opened, "no second card")
+                if ending == "done":
+                    self.assertIn("ran --to team", answer["result"])
+                self.assertNotEqual(self.python("notify.py", "--to", "all", token="again")["card"], card)
+        self.assertEqual(self.ran(), ["notify.py --to team"], "it ran once")
 
     def test_a_kind_the_config_does_not_ask_about_runs(self):
         self.home.config.interrupts.ask = (Interrupt.SPEND,)
@@ -610,7 +644,11 @@ class CardTests(BrokerCase):
         self.ledger.decide_card(Role.OWNER, card, True)
         self.broker.run_card(card)
         self.assertEqual(self.ran(), ["pay.py "])
-        self.assertNotEqual(self.held("pay.py"), card)
+        self.assertEqual(self.python("pay.py")["state"], "done", "the same task is told it was paid")
+        task = self.add_task((Criterion("notes", exists="notes.txt"),))
+        self.grant("other", Grant(self.ledger.claim_run(Role.HOME, task, "mock"), task, self.project, "worker",
+                                  self.folder, "folder"))
+        self.assertNotEqual(self.held("pay.py", token="other"), card)
 
     def test_recover_marks_what_the_last_home_left_running_unknown(self):
         card = self.held()

@@ -684,13 +684,9 @@ class Broker:
     def _hold(self, grant, command: _Command, kind: str, why: str, rule: str) -> dict:
         ledger, now = self.home.ledger, time.time()
         recorded, options = json.dumps(command.argv), command.options()
-        for row in ledger.cards(project=grant.project):    # asked again while its card is still open
-            if (row["run_id"] == grant.run and row["command"] == recorded and row["cwd"] == str(command.cwd)
-                    and (json.loads(row["options"]) if row["options"] else None) == options
-                    and row["state"] in ("waiting", "approved", "running")
-                    and (row["expires"] is None or row["expires"] > now)):
-                return {"state": "held", "card": row["id"],
-                        "reason": f"{row['why']} Card {row['id']} is still open; do not retry it, report it."}
+        answer = httpop.earlier(self.home, grant, recorded, str(command.cwd), options)
+        if answer is not None:
+            return answer
         what = f"Run: {_clip(join_command(command.argv))} in {_shown(command.cwd)}"
         card = ledger.open_card(Role.HOME, kind, what, why, project=grant.project, task=grant.task, run=grant.run,
                                 command=recorded, cwd=str(command.cwd), shell=guard.SHELL,

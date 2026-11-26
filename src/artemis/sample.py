@@ -268,7 +268,9 @@ def _follow(ledger: Ledger, tasks: list[int], say: Callable[[str], None], *, liv
     """Show the status line as it changes until every task of this request has settled."""
     last = ""
     while True:
-        line = attention.statusline(ledger)
+        states = {row["id"]: row["state"] for row in ledger.work()}    # read before the line, so the last line
+        settled = all(states.get(task) not in {"queued", "running", "verified", "reported"} for task in tasks)
+        line = attention.statusline(ledger)                              # shown is the settled one
         if line != last:
             if live:
                 sys.stdout.write("\r\033[K" + line)
@@ -276,8 +278,7 @@ def _follow(ledger: Ledger, tasks: list[int], say: Callable[[str], None], *, liv
             else:
                 say(line)
             last = line
-        states = {row["id"]: row["state"] for row in ledger.work()}
-        if all(states.get(task) not in {"queued", "running", "verified", "reported"} for task in tasks):
+        if settled:
             break
         time.sleep(tick_s)
     if live:

@@ -69,7 +69,7 @@ class Call:
 
 
 def request(home: Home, grant: Grant, args: dict) -> dict:
-    """Carry out one http_request for the run `grant` belongs to: {state: done | held | denied, ...}.
+    """Carry out one http_request for the run `grant` belongs to: {state: done | held | denied | unknown, ...}.
 
     args: method, url, headers?, body?, secret? (a NAME), save_to? (a path in the project), purpose? (what it is for,
     the title of a card that asks). A locked vault raises
@@ -94,6 +94,32 @@ def is_http(card) -> bool:
     except ValueError:
         return False
     return isinstance(command, dict) and "method" in command and "url" in command
+
+
+def earlier(home: Home, grant: Grant, command: str, cwd: str | None = None, options: object = None) -> dict | None:
+    """The answer to a request or command a card already put to the person for this task, instead of a second card:
+    a restarted worker has a new run but the same task, and asking again could send or run it twice. None when a new
+    card may open: it was never asked, or its card failed or expired. Work no task started reuses only a card still
+    open on its own run."""
+    row = home.ledger.asked(task=grant.task, run=grant.run, command=command, cwd=cwd, options=options)
+    if row is None:
+        return None
+    card, state = row["id"], row["state"]
+    if state in ("waiting", "approved", "running") and (row["expires"] is None or row["expires"] > time.time()):
+        return {"state": "held", "card": card, "reason": f"{row['why']} Card {card} is still open; do not retry it, "
+                                                         "report it."}
+    if grant.task is None or state not in ("done", "declined", "unknown"):
+        return None
+    what, did, do = ("request", "sent", "send") if is_http(row) else ("command", "run", "run")
+    if state == "declined":
+        return {"state": "denied", "card": card,
+                "reason": f"The person said no to this exact {what} on card {card}; do not ask again, report it."}
+    if state == "done":
+        return {"state": "done", "card": card, "result": row["result"],
+                "reason": f"This exact {what} was already approved and {did} on card {card}; do not {do} it again."}
+    return {"state": "unknown", "card": card, "result": row["result"],
+            "reason": f"This exact {what} was {did} on card {card}, and whether it took effect is unknown. Do not "
+                      f"{do} it again, which could do it twice; report it."}
 
 
 def dispatch(home: Home, card: int) -> tuple[str, str]:
@@ -245,10 +271,14 @@ def _standing(home: Home, grant: Grant, call: Call) -> bool:
 
 
 def _hold(home: Home, grant: Grant, call: Call, kind: str) -> dict:
-    """Open the card that asks the person, keeping the body where only the home reads it."""
+    """Open the card that asks the person, keeping the body where only the home reads it, unless this task already
+    asked for this exact request."""
     digest = None if call.body is None else hashlib.sha256(call.body).hexdigest()
     command = json.dumps({"method": call.method, "url": call.url, "headers": call.headers, "body_sha256": digest,
                           "save_to": None if call.save_to is None else str(call.save_to)})
+    answer = earlier(home, grant, command)
+    if answer is not None:
+        return answer
     why = (f"{call.secret} spends money: every use waits for your yes." if kind == Interrupt.SPEND else
            f"{call.secret} sends as you, and a {call.method} request changes something at {call.origin}.")
     what = call.purpose or f"{call.method} {urlsplit(call.origin).netloc}"    # the exact request is in its details

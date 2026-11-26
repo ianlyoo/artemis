@@ -1,3 +1,3 @@
 """Artemis: talk to one lead while workers run in parallel; you are asked only for real decisions."""
 
-__version__ = "0.4.0"   # pyproject.toml reads the version from here
+__version__ = "0.4.1"   # pyproject.toml reads the version from here

@@ -31,7 +31,7 @@ Artemis is a home that keeps working while you are away. One process on your com
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-board-dark.png">
     <img src="assets/readme/app-board-light.png" width="100%" alt="The Artemis App's workspace: the explorer lists boards and files, the lead's morning report on a Storefront 1.4 release is open in the middle, and the chat beside it shows a card where the push to main is answered No and the team-channel summary Yes, with a comment asking to try checkout on a phone first, then the lead's next step and a question about the pricing page layout">
   </picture>
-  <br><sub>The author's own Artemis, which runs across several machines, with every name and line of text replaced by made-up ones. Panels for other machines and accounts come with that setup and are not in 0.4.0.</sub>
+  <br><sub>The author's own Artemis, which runs across several machines, with every name and line of text replaced by made-up ones. Panels for other machines and accounts come with that setup and are not in 0.4.</sub>
 </p>
 
 ## What it does

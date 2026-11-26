@@ -31,7 +31,7 @@ Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 �
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-board-dark.png">
     <img src="assets/readme/app-board-light.png" width="100%" alt="Artemis 앱의 Workspace: 탐색기에 보드와 파일이 있고, 가운데에 Storefront 1.4 출시를 다룬 리드의 아침 보고 보드가 열려 있고, 옆의 대화에는 main 푸시는 아니오, 팀 채널 요약은 예로 답하고 폰으로 결제를 먼저 해 보겠다는 코멘트를 단 카드, 리드가 알린 다음 단계, 가격 페이지 구성을 묻는 질문이 있어요">
   </picture>
-  <br><sub>만든 사람이 여러 대의 기기에서 쓰는 Artemis를 찍고, 이름과 글은 모두 지어낸 것으로 바꿨어요. 다른 기기와 계정을 다루는 패널은 그 환경에서만 보이고 0.4.0에는 없어요.</sub>
+  <br><sub>만든 사람이 여러 대의 기기에서 쓰는 Artemis를 찍고, 이름과 글은 모두 지어낸 것으로 바꿨어요. 다른 기기와 계정을 다루는 패널은 그 환경에서만 보이고 0.4에는 없어요.</sub>
 </p>
 
 ## 무엇을 하나요

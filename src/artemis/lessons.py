@@ -25,6 +25,7 @@ from pathlib import Path
 import tomllib
 
 from .config import Config
+from .httpop import is_http
 from .judge import CommandEvidence, Criterion
 from .ledger import Ledger
 from .process import split_command
@@ -221,10 +222,10 @@ def _failed(event, previous: str | None) -> bool:
 
 def _declined(ledger: Ledger, event: dict) -> None:
     """A declined command proposes a guard that asks before it from now on. One "no" is not a standing rule: it
-    waits for your yes."""
+    waits for your yes. A web request is asked about by its key every time, so it proposes none."""
     card = ledger.card(event["card_id"])
-    if card["rule"] or not card["command"] or card["kind"] not in list(Interrupt):
-        return  # a rule already asks for it, or there is no command to recognise
+    if card["rule"] or not card["command"] or card["kind"] not in list(Interrupt) or is_http(card):
+        return  # a rule or a key already asks for it, or there is no command to recognise
     argv = _prefix(card["command"], card["shell"])
     if argv is not None:
         propose(ledger, Role.HOME, "guard", f'Ask before "{" ".join(argv)}" ({card["kind"]})',
@@ -440,7 +441,7 @@ def question(row) -> str | None:
     if row["state"] != "proposed" or row["kind"] == "check":
         return None
     if row["kind"] != "guard":
-        return f'Use "{row["text"]}" from now on?'
+        return f"Use this from now on? {row['text']}"   # no quotes around it: a lesson often quotes you
     payload = json.loads(row["payload"])
     card = next((item["card"] for item in json.loads(row["source"] or "[]") if "card" in item), None)
     asked = f"Always ask before `{' '.join(payload['argv'])}`?"
@@ -452,7 +453,7 @@ def asked(ledger: Ledger, row) -> str | None:
     if question(row) is None:
         return None
     if row["kind"] != "guard":
-        return f"Use “{row['text']}” from now on?"
+        return f"Use this from now on? {row['text']}"
     cited = {item["card"] for item in json.loads(row["source"] or "[]") if "card" in item}
     declined = [card["what"] for card in ledger.cards() if card["id"] in cited]   # the cards the source names
     said = f"You said no to “{declined[0]}”. " if declined else ""

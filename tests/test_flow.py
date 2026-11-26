@@ -56,7 +56,7 @@ class Flow(unittest.TestCase):
     def test_the_golden_path_ends_in_a_five_line_digest(self):
         out = self.artemis("demo", "--fast").stdout
         self.assertIn("lead: mock · workers: mock ×4 (no AI; for trying the flow)", out)
-        self.assertIn("3 running · 1 decision for you · asked you 1× · 0 done", out)
+        self.assertIn("0 running · 1 decision for you · asked you 1× · 3 done\nDecision 1 · send as you", out)
         self.assertIn("Decision 1 · send as you", out)
         self.assertIn("approved: 1 · Artemis carries it out once", out)
         self.assertIn("lead (mock) › Decision 1: done; the local demo receiver got the body you approved", out)

@@ -431,8 +431,8 @@ class ProposedLessonProofTest(OwnerCase):
         })["lesson"]
 
         asks = {item["what"]: item for item in owner.turn(self.home.ledger) if item["kind"] == "question"}
-        card_a = asks["Use “Always sort release artifacts before checks” from now on?"]["id"]
-        card_b = asks["Use “Skip changelog header on draft runs” from now on?"]["id"]
+        card_a = asks["Use this from now on? Always sort release artifacts before checks"]["id"]
+        card_b = asks["Use this from now on? Skip changelog header on draft runs"]["id"]
         _, _, questions = self.call("GET", "/questions", cookie=self.cookie)
         record = next(item for item in questions["items"] if item["id"] == card_a)
         self.assertEqual(record["spec"]["options"], ["Yes", "No"])

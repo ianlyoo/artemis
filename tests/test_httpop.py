@@ -250,6 +250,45 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(len(self.posts()), 1)
         self.assert_nowhere(json.dumps(held), said, json.dumps(dict(self.ledger.card(held["card"]))))
 
+    def test_a_restarted_worker_is_told_what_became_of_the_same_request_on_its_task(self):
+        self.vault.set("SEND_TOKEN", OTHER, use="http", kind="send", origin=self.base)
+        post = dict(method="POST", url=self.base + "/items", secret="SEND_TOKEN", body='{"note": "release 1.4"}',
+                    purpose="Post the release notes to the team channel")
+        for ending in ("done", "declined", "unknown", "failed", "expired"):
+            with self.subTest(ending=ending):
+                first = self.grant_for(None)
+                card = self.call(first, **post)["card"]
+                if ending == "declined":
+                    self.ledger.decide_card(Role.OWNER, card, False)
+                elif ending == "expired":
+                    self.ledger.expire_cards(time.time() + httpop.HOLD + 1)
+                else:
+                    self.ledger.decide_card(Role.OWNER, card, True)
+                    self.ledger.claim_card(Role.HOME, card)
+                    state, said = httpop.dispatch(self.home, card)
+                    self.ledger.finish_card(Role.HOME, card, state if ending == "done" else ending, said)
+                self.ledger.end_run(Role.HOME, first.run, "stuck", "the worker made no change")
+                again = DemoGrant(self.ledger.claim_run(Role.HOME, first.task, "other"), first.task, self.project,
+                                  "worker", self.root, "folder")
+                opened = len(self.ledger.cards())
+                answer = self.call(again, **post)
+                if ending in ("failed", "expired"):     # it may be asked again
+                    self.assertEqual(answer["state"], "held")
+                    self.assertNotEqual(answer["card"], card)
+                    continue
+                self.assertEqual((answer["state"], answer["card"]),
+                                 ({"done": "done", "declined": "denied", "unknown": "unknown"}[ending], card))
+                self.assertIn(f"card {card}", answer["reason"])
+                self.assertEqual(len(self.ledger.cards()), opened, "no second card")
+                if ending == "done":
+                    self.assertEqual(answer["result"], self.ledger.card(card)["result"])
+                    self.assertIn("201 Created", answer["result"])
+                    self.assertIn("do not send it again", answer["reason"])
+                self.assertNotEqual(self.call(again, **(post | {"body": '{"note": "release 1.5"}'}))["card"], card,
+                                    "a request with another body is another question")
+        self.assertEqual(len([entry for entry in self.posts() if entry[3] == b'{"note": "release 1.4"}']), 3,
+                         "done, unknown and failed each sent once; none was sent again")
+
     def test_a_held_request_is_titled_by_what_it_is_for_and_keeps_the_exact_request(self):
         self.vault.set("SEND_TOKEN", OTHER, use="http", kind="send", origin=self.base)
         url = self.base + "/hooks/team?channel=receipts"

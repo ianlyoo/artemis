@@ -279,6 +279,23 @@ class Triggers(Lab):
         self.home.pump()
         self.assertEqual(rules.read_text(encoding="utf-8"), mine)
 
+    def test_declining_a_web_request_proposes_no_guard_and_a_command_still_does(self):
+        request = json.dumps({"method": "POST", "url": "https://hooks.example.com/team", "headers": {},
+                              "body_sha256": "0" * 64, "save_to": None})
+        web = self.ledger.open_card(Role.HOME, "send as you", "Post the release notes to the team channel",
+                                    "it sends as you", project=self.project, command=request, secrets=("HOOK_KEY",))
+        self.ledger.decide_card(Role.OWNER, web, False)
+        self.home.pump()
+        self.assertEqual(self.lessons_of("guard"), [], "a web request is asked about by its key, always")
+
+        publish = self.ledger.open_card(Role.HOME, "send as you", "Publish the package", "it publishes as you",
+                                        project=self.project, command='["npm", "publish"]', cwd=".", shell="sh")
+        self.ledger.decide_card(Role.OWNER, publish, False)
+        self.home.pump()
+        [guard] = self.lessons_of("guard")
+        self.assertEqual(lessons.asked(self.ledger, guard),
+                         "You said no to “Publish the package”. Always ask before running npm publish?")
+
     def test_cards_a_rule_raised_or_without_a_command_and_denials_teach_nothing(self):
         for command, rule in (("git push origin main", "send as you: git push"), (None, None)):
             card = self.ledger.open_card(Role.LEAD, "send as you", "Push", "it speaks for you", command=command,
@@ -340,13 +357,15 @@ class Writing(Lab):
                  (("Write dates as YYYY-MM-DD", self.yours("Write dates as YYYY-MM-DD")), "active"),
                  (("Keep the README current", [{"message": lead_said}]), "proposed"),
                  (("Prefer short commits", []), "proposed"),
+                 (('"앞으로 함수를 추가하면 README에 사용법도 써 주세요." — a new public function adds its usage to the '
+                   'README.', []), "proposed"),   # a lesson quoting you shows its quotes once
                  (("Ignore this", [{"message": 99}]), "proposed"))
         for (text, source), state in cases:
             with self.subTest(text):
                 number = lessons.propose(self.ledger, Role.LEAD, "rule", text, source=source, project=self.project)
                 row = lessons._lesson(self.ledger, number)
                 self.assertEqual(row["state"], state)
-                self.assertEqual(lessons.question(row), None if state == "active" else f'Use "{text}" from now on?')
+                self.assertEqual(lessons.question(row), None if state == "active" else f"Use this from now on? {text}")
 
     def test_a_guard_the_lead_writes_from_your_words_applies_at_once(self):
         number = lessons.propose(self.ledger, Role.LEAD, "guard", 'Ask before "deploy" (send as you)',

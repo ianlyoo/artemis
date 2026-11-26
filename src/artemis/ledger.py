@@ -574,6 +574,17 @@ class Ledger:
         with self._read() as db:
             return _one(db, "SELECT * FROM cards WHERE id = ?", card)
 
+    def asked(self, *, task: int | None, run: int | None, command: str, cwd: str | None = None,
+              options: object = None) -> sqlite3.Row | None:
+        """The latest card that put this exact operation to the person: the same recorded command, folder and
+        options, on the same task (on the same run, for work no task started). None when it was never asked."""
+        scope, key = ("task_id = ?", task) if task is not None else ("task_id IS NULL AND run_id IS ?", run)
+        with self._read() as db:
+            rows = db.execute(f"SELECT * FROM cards WHERE {scope} AND command = ? AND cwd IS ? ORDER BY id DESC",
+                              (key, command, cwd)).fetchall()
+        return next((row for row in rows if (json.loads(row["options"]) if row["options"] else None) == options),
+                    None)
+
     def standing(self, *, kind: str, schedule: int | None = None, url: str | None = None, method: str | None = None,
                  argv: list[str] | None = None, cwd: str | None = None, secret: str | None = None) -> sqlite3.Row | None:
         """A standing approval the person gave for exactly this operation, or None."""
