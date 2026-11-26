@@ -25,7 +25,7 @@ jobs:
       - name: Install pinned front-end build dependencies
         working-directory: app
         run: npm ci
-      - name: Rebuild the App from app/ and compare byte-for-byte with src/artemis/web/app
+      - name: Rebuild the App from app/ and compare it with src/artemis/web/app (compressed copies by content)
         run: sh tools/build_web --check
 
   tests:

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, join, posix, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
-import { brotliCompress, constants as zlib, gzip } from 'node:zlib';
+import { brotliCompress, brotliDecompressSync, constants as zlib, gunzipSync, gzip } from 'node:zlib';
 
 const APP_ROOT = dirname(fileURLToPath(import.meta.url));
 const SRC_ROOT = resolve(APP_ROOT, 'src');
@@ -288,12 +288,21 @@ async function writeCompressedCopies(stageDir) {
     ]);
     if (br.length < raw.length) writeFileSync(`${file}.br`, br);
     if (gz.length < raw.length) {
-      // Zero mtime and pin OS byte (Unix = 3) so .gz output is byte-identical across OSes.
+      // Zero mtime and pin OS byte (Unix = 3). The deflate stream itself still varies with the zlib in the Node
+      // that builds (Node 22 and 24 differ), so --check compares compressed copies by what they decompress to.
       gz.writeUInt32LE(0, 4);
       gz[9] = 3;
       writeFileSync(`${file}.gz`, gz);
     }
   }));
+}
+
+// What a browser receives from a file: a compressed copy is compared by its content, since its bytes depend on
+// the compressor's build; every other file byte for byte.
+function served(rel, data) {
+  if (rel.endsWith('.gz')) return gunzipSync(data);
+  if (rel.endsWith('.br')) return brotliDecompressSync(data);
+  return data;
 }
 
 function diffDirectories(stageDir, outDir) {
@@ -305,7 +314,7 @@ function diffDirectories(stageDir, outDir) {
   for (const rel of allKeys) {
     if (!committed.has(rel)) issues.push(`missing in committed output: ${rel}`);
     else if (!built.has(rel)) issues.push(`stale file in committed output: ${rel}`);
-    else if (!readFileSync(built.get(rel)).equals(readFileSync(committed.get(rel)))) {
+    else if (!served(rel, readFileSync(built.get(rel))).equals(served(rel, readFileSync(committed.get(rel))))) {
       issues.push(`bytes differ: ${rel}`);
     }
   }
@@ -393,7 +402,7 @@ async function run() {
         process.exitCode = 1;
         return;
       }
-      console.log(`OK ${outDir} matches rebuilt output byte-for-byte (build ${buildId}, ${diff.count} files)`);
+      console.log(`OK ${outDir} matches the rebuilt output, compressed copies by content (build ${buildId}, ${diff.count} files)`);
       return;
     }
 
