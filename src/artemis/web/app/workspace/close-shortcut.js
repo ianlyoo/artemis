@@ -1,0 +1,1 @@
+export function closeShortcut(r,t=()=>{}){return r.altKey||r.shiftKey||r.key.toLowerCase()!=="w"||!r.metaKey&&(!r.ctrlKey||r.target?.closest?.(".ide-term-body"))?!1:(r.preventDefault(),r.repeat||t(),!0)}

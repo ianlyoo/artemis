@@ -1,0 +1,85 @@
+.m-explorer-tab {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.m-explorer-home {
+  --ui:14px;
+  --ex-text:15px;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--ide-side);
+}
+.m-explorer-home[hidden],
+.m-explorer-document[hidden] {
+  display: none;
+}
+.m-explorer-home .ex-head {
+  display: none;
+}
+.m-explorer-home .ex-search {
+  margin-top: 6px;
+}
+.m-explorer-document {
+  --ui:14px;
+  --read-w:100%;
+  --paper:var(--ide-doc);
+  --ground:var(--ide-doc);
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background: var(--ide-doc);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.m-explorer-document .doc-scroll {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
+}
+.m-explorer-document .doc-sheet {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 max(16px, env(safe-area-inset-right)) 0 max(26px, env(safe-area-inset-left));
+}
+.m-explorer-document .doc-gutter {
+  display: none;
+}
+.m-explorer-document .doc-page {
+  padding: 8px 0 30vh;
+}
+.m-explorer-document .doc-title {
+  font-size: 22px;
+  line-height: 1.34;
+}
+.m-explorer-document :is(.doc-meta, .doc-notice) {
+  font-size: 13px;
+}
+.m-explorer-document .doc-body {
+  font-size: 17px;
+  line-height: 1.75;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.m-explorer-document .doc-body .cv-table-box {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+.m-explorer-document .ide-fold {
+  left: -1.2em;
+  width: 1.1em;
+  opacity: .65;
+}
+.m-explorer-controls {
+  display: flex;
+  align-items: center;
+}
+.m-explorer-quick .qo-row {
+  min-height: 44px;
+}
+.m-explorer-quick .qo-field {
+  font-size: 16px;
+}

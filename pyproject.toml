@@ -9,7 +9,7 @@ description = "A personal agent system on your own computer: one lead you talk t
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["LICENSE", "NOTICES.md"]
+license-files = ["LICENSE", "NOTICES.md", "THIRD_PARTY_NOTICES"]
 dependencies = [
     "cryptography>=43",
     "keyring>=25",
@@ -20,7 +20,7 @@ dependencies = [
 artemis = "artemis.cli:main"
 
 [tool.setuptools]
-packages = ["artemis", "artemis.templates", "artemis.web", "artemis.web.vendor"]
+packages = ["artemis", "artemis.templates", "artemis.web"]
 package-dir = { "" = "src" }
 
 [tool.setuptools.dynamic]
@@ -28,5 +28,4 @@ version = { attr = "artemis.__version__" }
 
 [tool.setuptools.package-data]
 "artemis.templates" = ["*.toml", "*.md"]
-"artemis.web" = ["*.html", "*.js", "*.css", "*.svg", "*.png", "*.webmanifest"]
-"artemis.web.vendor" = ["*"]
+"artemis.web" = ["client.js", "app/**/*"]

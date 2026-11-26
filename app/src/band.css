@@ -1,0 +1,110 @@
+.band-running {
+  color: var(--state-running);
+}
+.band-id {
+  font: 500 var(--t-data)/var(--lh-base) var(--font-mono);
+  color: var(--ink-quiet);
+  overflow-wrap: anywhere;
+}
+.band-decision {
+  font-size: var(--t-data);
+}
+.approval-destination {
+  margin: 6px 0 0;
+  color: var(--ink-quiet);
+  font-size: var(--t-data);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.approval-detail {
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.approval-note,
+.approval-via {
+  font-size: var(--t-data);
+  color: var(--ink-quiet);
+}
+.approval-via {
+  display: block;
+  margin-top: 4px;
+}
+.approval-scope,
+.approval-reason {
+  margin: 12px 0 18px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--t-body);
+  line-height: var(--lh-prose);
+}
+.approval-facts {
+  margin: 18px 0;
+  display: grid;
+  gap: 8px;
+  font-size: var(--t-data);
+}
+.approval-facts > div {
+  display: grid;
+  grid-template-columns: 6em minmax(0, 1fr);
+  gap: 12px;
+}
+.approval-facts dt {
+  color: var(--ink-quiet);
+}
+.approval-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.approval-command {
+  margin: 8px 0 20px;
+  font: var(--t-data)/1.7 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+}
+.approval-command-preview {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-bottom: 8px;
+}
+.approval-command-full summary {
+  cursor: pointer;
+  color: var(--ink-quiet);
+  padding: 8px 0;
+}
+.approval-reason > span {
+  display: block;
+  color: var(--ink-quiet);
+  font-size: var(--t-data);
+  margin-bottom: 6px;
+}
+.ide-approval .approval-via {
+  display: inline;
+  margin: 0 0 0 8px;
+}
+.ide-approval .approval-detail {
+  padding-top: calc(var(--ui) * .8);
+}
+.ide-approval .ide-approval-ask {
+  margin-top: calc(var(--ui) * .9);
+}
+@media (max-width: 767.98px) {
+  .approval-via {
+    display: inline;
+    margin-left: 8px;
+    font-size: 13px;
+  }
+  .approval-note,
+  .approval-facts,
+  .approval-command {
+    font-size: 13px;
+  }
+  .approval-scope,
+  .approval-reason {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+}

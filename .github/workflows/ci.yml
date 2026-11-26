@@ -6,6 +6,28 @@ permissions:
   contents: read
 
 jobs:
+  web:
+    name: Web App build matches committed copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install pinned front-end build dependencies
+        working-directory: app
+        run: npm ci
+      - name: Rebuild the App from app/ and compare byte-for-byte with src/artemis/web/app
+        run: sh tools/build_web --check
+
   tests:
     name: Tests · ${{ matrix.os }} · Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}

@@ -1,0 +1,1 @@
+import{b as i}from"./chunk-POA4SZV3.js";import{a as c}from"./chunk-AGXDBOIK.js";import{d as o}from"./chunk-SGBOX2D7.js";var n=o(c(),1);function W(r,e,t=!0){a(r,e,t,!1)}function p(r,e,t=!0){a(r,e,t,!0)}function a(r,e,t,u){let[f]=(0,n.useState)(i);(0,n.useEffect)(()=>{t&&f(r,e,u?e:"")},[r,e,t,u,f])}export{W as a,p as b};

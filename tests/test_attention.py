@@ -93,7 +93,7 @@ class Digest(Desk):
         result = attention.digest(self.ledger)
         self.assertEqual([(line.label, line.ref) for line in result.lines], [
             ("shipped", "#1"), ("verified", "#2"), ("running", "#3"), ("queued", "#5"), ("decided", "D1"),
-            ("decided", "D3"), ("decided", "D4"), ("decided", "D6"), ("waiting", "D2"), ("learned", "L1"),
+            ("decided", "D3"), ("decided", "D4"), ("decided", "D6"), ("waiting", "D2"), ("waiting", "D7"), ("learned", "L1"),
             ("learned", "L2"), ("stuck", "#4"), ("stuck", "D5"), ("inferred", "")])
         proof = {line.ref or line.label: line.proof for line in result.lines}
         self.assertEqual(proof["#1"], "main ccccccc · tests")
@@ -115,7 +115,7 @@ class Digest(Desk):
     def test_the_lead_has_stuck_work_only_while_a_home_with_a_lead_runs(self):
         def shown():
             proof = {line.ref: line.proof for line in attention.digest(self.ledger).lines}
-            return proof["#4"], proof["D5"], proof["D2"], attention.statusline(self.ledger).split(" · ")[2]
+            return proof["#4"], proof["D5"], proof["D2"], attention.statusline(self.ledger).split(" · ")[3]
 
         self.ledger.decide_card(Role.OWNER, 2, True)        # money out with nothing to run: a lead carries it out
         yours = ("no result after 20 min · yours: artemis retry 4",
@@ -148,10 +148,10 @@ class Digest(Desk):
 
     def test_the_text_groups_projects_and_counts_what_your_attention_bought(self):
         text = attention.digest(self.ledger).text.splitlines()
-        self.assertRegex(text[0], r"^Last \d+ min · asked you 6× · 2 done · 2 stuck · 2 wakes$")
+        self.assertRegex(text[0], r"^Last \d+ min · asked you 7× · 2 done · 2 stuck · 2 wakes$")
         self.assertEqual([line for line in text if not line.startswith("  ")][1:],
                          ["site (repo)", "photos (folder)", "all projects"])
-        self.assertIn("  verified  #2 Sort the holiday photos  summary.csv 14 rows", text)
+        self.assertIn("  verified  #2 Sort the holiday photos             summary.csv 14 rows", text)
         self.assertIn('  learned   L2 "List every flag in the README" · from your words in chat', text)
         self.assertEqual(text[-1], '  learned   L1 "Ask before "notify" (send as you)" · from D6 you declined · '
                                    "You declined D6. Always ask before `notify`? artemis lesson accept 1")
@@ -169,7 +169,7 @@ class Digest(Desk):
         lines = attention.digest(self.ledger, self.photos, mark=True).lines
         self.assertEqual([line.ref or line.label for line in lines], ["#2", "D3", "D4", "inferred"])
         self.assertTrue(attention.digest(self.ledger, self.photos).text.endswith("\nNothing changed."))
-        self.assertEqual([line.ref for line in attention.digest(self.ledger).lines], ["D2", "#4"])
+        self.assertEqual([line.ref for line in attention.digest(self.ledger).lines], ["D2", "D7", "#4"])
 
     def test_host_lines_name_the_property_that_was_checked(self):
         cases = (({"label": "x", "exists": "summary.csv"}, {"path": "summary.csv", "found": True, "changed": True},
@@ -194,7 +194,7 @@ class Digest(Desk):
 class Views(Desk):
     def test_status_line_status_and_inbox(self):
         self.assertEqual(attention.statusline(self.ledger),
-                         "1 running · 1 queued · 1 decision for you · 1 stuck (yours) · asked you 6× · 2 done")
+                         "1 running · 1 queued · 2 decisions for you · 1 stuck (yours) · asked you 7× · 2 done")
         self.assertEqual(attention.statusline(self.ledger, self.photos), "0 running · asked you 2× · 1 done")
         status = attention.status(self.ledger).splitlines()
         self.assertEqual([line.split()[0] for line in status[1:]], ["site", "running", "stuck", "queued", "waiting"])

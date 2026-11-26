@@ -1,0 +1,1 @@
+let n=new Map;const r=new Set;export function rememberBoardTitles(e){if(Array.isArray(e)){n=new Map(e.filter(t=>t?.title&&(t.path_key||t.id)).map(t=>[String(t.path_key||t.id),String(t.title)]));for(const t of[...r])try{t()}catch{}}}export const knownBoardTitle=e=>n.get(String(e??""))??null;export function onBoardTitles(e){return r.add(e),()=>r.delete(e)}

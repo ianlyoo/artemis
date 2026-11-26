@@ -21,7 +21,7 @@ class Interrupt(StrEnum):
 
 
 INTERRUPTS = frozenset(kind.value for kind in Interrupt)
-CARD_KINDS = (*Interrupt, "choice", "secret")
+CARD_KINDS = (*Interrupt, "choice", "secret", "step")
 
 
 class WorkflowError(RuntimeError):

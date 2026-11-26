@@ -1,6 +1,6 @@
 """The home process, its paths, settings, process control and the CLI verbs that manage it."""
 
-from contextlib import closing, redirect_stderr, redirect_stdout
+from contextlib import ExitStack, closing, redirect_stderr, redirect_stdout
 import http.client
 import io
 import json
@@ -105,14 +105,32 @@ class ProcessControl(unittest.TestCase):
         process._runs_python.cache_clear()
         self.assertIsNone(process.executable(("node", "test.js")))
 
-    def test_windows_ends_the_tree_with_taskkill(self):
+    def test_windows_ends_the_tree_and_waits_for_each_process_it_started(self):
+        # taskkill returns once it has asked; a process it ended can hold its working folder a moment longer, so
+        # kill_tree waits on each process of the tree. 3 started before the worker: its id was reused, not a child.
+        kernel32, born = mock.Mock(), {1: "100", 2: "150", 3: "50"}
         child = mock.Mock(pid=4242)
-        with mock.patch.object(process, "WINDOWS", True), mock.patch.object(process.subprocess, "run") as run:
+
+        def windows(opened):
+            return (mock.patch.object(process, "WINDOWS", True), mock.patch.object(process, "_kernel32", lambda: kernel32),
+                    mock.patch.object(process, "_tree", lambda pid: [pid, 4243, 4244]),
+                    mock.patch.object(process, "_open_process", side_effect=opened),
+                    mock.patch.object(process, "_created", born.get))
+
+        with ExitStack() as stack:
+            run = stack.enter_context(mock.patch.object(process.subprocess, "run"))
+            for patch in windows([1, 2, 3]):
+                stack.enter_context(patch)
             process.kill_tree(child)
         self.assertEqual(run.call_args.args[0], ["taskkill", "/PID", "4242", "/T", "/F"])
+        self.assertEqual([call.args[0] for call in kernel32.WaitForSingleObject.call_args_list], [1, 2])
+        self.assertEqual(sorted(call.args[0] for call in kernel32.CloseHandle.call_args_list), [1, 2, 3])
         child.wait.assert_called_once()
         child.wait.side_effect = subprocess.TimeoutExpired("x", 1)
-        with mock.patch.object(process, "WINDOWS", True), mock.patch.object(process.subprocess, "run"):
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(process.subprocess, "run"))
+            for patch in windows([None, None, None]):
+                stack.enter_context(patch)
             process.kill_tree(child, grace_s=0)
         child.kill.assert_called_once()
 
@@ -158,14 +176,17 @@ class ProcessControl(unittest.TestCase):
         kernel32.OpenProcess.return_value = 7
         with mock.patch.object(process, "WINDOWS", True), mock.patch.object(process, "_kernel32", lambda: kernel32), \
                 mock.patch.object(process, "_created", lambda handle: "133000000000000000"), \
+                mock.patch.object(process, "_tree", lambda pid: [pid]), \
                 mock.patch.object(process.subprocess, "run") as run:
             self.assertEqual(process.started(4242), "133000000000000000")
             self.assertFalse(process.end_if_same(4242, "133999999999999999"))
             run.assert_not_called()
             self.assertTrue(process.end_if_same(4242, "133000000000000000"))
             self.assertEqual(run.call_args.args[0], ["taskkill", "/PID", "4242", "/T", "/F"])
-            kernel32.WaitForSingleObject.assert_called_once_with(7, 5000)   # until it has exited, or the grace
-            self.assertEqual(kernel32.CloseHandle.call_count, 3)
+            (handle, wait), = [call.args for call in kernel32.WaitForSingleObject.call_args_list]
+            self.assertEqual(handle, 7)
+            self.assertTrue(4900 <= wait <= 5000, wait)      # until it has exited, or the grace
+            self.assertEqual(kernel32.CloseHandle.call_count, 4)
             kernel32.OpenProcess.return_value = None          # no such process
             self.assertIsNone(process.started(4242))
             self.assertFalse(process.end_if_same(4242, "133000000000000000"))

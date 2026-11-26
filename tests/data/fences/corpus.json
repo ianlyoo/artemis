@@ -1,0 +1,507 @@
+[
+  {
+    "id": "empty",
+    "streaming": false,
+    "text": ""
+  },
+  {
+    "id": "whitespace_only",
+    "streaming": false,
+    "text": "   \n\t\n  "
+  },
+  {
+    "id": "plain_md_korean",
+    "streaming": false,
+    "text": "\n\n안녕하세요.\n두 번째 줄이에요.\n\n"
+  },
+  {
+    "id": "md_multi_paragraphs",
+    "streaming": false,
+    "text": "First paragraph.\n\nSecond paragraph with `inline code`."
+  },
+  {
+    "id": "code_python",
+    "streaming": false,
+    "text": "예제 코드입니다.\n\n```python\ndef add(a, b):\n    return a + b\n```\n\n끝."
+  },
+  {
+    "id": "code_no_lang",
+    "streaming": false,
+    "text": "```\nplain text block\n```"
+  },
+  {
+    "id": "code_extra_info",
+    "streaming": false,
+    "text": "```python title=demo.py\nprint('ok')\n```"
+  },
+  {
+    "id": "code_json_passthrough",
+    "streaming": false,
+    "text": "```json\n{\"kind\": \"bar\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}\n```"
+  },
+  {
+    "id": "mermaid_closed",
+    "streaming": false,
+    "text": "흐름도예요.\n\n```mermaid\ngraph LR\n  A[시작] --> B[종료]\n```"
+  },
+  {
+    "id": "table_valid_title_tone",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"title\": \"작업 요약\", \"tone\": \"accent\"}\n```"
+  },
+  {
+    "id": "table_type_field_match",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"type\": \"table\"}\n```"
+  },
+  {
+    "id": "table_headers_and_object_rows",
+    "streaming": false,
+    "text": "```table\n{\"headers\": [\"이름\", \"점수\", \"활성\", \"비고\"], \"rows\": [{\"이름\": \"알파\", \"점수\": 95.5, \"활성\": true, \"비고\": null}, {\"이름\": \"베타\", \"점수\": 0, \"활성\": false, \"비고\": \"양호\"}]}\n```"
+  },
+  {
+    "id": "table_bad_json",
+    "streaming": false,
+    "text": "앞 문단\n\n```table\n{\"columns\": [\"a\"],\n```\n\n뒤 문단"
+  },
+  {
+    "id": "table_json_nan_rejected",
+    "streaming": false,
+    "text": "```table\n{\"columns\":[\"a\"],\"rows\":[[NaN]]}\n```"
+  },
+  {
+    "id": "table_json_array",
+    "streaming": false,
+    "text": "```table\n[1, 2, 3]\n```"
+  },
+  {
+    "id": "table_unknown_field",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"colour\": \"blue\"}\n```"
+  },
+  {
+    "id": "table_row_width_mismatch",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"a\", \"b\"], \"rows\": [[\"only-one\"]]}\n```"
+  },
+  {
+    "id": "table_object_row_key_mismatch",
+    "streaming": false,
+    "text": "```table\n{\"headers\": [\"a\"], \"rows\": [{\"a\": \"1\", \"b\": \"2\"}]}\n```"
+  },
+  {
+    "id": "table_mixed_object_and_array_rows",
+    "streaming": false,
+    "text": "```table\n{\"headers\": [\"a\"], \"rows\": [{\"a\": \"1\"}, [\"2\"]]}\n```"
+  },
+  {
+    "id": "table_nested_object_cell",
+    "streaming": false,
+    "text": "```table\n{\"headers\": [\"a\"], \"rows\": [{\"a\": {\"nested\": \"x\"}}]}\n```"
+  },
+  {
+    "id": "table_conflicting_aliases",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"a\"], \"headers\": [\"b\"], \"rows\": [[\"1\"]]}\n```"
+  },
+  {
+    "id": "table_matching_aliases",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"a\"], \"headers\": [\"a\"], \"rows\": [[\"1\"]]}\n```"
+  },
+  {
+    "id": "table_long_reason_clipped",
+    "streaming": false,
+    "text": "```table\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\": 1}\n```"
+  },
+  {
+    "id": "chart_valid_bar",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}], \"title\": \"주간 현황\"}\n```"
+  },
+  {
+    "id": "chart_aliases_line",
+    "streaming": false,
+    "text": "```chart\n{\"type\": \"line\", \"xAxis\": {\"categories\": [\"1주\", \"2주\", \"3주\"]}, \"series\": [{\"name\": \"속도\", \"data\": [1.5, 2.25, 3]}, {\"name\": \"목표\", \"y\": [2, 2, 2]}]}\n```"
+  },
+  {
+    "id": "chart_xaxis_data_alias",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"xAxis\": {\"data\": [\"봄\", \"여름\"]}, \"series\": [{\"name\": \"온도\", \"values\": [14, 28]}]}\n```"
+  },
+  {
+    "id": "chart_xaxis_extra_key_rejected",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"xAxis\": {\"categories\": [\"봄\"], \"extra\": 1}, \"series\": [{\"name\": \"온도\", \"values\": [14]}]}\n```"
+  },
+  {
+    "id": "chart_xaxis_conflicting_aliases",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"xAxis\": {\"categories\": [\"a\"], \"data\": [\"b\"]}, \"series\": [{\"name\": \"s\", \"values\": [1]}]}\n```"
+  },
+  {
+    "id": "chart_bad_json",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"line\",\n```"
+  },
+  {
+    "id": "chart_invalid_kind",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"pie\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}\n```"
+  },
+  {
+    "id": "chart_series_length_mismatch",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"line\", \"labels\": [\"a\", \"b\"], \"series\": [{\"name\": \"s\", \"values\": [1]}]}\n```"
+  },
+  {
+    "id": "chart_non_numeric_value",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"labels\": [\"a\"], \"series\": [{\"name\": \"s\", \"values\": [\"1\"]}]}\n```"
+  },
+  {
+    "id": "chart_bool_value_rejected",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"labels\": [\"a\"], \"series\": [{\"name\": \"s\", \"values\": [true]}]}\n```"
+  },
+  {
+    "id": "chart_conflicting_x_aliases",
+    "streaming": false,
+    "text": "```chart\n{\"kind\": \"bar\", \"labels\": [\"a\"], \"x\": [\"b\"], \"series\": [{\"name\": \"s\", \"values\": [1]}]}\n```"
+  },
+  {
+    "id": "timeline_valid",
+    "streaming": false,
+    "text": "```timeline\n{\"items\": [{\"when\": \"09:15\", \"label\": \"점검 시작\", \"detail\": \"로그 확인 완료\"}], \"title\": \"일정\"}\n```"
+  },
+  {
+    "id": "timeline_aliases",
+    "streaming": false,
+    "text": "```timeline\n{\"events\": [{\"date\": \"10:00\", \"text\": \"시작\"}, {\"date\": \"11:30\", \"text\": \"완료\", \"detail\": \"정상 종료\"}]}\n```"
+  },
+  {
+    "id": "timeline_mismatched_type",
+    "streaming": false,
+    "text": "```timeline\n{\"items\": [{\"when\": \"09:15\", \"label\": \"점검 시작\", \"detail\": \"로그 확인 완료\"}], \"type\": \"chart\"}\n```"
+  },
+  {
+    "id": "timeline_unknown_item_field",
+    "streaming": false,
+    "text": "```timeline\n{\"items\": [{\"when\": \"09:00\", \"label\": \"체크\", \"extra\": 1}]}\n```"
+  },
+  {
+    "id": "diagram_valid_escaped_mermaid",
+    "streaming": false,
+    "text": "```diagram\n{\"nodes\": [{\"id\": \"in\", \"label\": \"입력 (A/B)\\n2줄\"}, {\"id\": \"out\", \"label\": \"출력 #1\"}], \"edges\": [{\"from\": \"in\", \"to\": \"out\", \"label\": \"변환 -> 완료\"}], \"title\": \"파이프라인\"}\n```"
+  },
+  {
+    "id": "diagram_unlabeled_edge_and_coords",
+    "streaming": false,
+    "text": "```diagram\n{\"nodes\": [{\"id\": \"n_a\", \"label\": \"첫 단계\", \"x\": 10, \"y\": 20}, {\"id\": \"n_b\", \"label\": \"둘째 단계\"}], \"edges\": [{\"from\": \"n_a\", \"to\": \"n_b\"}]}\n```"
+  },
+  {
+    "id": "diagram_unknown_node",
+    "streaming": false,
+    "text": "```diagram\n{\"nodes\": [{\"id\": \"a\", \"label\": \"A\"}], \"edges\": [{\"from\": \"a\", \"to\": \"missing\"}]}\n```"
+  },
+  {
+    "id": "diagram_duplicate_node",
+    "streaming": false,
+    "text": "```diagram\n{\"nodes\": [{\"id\": \"a\", \"label\": \"A\"}, {\"id\": \"a\", \"label\": \"B\"}], \"edges\": []}\n```"
+  },
+  {
+    "id": "sketch_valid_all_shapes",
+    "streaming": false,
+    "text": "```sketch\n{\"w\": 320, \"h\": 180, \"shapes\": [{\"k\": \"path\", \"d\": \"M 10 10 L 80 40 A 20 20 0 0 1 100 60 Z\"}, {\"k\": \"line\", \"from\": [0, 0], \"to\": [50, 50], \"ink\": \"cool\", \"width\": 2, \"label\": \"축\"}, {\"k\": \"arrow\", \"from\": [10, 20], \"to\": [90, 20]}, {\"k\": \"circle\", \"c\": [60, 60], \"r\": 12, \"fill\": true}, {\"k\": \"rect\", \"at\": [120, 20], \"size\": [40, 25], \"r\": 4, \"fill\": false}, {\"k\": \"text\", \"at\": [15, 140], \"text\": \"메모\"}]}\n```"
+  },
+  {
+    "id": "sketch_invalid_path_start",
+    "streaming": false,
+    "text": "```sketch\n{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"L 10 10\"}]}\n```"
+  },
+  {
+    "id": "sketch_invalid_path_arity",
+    "streaming": false,
+    "text": "```sketch\n{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"M 10\"}]}\n```"
+  },
+  {
+    "id": "sketch_invalid_arc_flag",
+    "streaming": false,
+    "text": "```sketch\n{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"M 0 0 A 10 10 0 2 1 20 20\"}]}\n```"
+  },
+  {
+    "id": "sketch_invalid_circle_radius",
+    "streaming": false,
+    "text": "```sketch\n{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"circle\", \"c\": [5, 5], \"r\": 0}]}\n```"
+  },
+  {
+    "id": "secret_ref_valid",
+    "streaming": false,
+    "text": "키를 확인하세요.\n\n```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\"}\n```\n\n끝."
+  },
+  {
+    "id": "secret_ref_template_header",
+    "streaming": false,
+    "text": "```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"template\": \"Bearer {value}\"}\n```"
+  },
+  {
+    "id": "secret_ref_template_link_refused",
+    "streaming": false,
+    "text": "```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"template\": \"https://example.com/hook?token={value}\"}\n```"
+  },
+  {
+    "id": "secret_ref_template_app_link_refused",
+    "streaming": false,
+    "text": "```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"template\": \"app:///config?inline={value}\"}\n```"
+  },
+  {
+    "id": "secret_ref_emoji_label_60_cp",
+    "streaming": false,
+    "text": "```secret\n{\"key\": \"demo.emoji\", \"label\": \"🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑\"}\n```"
+  },
+  {
+    "id": "secret_ref_one_line",
+    "streaming": false,
+    "text": "앞\n```secret {\"key\":\"demo.key\",\"label\":\"원라인 키\"}```\n뒤"
+  },
+  {
+    "id": "secret_ref_bad_json",
+    "streaming": false,
+    "text": "```secret\n{bad json\n```"
+  },
+  {
+    "id": "secret_ref_title_disallowed",
+    "streaming": false,
+    "text": "```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"title\": \"제목\"}\n```"
+  },
+  {
+    "id": "secret_request_info",
+    "streaming": false,
+    "text": "```secret 0123456789abcdef0123456789abcdef\n```"
+  },
+  {
+    "id": "secret_request_body",
+    "streaming": false,
+    "text": "```secret\n0123456789abcdef0123456789abcdef\n```"
+  },
+  {
+    "id": "secret_request_one_line",
+    "streaming": false,
+    "text": "입력해 주세요.\n```secret 0123456789abcdef0123456789abcdef```\n감사합니다."
+  },
+  {
+    "id": "choices_options_korean",
+    "streaming": false,
+    "text": "어떻게 진행할까요?\n\n```choices\n{\"q\": \"진행 방식\", \"options\": [\"바로 진행\", \"잠시 보류\"], \"guess\": \"바로 진행\"}\n```"
+  },
+  {
+    "id": "choices_rows_korean",
+    "streaming": false,
+    "text": "```choices\n{\"rows\": [{\"q\": \"테스트를 실행할까요?\", \"guess\": \"예\"}]}\n```"
+  },
+  {
+    "id": "choices_one_line_is_prose",
+    "streaming": false,
+    "text": "안내 ```choices {\"options\":[\"예\",\"아니오\"]}``` 문장"
+  },
+  {
+    "id": "step_multiline_info",
+    "streaming": false,
+    "text": "```step 42\n```"
+  },
+  {
+    "id": "step_one_line_hash",
+    "streaming": false,
+    "text": "진행 전 확인:\n```step #42```\n완료 후 알려 주세요."
+  },
+  {
+    "id": "step_body_id",
+    "streaming": false,
+    "text": "```step\n42\n```"
+  },
+  {
+    "id": "answer_one_line_and_multiline",
+    "streaming": false,
+    "text": "```answer slot_a```\n\n```answer slot-b\n초안 내용\n```"
+  },
+  {
+    "id": "open_valid_with_title",
+    "streaming": false,
+    "text": "```open\n{\"board\": \"weekly-plan\", \"title\": \"주간 계획 보드\"}\n```"
+  },
+  {
+    "id": "open_valid_one_line",
+    "streaming": false,
+    "text": "보드를 열어보세요.\n```open {\"board\":\"overview-1\"}```"
+  },
+  {
+    "id": "open_bad_json",
+    "streaming": false,
+    "text": "```open\n{not json\n```"
+  },
+  {
+    "id": "open_missing_board",
+    "streaming": false,
+    "text": "```open\n{\"title\": \"제목만\"}\n```"
+  },
+  {
+    "id": "open_unknown_field",
+    "streaming": false,
+    "text": "```open\n{\"board\": \"b1\", \"extra\": true}\n```"
+  },
+  {
+    "id": "open_control_char_board",
+    "streaming": false,
+    "text": "```open\n{\"board\": \"bad\\u0007id\"}\n```"
+  },
+  {
+    "id": "open_board_too_long",
+    "streaming": false,
+    "text": "```open\n{\"board\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}\n```"
+  },
+  {
+    "id": "attach_valid",
+    "streaming": false,
+    "text": "파일을 첨부했어요.\n\n```attach\n\n  reports/a.pdf  \ncharts/b.png\n\n```"
+  },
+  {
+    "id": "attach_empty_refused",
+    "streaming": false,
+    "text": "```attach\n   \n```"
+  },
+  {
+    "id": "nested_4_backticks_wrapping_3",
+    "streaming": false,
+    "text": "````markdown\n예시:\n```chart\n{\"kind\":\"bar\",\"labels\":[\"a\"],\"series\":[{\"name\":\"s\",\"values\":[1]}]}\n```\n````"
+  },
+  {
+    "id": "tilde_wrapping_backticks",
+    "streaming": false,
+    "text": "~~~md\n```python\nprint(1)\n```\n~~~"
+  },
+  {
+    "id": "backticks_wrapping_tildes",
+    "streaming": false,
+    "text": "```text\n~~~table\n{\"columns\":[\"a\"],\"rows\":[[\"1\"]]}\n~~~\n```"
+  },
+  {
+    "id": "tilde_typed_fences",
+    "streaming": false,
+    "text": "~~~table\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]]}\n~~~\n\n~~~~chart\n{\"kind\": \"bar\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}\n~~~~"
+  },
+  {
+    "id": "tilde_length_mismatch_closing",
+    "streaming": false,
+    "text": "~~~~python\nline1\n~~~\nline2\n~~~~~"
+  },
+  {
+    "id": "closing_with_trailing_text_ignored",
+    "streaming": false,
+    "text": "```python\nx = 1\n```not-close\ny = 2\n```"
+  },
+  {
+    "id": "indent_3_vs_4_spaces",
+    "streaming": false,
+    "text": "   ```python\n   ok()\n   ```\n\n    ```python\n    prose()\n    ```"
+  },
+  {
+    "id": "backtick_in_info_vs_tilde_info",
+    "streaming": false,
+    "text": "```js `inline`\nstill prose\n\n~~~txt `ok`\ninside tilde\n~~~"
+  },
+  {
+    "id": "untyped_one_line_and_mismatched",
+    "streaming": false,
+    "text": "앞\n```ls -la```\n````step 42```\n뒤"
+  },
+  {
+    "id": "unclosed_chart_streaming",
+    "streaming": true,
+    "text": "분석 중...\n```chart\n{\"kind\":\"bar\""
+  },
+  {
+    "id": "unclosed_chart_final",
+    "streaming": false,
+    "text": "분석 중...\n```chart\n{\"kind\":\"bar\""
+  },
+  {
+    "id": "unclosed_table_streaming",
+    "streaming": true,
+    "text": "표 생성 중...\n```table\n{\"columns\":[\"a\"]"
+  },
+  {
+    "id": "unclosed_table_final",
+    "streaming": false,
+    "text": "표 생성 중...\n```table\n{\"columns\":[\"a\"]"
+  },
+  {
+    "id": "unclosed_python_streaming",
+    "streaming": true,
+    "text": "```python\ndef f():"
+  },
+  {
+    "id": "unclosed_python_final",
+    "streaming": false,
+    "text": "```python\ndef f():"
+  },
+  {
+    "id": "unclosed_mermaid_streaming",
+    "streaming": true,
+    "text": "```mermaid\ngraph TD\n  A -->"
+  },
+  {
+    "id": "unclosed_choices_streaming",
+    "streaming": true,
+    "text": "선택해 주세요.\n```choices\n{\"options\":[\"예\""
+  },
+  {
+    "id": "unclosed_open_streaming",
+    "streaming": true,
+    "text": "```open\n{\"board\":\"b1\""
+  },
+  {
+    "id": "unclosed_open_final",
+    "streaming": false,
+    "text": "```open\n{\"board\":\"b1\""
+  },
+  {
+    "id": "unclosed_secret_ref_streaming",
+    "streaming": true,
+    "text": "```secret\n{\"key\":\"demo.k\""
+  },
+  {
+    "id": "unclosed_secret_ref_final",
+    "streaming": false,
+    "text": "```secret\n{\"key\":\"demo.k\""
+  },
+  {
+    "id": "unclosed_secret_req_streaming",
+    "streaming": true,
+    "text": "```secret 0123456789abcdef0123456789abcdef\n"
+  },
+  {
+    "id": "unclosed_secret_req_final",
+    "streaming": false,
+    "text": "```secret 0123456789abcdef0123456789abcdef\n"
+  },
+  {
+    "id": "unclosed_step_streaming",
+    "streaming": true,
+    "text": "다음 단계:\n```step 77"
+  },
+  {
+    "id": "crlf_mixed_korean",
+    "streaming": false,
+    "text": "요약입니다.\r\n\r\n```table\r\n{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]]}\r\n```\r\n\r\n```python\r\nprint('안녕')\r\n```\r\n\r\n마무리."
+  },
+  {
+    "id": "lone_cr_endings",
+    "streaming": false,
+    "text": "첫 줄\r```timeline\r{\"items\": [{\"when\": \"09:15\", \"label\": \"점검 시작\", \"detail\": \"로그 확인 완료\"}]}\r```\r마지막 줄"
+  },
+  {
+    "id": "multi_block_numbering_skips_failed",
+    "streaming": false,
+    "text": "전체 보고서입니다.\n\n```table\n{broken\n```\n\n```chart\n{\"kind\": \"bar\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}\n```\n\n```python\nx = 1\n```\n\n```timeline\n{\"items\": [{\"when\": \"09:15\", \"label\": \"점검 시작\", \"detail\": \"로그 확인 완료\"}]}\n```\n\n```open\n{\"board\": \"summary-board\", \"title\": \"요약\"}\n```\n\n```secret\n{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\"}\n```\n\n```choices\n{\"options\": [\"승인\", \"보류\"]}\n```\n\n이상입니다."
+  }
+]

@@ -1,0 +1,100 @@
+@layer astryx-base {
+  .md-code-block {
+    border: 1px solid var(--hairline);
+    border-radius: var(--highlight-radius);
+    background: var(--surface-inset);
+    color: var(--ink);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .ds-code-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .ds-code-name {
+    font-family: var(--font-mono,monospace);
+    font-size: var(--t-small);
+    color: var(--muted);
+  }
+  .md-code-block .ds-code-copy {
+    color: var(--ink);
+    font-size: var(--t-small);
+    min-height: 32px;
+    padding: 4px 8px;
+  }
+  .md-code-block pre {
+    margin: 0;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    tab-size: 4;
+    font: var(--t-small)/1.6 var(--font-mono,ui-monospace,monospace);
+  }
+  .md-code-block code {
+    font: inherit;
+    color: inherit;
+  }
+  .md-code-block .token.comment,
+  .md-code-block .token.prolog,
+  .md-code-block .token.doctype,
+  .md-code-block .token.cdata {
+    color: var(--muted);
+  }
+  .md-code-block .token.punctuation,
+  .md-code-block .token.operator {
+    color: var(--ink);
+  }
+  .md-code-block .token.keyword,
+  .md-code-block .token.builtin,
+  .md-code-block .token.boolean,
+  .md-code-block .token.number,
+  .md-code-block .token.constant {
+    color: var(--red);
+  }
+  .md-code-block .token.string,
+  .md-code-block .token.attr-value,
+  .md-code-block .token.inserted,
+  .md-code-block .token.selector {
+    color: var(--state-running);
+  }
+  .md-code-block .token.function,
+  .md-code-block .token.class-name,
+  .md-code-block .token.property,
+  .md-code-block .token.tag,
+  .md-code-block .token.attr-name {
+    color: var(--state-waiting);
+  }
+  .md-code-block button:focus-visible,
+  .md-code-block pre:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: -2px;
+  }
+  @media (max-width: 767px) {
+    .md-code-block .ds-code-copy {
+      min-height: 44px;
+    }
+  }
+}
+@layer astryx-base {
+  .md-mermaid-diagram {
+    overflow: auto;
+    max-width: 100%;
+    padding: 12px;
+    color: var(--ink);
+  }
+  .md-mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: auto;
+  }
+  .md-mermaid-status {
+    color: var(--muted);
+    padding: 12px;
+    font-size: var(--t-body);
+  }
+}

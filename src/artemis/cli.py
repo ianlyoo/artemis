@@ -660,6 +660,8 @@ def main(argv: list[str] | None = None) -> int:
                                 "run token).")
         if args.command == "secret":
             return args.func(args, paths, HomeConfig.load(paths).vault.unlock)
+        if args.command == "lesson":
+            return args.func(args, _ledger(paths))
         if hasattr(args, "func"):
             return args.func(args)
         match args.command:

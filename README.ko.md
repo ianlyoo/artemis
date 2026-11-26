@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/wordmark-dark.svg">
-    <img src="assets/readme/wordmark-light.svg" width="100%" alt="Artemis">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/logo-dark.svg">
+    <img src="assets/readme/logo-light.svg" width="400" alt="Artemis">
   </picture>
 </p>
 
@@ -29,9 +29,9 @@ Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 �
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-board-dark.png">
-    <img src="assets/readme/app-board-light.png" width="100%" alt="Artemis 앱의 보드: 프로젝트 세 개가 나란히 있고, 각 프로젝트 맨 위에 내 결정을 기다리는 일이, 그 아래 작업마다 맡은 에이전트와 증거가 보여요">
+    <img src="assets/readme/app-board-light.png" width="100%" alt="Artemis 앱의 Workspace: 탐색기에 보드와 파일이 있고, 가운데에 Storefront 1.4 출시를 다룬 리드의 아침 보고 보드가 열려 있고, 옆의 대화에는 main 푸시는 아니오, 팀 채널 요약은 예로 답하고 폰으로 결제를 먼저 해 보겠다는 코멘트를 단 카드, 리드가 알린 다음 단계, 가격 페이지 구성을 묻는 질문이 있어요">
   </picture>
-  <br><sub>예시 데이터를 넣은 데모 홈의 보드 (tests/fixtures/app_demo.py)</sub>
+  <br><sub>만든 사람이 여러 대의 기기에서 쓰는 Artemis를 찍고, 이름과 글은 모두 지어낸 것으로 바꿨어요. 다른 기기와 계정을 다루는 패널은 그 환경에서만 보이고 0.4.0에는 없어요.</sub>
 </p>
 
 ## 무엇을 하나요
@@ -40,7 +40,7 @@ Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 �
 |---|---|
 | **내 컴퓨터에서 진짜 일을 끝까지** | 프로젝트는 Git 저장소일 수도, 아무 폴더일 수도 있어요. 작업자는 거기서 파일을 읽고, 쓰고, 옮기고, 프로그램을 실행해요. 예약한 일은 채팅을 닫아 둬도 돌아요. 작업자가 아닌 판정자가 결과를 확인해요. 종료 코드, 파일 해시, 행 수 같은 것으로요. `artemis undo`로 파일을 원래대로 돌려요. |
 | **비밀값은 지키고, 결정은 내가** | 암호화 금고가 키를 이름으로 보관해요. 웹사이트용 키는 Artemis만, 그 웹사이트로만 보내요. 돈이 나가는 일, 되돌릴 수 없는 삭제, 나 대신 보내는 일은 카드로 내 답을 기다려요. 코드는 반영 경로 하나로만 브랜치에 들어가요. `artemis stop` 한 번이면 전부 멈춰요. |
-| **어느 기기에서나 같은 앱** | PC·맥·폰 브라우저에서 리드와 대화하고, 승인·선택·비밀값 카드에 답하고, 모든 프로젝트의 보드와 요약을 봐요. 폰은 HTTPS로 연결하고 내 컴퓨터에서 확인해 줘야 들어와요. |
+| **어느 기기에서나 같은 앱** | PC·맥·폰 브라우저에서 리드와 대화하고, 승인·선택·비밀값 카드에 답하고, 리드가 쓴 보드를 읽고, 에이전트마다 하고 있는 일을 봐요. 처음 열 때 설정에서 리드 이름과 나에게 물어볼 일을 정해요. 폰은 HTTPS로 연결하고 내 컴퓨터에서 확인해 줘야 들어와요. |
 | **실수에서 배워요** | 판정에서 떨어진 결과나 내가 고쳐 준 말이 교훈이 돼요. 교훈은 다음 작업 지시를 바꾸거나, 판정자가 돌릴 검사를 더하거나, 어떤 종류의 일을 어느 모델에 맡길지 바꿔요. 언제 배웠고 언제 썼는지 요약에 나와요. 내가 거절한 카드는 새 규칙이 될 수 있지만, 내가 그렇게 하자고 할 때만요. |
 | **리드 한 명 뒤의 여러 모델 팀** | Claude Code, Codex, Gemini CLI, OpenCode, OpenAI 호환 API가 나란히 일해요. 일의 종류마다 잘 맞는 모델이 맡고, 검토는 늘 작업한 모델과 다른 회사 모델이 해요. 리드의 기억은 장부라서 대화 도중에 리드 모델을 바꿔도 돼요. |
 
@@ -78,7 +78,18 @@ artemis demo
 artemis serve
 ```
 
-홈을 켜고 브라우저에 앱을 열어요. 홈은 리드, 작업자, 예약, 앱을 돌리고 모든 것을 `~/.artemis`에 둬요(Windows는 `%USERPROFILE%\.artemis`, 옮기려면 `ARTEMIS_HOME`을 지정하세요). 한 폴더에 홈은 하나만 떠요. `artemis serve --background`는 터미널과 떼어서 돌리고, `artemis serve --stop`은 어느 터미널에서든 멈춰요.
+홈을 켜고 브라우저에 앱을 열어요. 처음 열면 짧은 설정이 차례로 안내해요. 리드와 내 이름을 정하고, 누가 리드를 맡을지 고르고(이 컴퓨터에 로그인된 코딩 에이전트, 또는 키를 금고에 넣는 OpenAI 호환 API), Artemis가 하기 전에 꼭 물어볼 일을 체크하고, 그중 폰에서만 승인할 일을 고르고, 폰을 연결해요. 전부 나중에 설정에서 바꿀 수 있어요.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-setup-dark.png">
+    <img src="assets/readme/app-setup-light.png" width="100%" alt="앱 설정의 첫 단계: 리드와 내 이름 정하기">
+  </picture>
+</p>
+
+앱에는 화면이 셋 있어요. **Workspace**는 리드와의 대화 옆에 리드가 만든 보드, 보고서, 파일이 함께 보이는 곳이고, 승인·선택·비밀값 카드도 대화 안에서 바로 답해요. **Admin**은 나를 기다리는 일과 에이전트마다 하고 있는 일을 보여 주고, 오늘을 한 줄로 요약해요(끝낸 일, 물어본 횟수, 막힌 일). **Status**는 요청마다 어떤 목표, 프로젝트, 에이전트로 이어졌는지 따라가 보여 줘요.
+
+홈은 리드, 작업자, 예약, 앱을 돌리고 모든 것을 `~/.artemis`에 둬요(Windows는 `%USERPROFILE%\.artemis`, 옮기려면 `ARTEMIS_HOME`을 지정하세요). 한 폴더에 홈은 하나만 떠요. `artemis serve --background`는 터미널과 떼어서 돌리고, `artemis serve --stop`은 어느 터미널에서든 멈춰요.
 
 일할 곳을 알려 주세요.
 
@@ -87,7 +98,7 @@ artemis project add ~/code/my-app          # Git 저장소: 작업자는 워크�
 artemis project add ~/Documents/Invoices --root ~/Downloads   # 아무 폴더: --root로 다른 폴더에도 닿게 해요
 ```
 
-설정은 `~/.artemis/config.toml`에 기본값과 설명이 함께 있어요. 누가 리드를 맡을지(`[agents] lead`), 일의 종류마다 누가 맡을지(`[placement]`), 동시에 몇 개를 돌릴지, 직접 쓰는 API 주소(`[api]`)를 정해요. 키는 이름만 적고 값은 적지 않아요. API 키는 따로 정하지 않으면 금고의 `OPENAI_API_KEY`이고, Gemini CLI는 `GEMINI_API_KEY`를 써요.
+설정은 앱의 설정 화면과 `~/.artemis/config.toml`에 있고, 파일에는 기본값과 설명이 함께 있어요. 누가 리드를 맡을지(`[agents] lead`), 일의 종류마다 누가 맡을지(`[placement]`), 동시에 몇 개를 돌릴지, 직접 쓰는 API 주소(`[api]`)를 정해요. 키는 이름만 적고 값은 적지 않아요. API 키는 따로 정하지 않으면 금고의 `OPENAI_API_KEY`이고, Gemini CLI는 `GEMINI_API_KEY`를 써요.
 
 그다음 앱에서 평소 말투로 시키면 돼요.
 
@@ -107,14 +118,14 @@ artemis project add ~/Documents/Invoices --root ~/Downloads   # 아무 폴더: -
 artemis serve --lan
 ```
 
-터미널에 주소, QR 코드, 인증서 지문이 나와요. 코드를 찍으면 폰에 숫자 4자리가 떠요. 컴퓨터의 앱이나 `artemis device allow <code>`로 그 숫자를 확인해 주세요. 그 전까지 폰은 아무것도 볼 수 없어요. 연결 링크는 10분 동안 한 번만 쓸 수 있고, `artemis device link`가 새 링크를 출력해요.
+터미널에 주소, QR 코드, 인증서 지문이 나와요. 코드를 찍으면 폰에 숫자 4자리가 떠요. 컴퓨터의 앱(설정, 기기)이나 `artemis device allow <code>`로 그 숫자를 확인해 주세요. 그 전까지 폰은 아무것도 볼 수 없어요. 연결 링크는 10분 동안 한 번만 쓸 수 있고, `artemis device link`가 새 링크를 출력해요.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-phone-dark.png">
-    <img src="assets/readme/app-phone-light.png" width="300" alt="폰에 뜬 카드: 정확한 명령, 내가 정할 일인 이유, 지금까지의 증거, 쓰는 비밀값 이름, 승인과 거절">
+    <img src="assets/readme/app-phone-light.png" width="300" alt="폰에서 본 대화: main 푸시는 아니오, 팀 채널 요약은 예로 답하고 코멘트를 단 카드, 리드가 알린 다음 단계, 요금제 두 개를 제안한 가격 페이지 구성 질문, 보드 두 개로 가는 링크가 있어요">
   </picture>
-  <br><sub>같은 데모 홈의 카드를 폰에서 본 모습</sub>
+  <br><sub>같은 대화를 폰 크기로 본 모습이에요. 이름과 글은 같은 방식으로 바꿨어요.</sub>
 </p>
 
 폰은 처음 한 번 인증서 경고를 띄워요. 처음 믿고 쓰는 방식(TOFU)이에요. 처음에 지문을 비교해 두면, 그 뒤로는 같은 네트워크의 누구도 내가 보내는 내용을 읽거나 바꿀 수 없어요. 경고를 피하려면 폰이 이미 믿는 인증서를 `--tls-cert`와 `--tls-key`로 주세요. 연결된 기기는 `artemis device list`로 보고, `artemis device revoke`로 내보내요.
@@ -184,7 +195,7 @@ Artemis는 비밀값을 프롬프트, 명령줄, 장부, 로그에 넣지 않고
 | `placement` | 한 모델이 세 번 실패하면, 그 종류의 일을 어느 모델에 맡길지 바뀌어요 |
 | `guard` | '먼저 물어보기' 규칙이 하나 늘어요. 내가 카드를 거절한 뒤 제안되고, 내가 좋다고 해야 들어가요 |
 
-요약에는 `learned L4 "README must list every new flag" · from #12 judge reject` 같은 줄이 뜨고, 교훈 화면은 교훈마다 몇 번 쓰였는지, 그 뒤 첫 시도에 몇 번 통과했는지 세요. 교훈을 내리는 건 나만 할 수 있어요. Artemis는 설치된 자기 코드를 스스로 고치지 않아요. `tests/test_lessons.py`가 이 구조를 증명해요. 정해진 대로 움직이는 작업자가 작업에서 떨어지고, 교훈이 생기고, 다음 작업은 첫 시도에 통과하고, 교훈을 내리면 다시 떨어져요. 교훈이 실제로 돌아가는 일을 바꾼다는 증명이지, 모델이 배운다는 증명은 아니에요.
+요약에는 `learned L4 "README must list every new flag" · from #12 judge reject` 같은 줄이 뜨고, `artemis lesson list`는 교훈마다 몇 번 쓰였는지, 그 뒤 첫 시도에 몇 번 통과했는지 보여 줘요(`used 6×, 5 first try`). 제안된 guard는 거기서 `artemis lesson accept`를 기다려요. 교훈을 내리는 건 나만 할 수 있어요. Artemis는 설치된 자기 코드를 스스로 고치지 않아요. `tests/test_lessons.py`가 이 구조를 증명해요. 정해진 대로 움직이는 작업자가 작업에서 떨어지고, 교훈이 생기고, 다음 작업은 첫 시도에 통과하고, 교훈을 내리면 다시 떨어져요. 교훈이 실제로 돌아가는 일을 바꾼다는 증명이지, 모델이 배운다는 증명은 아니에요.
 
 ## 팀
 
@@ -236,6 +247,8 @@ Artemis는 내가 설치한 CLI를 손대지 않고, 각 CLI가 관리하는 로
 ## 현재 상태
 
 초기 공개판이에요. macOS, Linux, Windows CI에서 실제로 시험한 것: 홈과 앱, 폰 연결, 폴더·저장소 프로젝트, 되돌리기가 되는 파일 도구, 백그라운드 작업이 되는 `run`, 예약, 지우개·감사가 있는 금고, 카드, 정지, 판정자와 반영 경로, 교훈, 모의 작업자와 대역 작업자. 실제로 돈 에이전트는 각각 실제로 돈 곳과 함께 적어 뒀어요. 폰 연결과 카드는 안드로이드 Chrome과 아이폰 크기의 Safari 엔진(WebKit)에서도 확인했어요. 늘 켜 둔 Ubuntu 22.04 클라우드 서버에서 systemd 서비스로도 돌려, SSH 터널과 Tailscale로 붙어 봤어요.
+
+앱의 화면은 만든 사람이 매일 쓰는 그대로 옮겨 왔어요. 만든 사람의 기기에서만 쓸 수 있는 패널(다른 호스트, 터미널, 코드 편집기, 회의)은 뺐어요.
 
 이번 판에 없는 것: 화면·마우스 조작, 서비스 설치기(Linux에서는 [서버에서](#서버에서)의 systemd 유닛이 그 일을 해요), 여러 사용자, 푸시 알림, 네이티브 앱.
 

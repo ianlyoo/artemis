@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/wordmark-dark.svg">
-    <img src="assets/readme/wordmark-light.svg" width="100%" alt="Artemis">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/logo-dark.svg">
+    <img src="assets/readme/logo-light.svg" width="400" alt="Artemis">
   </picture>
 </p>
 
@@ -29,9 +29,9 @@ Artemis is a home that keeps working while you are away. One process on your com
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-board-dark.png">
-    <img src="assets/readme/app-board-light.png" width="100%" alt="The Artemis App's board: three projects side by side, the decisions waiting for you at the top of each, and every task with its agent and its proof">
+    <img src="assets/readme/app-board-light.png" width="100%" alt="The Artemis App's workspace: the explorer lists boards and files, the lead's morning report on a Storefront 1.4 release is open in the middle, and the chat beside it shows a card where the push to main is answered No and the team-channel summary Yes, with a comment asking to try checkout on a phone first, then the lead's next step and a question about the pricing page layout">
   </picture>
-  <br><sub>The board of a seeded demo home (tests/fixtures/app_demo.py)</sub>
+  <br><sub>The author's own Artemis, which runs across several machines, with every name and line of text replaced by made-up ones. Panels for other machines and accounts come with that setup and are not in 0.4.0.</sub>
 </p>
 
 ## What it does
@@ -40,7 +40,7 @@ Artemis is a home that keeps working while you are away. One process on your com
 |---|---|
 | **Finishes real work on your computer** | A project is a Git repository or any folder. Workers read, write, move and run programs there. Schedules fire while the chat is closed. A judge that is not the worker checks the result: exit codes, file digests, row counts. `artemis undo` puts files back. |
 | **Keeps your secrets, and you in charge** | An encrypted vault keeps keys by name. A key for a website is sent only by Artemis, and only to that website. Money out, irreversible deletes and sending as you wait for your answer on a card. Code reaches your branch through one ship lane. `artemis stop` halts everything at once. |
-| **One App on every device** | From a browser on your PC, Mac or phone: chat with the lead, answer approval, choice and secret cards, and see every project's board and the digest. A phone pairs over HTTPS, and your computer confirms it. |
+| **One App on every device** | From a browser on your PC, Mac or phone: chat with the lead, answer approval, choice and secret cards, read the boards it writes, and see what every agent is doing. A first-run setup names your lead and sets what you are asked. A phone pairs over HTTPS, and your computer confirms it. |
 | **Learns from its mistakes** | A rejected result or a correction you make becomes a lesson. A lesson changes the next instructions, adds a check the judge runs, or changes which model gets a kind of work. The digest says when a lesson was learned and when it was used. A card you decline can become a new rule, but only when you say yes. |
 | **A team of models behind one lead** | Claude Code, Codex, Gemini CLI, OpenCode and any OpenAI-compatible API work side by side. Each kind of work goes to the model that suits it, and review always comes from a different company than the work. The lead's memory is the ledger, so its model can change mid-conversation. |
 
@@ -78,7 +78,18 @@ The demo makes a small to-do project in a temporary folder and gives the lead on
 artemis serve
 ```
 
-This starts your home and opens the App in your browser. The home runs the lead, the workers, the schedules and the App, and keeps everything in `~/.artemis` (`%USERPROFILE%\.artemis` on Windows; set `ARTEMIS_HOME` to move it). One home runs per folder. `artemis serve --background` detaches it from the terminal, and `artemis serve --stop` stops it from any terminal.
+This starts your home and opens the App in your browser. The first time, a short setup walks you through it: name your lead and yourself, choose which agent leads (the coding agents found signed in on this computer, or an OpenAI-compatible API whose key goes into the vault), tick what Artemis must ask you before doing, choose which of those only your phone may approve, and pair a phone. All of it can be changed later in Settings.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-setup-dark.png">
+    <img src="assets/readme/app-setup-light.png" width="100%" alt="The first step of the App's setup: name your lead and yourself">
+  </picture>
+</p>
+
+The App has three views. **Workspace** is the chat with your lead, beside the boards, reports and files it made; approval, choice and secret cards are answered in the chat itself. **Admin** shows what waits for you and what every agent is doing, with the day in one line: done, asked, stuck. **Status** traces each request to the goals, projects and agents working on it.
+
+The home runs the lead, the workers, the schedules and the App, and keeps everything in `~/.artemis` (`%USERPROFILE%\.artemis` on Windows; set `ARTEMIS_HOME` to move it). One home runs per folder. `artemis serve --background` detaches it from the terminal, and `artemis serve --stop` stops it from any terminal.
 
 Give it something to work on:
 
@@ -87,7 +98,7 @@ artemis project add ~/code/my-app          # a Git repository: workers use workt
 artemis project add ~/Documents/Invoices --root ~/Downloads   # any folder; --root lets its workers reach another
 ```
 
-Settings live in `~/.artemis/config.toml`, each with its default and a comment: which agent leads (`[agents] lead`), which agents take each kind of work (`[placement]`), how many run at once, and a direct API endpoint (`[api]`). Keys are named there, never written: the API key is the vault secret `OPENAI_API_KEY` unless you name another, and Gemini CLI uses `GEMINI_API_KEY`.
+Settings live in the App's Settings and in `~/.artemis/config.toml`, each with its default and a comment: which agent leads (`[agents] lead`), which agents take each kind of work (`[placement]`), how many run at once, and a direct API endpoint (`[api]`). Keys are named there, never written: the API key is the vault secret `OPENAI_API_KEY` unless you name another, and Gemini CLI uses `GEMINI_API_KEY`.
 
 Then say what you want in the App, in your own words:
 
@@ -107,14 +118,14 @@ Host tasks run programs you could run yourself, as you, in the folders you regis
 artemis serve --lan
 ```
 
-The terminal prints an address, a QR code and the certificate's fingerprint. Scan the code, and the phone shows four digits. Confirm them in the App on your computer, or with `artemis device allow <code>`. Until then the phone can see nothing. A pairing link works once, for ten minutes; `artemis device link` prints a new one.
+The terminal prints an address, a QR code and the certificate's fingerprint. Scan the code, and the phone shows four digits. Confirm them in the App on your computer (Settings, Devices), or with `artemis device allow <code>`. Until then the phone can see nothing. A pairing link works once, for ten minutes; `artemis device link` prints a new one.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/readme/app-phone-dark.png">
-    <img src="assets/readme/app-phone-light.png" width="300" alt="A card on the phone: the exact command, why it is yours to decide, the evidence so far, the secret it uses, and Approve or Decline">
+    <img src="assets/readme/app-phone-light.png" width="300" alt="The chat on a phone: a card where the push to main is answered No and the team-channel summary Yes, with a comment, the lead's next step, a question about the pricing page layout with two plans suggested, and links to two boards">
   </picture>
-  <br><sub>A card on the phone, from the same demo home</sub>
+  <br><sub>The same chat at phone size, with names and text replaced the same way</sub>
 </p>
 
 Your phone will warn once about the certificate. That is trust on first use: compare the fingerprint the first time, and after that nobody on the network can read or change what you send. To avoid the warning, give `--tls-cert` and `--tls-key` a certificate your phone already trusts. `artemis device list` shows paired devices; `artemis device revoke` shuts one out.
@@ -184,7 +195,7 @@ When the judge rejects a result and the retry passes, or you correct the lead in
 | `placement` | which model gets that kind of work, after three failures by one model |
 | `guard` | a new rule to ask first; proposed after you decline a card, and added only when you say yes |
 
-The digest shows `learned L4 "README must list every new flag" · from #12 judge reject`, and the Lessons screen counts how often each lesson was used and how often the work then passed on the first try. Only you retire a lesson. Artemis never patches its own installed code. `tests/test_lessons.py` proves the mechanism: a scripted worker fails a task, a lesson is written, the next task passes on the first try, and it fails again once the lesson is retired. That shows the lesson changes what runs; it does not show that a model learns.
+The digest shows `learned L4 "README must list every new flag" · from #12 judge reject`, and `artemis lesson list` shows each lesson with how often it was used and how often the work then passed on the first try (`used 6×, 5 first try`). A proposed guard waits there for `artemis lesson accept`. Only you retire a lesson. Artemis never patches its own installed code. `tests/test_lessons.py` proves the mechanism: a scripted worker fails a task, a lesson is written, the next task passes on the first try, and it fails again once the lesson is retired. That shows the lesson changes what runs; it does not show that a model learns.
 
 ## The team
 
@@ -236,6 +247,8 @@ Artemis runs the CLIs you installed, unmodified, under the sign-in or API key ea
 ## Status
 
 This is an early release. Real and tested on macOS, Linux and Windows in CI: the home and the App, phone pairing, folder and repository projects, file tools with undo, `run` with background jobs, schedules, the vault with scrubbing and audit, cards, the stop, the judge and ship lane, lessons, and the mock and stand-in workers. Each live agent is listed by where it actually ran. Phone pairing and cards were also checked in Chrome on Android and in Safari's engine (WebKit) at iPhone size. The home also ran as a systemd service on an always-on Ubuntu 22.04 cloud server, reached over an SSH tunnel and over Tailscale.
+
+The App's front end is the one its author runs every day, exported as it is; panels that only work with the author's own machines (other hosts, terminals, a code editor, meetings) are left out.
 
 Not in this release: screen and mouse control, a service installer (on Linux, the systemd unit under [On a server](#on-a-server) does that job), more than one user, push notifications, and a native app.
 

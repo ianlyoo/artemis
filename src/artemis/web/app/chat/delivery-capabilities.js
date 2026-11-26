@@ -1,0 +1,1 @@
+const r=Object.freeze({queue:!1,timing:!1,browserProvenance:!1,trackedDelivery:!1}),t=Object.freeze({queue:!0,timing:!0,browserProvenance:!0,trackedDelivery:!0});export const deliveryCapabilities=e=>e==="studio"?r:t;

@@ -24,6 +24,14 @@ def instructions() -> str:
     return files("artemis.templates").joinpath("lead.md").read_text(encoding="utf-8")
 
 
+def called(config) -> str:
+    """The names the person chose in the App's first-run setup, as the first line of a turn; empty when none."""
+    name, you = setting(config, "lead", "name", ""), setting(config, "lead", "you", "")
+    parts = [f"Your name here is {name}." if name else "", f"Call the person {you}." if you else ""]
+    said = " ".join(part for part in parts if part)
+    return f"{said}\n" if said else ""
+
+
 def _lessons(ledger, projects: list[int]) -> list[str]:
     try:
         from .lessons import prompt_lines
@@ -36,6 +44,8 @@ class LeadRunner:
     def __init__(self, home):
         self.home = home
         self._lock = threading.RLock()
+        self.saying: dict | None = None      # the turn being written: turn, text so far, at, message
+        self.cancel = threading.Event()      # set to end the turn being written (the App's cancel)
 
     def turn(self, message: int) -> None:
         """Answer one message of the person's. Raises WorkflowError, with the reason, when the lead did not answer."""
@@ -54,48 +64,65 @@ class LeadRunner:
             self._run(None, f"artemis (system): {reason}", "lead.wake", focus(ledger, reason))
 
     def _run(self, message, line: str, kind: str, projects: list[int]) -> None:
-        home, ledger, config = self.home, self.home.ledger, self.home.config
+        home, ledger = self.home, self.home.ledger
         with self._lock:
-            name = agents.lead_provider(config, home.vault, ledger)
-            label = agents.LABELS[name]
-            context = packet(ledger, projects, _lessons(ledger, projects),
-                             history=int(setting(config, "lead", "history", 20)),
-                             before=None if message is None else message["id"])
             turn = uuid.uuid4().hex
-            folder = home.paths.lead
-            folder.mkdir(parents=True, exist_ok=True)
-            scrubber = agents.scrubber(home.vault)
-            stream = scrubber.stream()
-
-            def shown(piece: str) -> None:
-                if piece:
-                    home.publish("said.delta", {"turn": turn, "text": piece})
-
-            halted = ledger.stopped()
-            started = time.monotonic()
-            token = home.grant(LEAD_RUN, None, projects[0] if projects else None, "lead", folder, "folder")
+            self.saying = {"turn": turn, "text": "", "at": time.time(),
+                           "message": None if message is None else message["id"]}
+            self.cancel.clear()
+            home.publish("turn.started", {"turn": turn})
             try:
-                spawn = agents.launch(name, role="lead", mode="host", cwd=folder, prompt=f"{context}\n\n{line}\n",
-                                      mcp=home.mcp_command(token), config=config, vault=home.vault,
-                                      scratch=folder / "run", instructions=instructions())
-                outcome = agents.run_turn(
-                    spawn, folder, float(setting(config, "lead", "max_turn_minutes", 5)) * 60,
-                    lambda output: shown(stream.feed(delta(name, output))),
-                    lambda: home.closing.is_set() or (not halted and ledger.stopped()))
+                self._write(message, line, kind, projects, turn)
             finally:
-                home.revoke(LEAD_RUN)
-            shown(stream.flush())
-            seconds = round(time.monotonic() - started)
-            project = None if message is None else message["project_id"]
-            data = {"turn": turn, "provider": name, "message": None if message is None else message["id"]}
-            try:
-                reply = agents.answer(spawn, outcome)
-            except WorkflowError as error:
-                reason = scrubber.scrub(f"{label} did not answer after {seconds} s: {error}")
-                ledger.record(Role.HOME, kind, reason[:400], project=project, data=data)
-                raise WorkflowError(reason) from None
-            ledger.record(Role.HOME, kind, f"{label} answered in {seconds} s", project=project, data=data)
-            ledger.say(Role.LEAD, scrubber.scrub(reply), project=project, turn=turn)
+                self.saying = None
+                home.publish("turn.ended", {"turn": turn})
+
+    def _write(self, message, line: str, kind: str, projects: list[int], turn: str) -> None:
+        """Run the lead's provider for one turn: its reply streams to the App as it is written (self.saying and
+        said.delta) and is kept in the ledger when it ends. The App's cancel ends it early."""
+        home, ledger, config = self.home, self.home.ledger, self.home.config
+        name = agents.lead_provider(config, home.vault, ledger)
+        label = agents.LABELS[name]
+        context = packet(ledger, projects, _lessons(ledger, projects),
+                         history=int(setting(config, "lead", "history", 20)),
+                         before=None if message is None else message["id"])
+        folder = home.paths.lead
+        folder.mkdir(parents=True, exist_ok=True)
+        scrubber = agents.scrubber(home.vault)
+        stream = scrubber.stream()
+
+        def shown(piece: str) -> None:
+            if piece:
+                self.saying["text"] += piece
+                home.publish("said.delta", {"turn": turn, "text": piece})
+
+        halted = ledger.stopped()
+        started = time.monotonic()
+        token = home.grant(LEAD_RUN, None, projects[0] if projects else None, "lead", folder, "folder")
+        try:
+            spawn = agents.launch(name, role="lead", mode="host", cwd=folder,
+                                  prompt=f"{called(config)}{context}\n\n{line}\n",
+                                  mcp=home.mcp_command(token), config=config, vault=home.vault,
+                                  scratch=folder / "run", instructions=instructions())
+            outcome = agents.run_turn(
+                spawn, folder, float(setting(config, "lead", "max_turn_minutes", 5)) * 60,
+                lambda output: shown(stream.feed(delta(name, output))),
+                lambda: home.closing.is_set() or self.cancel.is_set() or (not halted and ledger.stopped()))
+        finally:
+            home.revoke(LEAD_RUN)
+        shown(stream.flush())
+        seconds = round(time.monotonic() - started)
+        project = None if message is None else message["project_id"]
+        data = {"turn": turn, "provider": name, "message": None if message is None else message["id"]}
+        try:
+            reply = agents.answer(spawn, outcome)
+        except WorkflowError as error:
+            reason = scrubber.scrub(("You cancelled the answer" if self.cancel.is_set()
+                                     else f"{label} did not answer") + f" after {seconds} s: {error}")
+            ledger.record(Role.HOME, kind, reason[:400], project=project, data=data)
+            raise WorkflowError(reason) from None
+        ledger.record(Role.HOME, kind, f"{label} answered in {seconds} s", project=project, data=data)
+        ledger.say(Role.LEAD, scrubber.scrub(reply), project=project, turn=turn)
 
 
 # v0.2 surface, used by cli.py (`artemis start`, `artemis chat`) and the flow tests until they move to the home;

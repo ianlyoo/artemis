@@ -1,0 +1,1 @@
+export{createPageStream}from"../stream.js";export function chatTurns(){let t=Promise.resolve();return{mount:e=>t.then(e),down(e){e&&(t=t.then(()=>e).then(n=>{typeof n=="function"&&n()}).catch(()=>{}))}}}

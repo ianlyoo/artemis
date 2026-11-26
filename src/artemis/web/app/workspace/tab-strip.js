@@ -1,0 +1,1 @@
+export function keyedNodes(r){const n=new Map;return{place(i,d){const f=new Set(i);for(const[t,e]of n)f.has(t)||(e.node.remove(),n.delete(t));let o=r.firstChild;for(const t of f){let e=n.get(t);e||(e=d(t),n.set(t,e)),e.node===o?o=o.nextSibling:r.insertBefore(e.node,o)}return n}}}

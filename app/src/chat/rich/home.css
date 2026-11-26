@@ -1,0 +1,217 @@
+@import "./rich-answer.css";
+.rich-answer {
+  --space-1:4px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --text-xs:13px;
+  --text-lg:18px;
+  --text-2xl:24px;
+  --radius-full:4px;
+  --radius-xl:4px;
+  --text-primary:var(--ink);
+  --text-secondary:var(--muted);
+  --text-tertiary:var(--muted);
+  --border-default:var(--rule);
+  --surface:var(--paper);
+  --surface-elevated:var(--group-bg);
+  --status-success:var(--state-running);
+  --warning-fg:var(--state-owner);
+  --error-fg:var(--state-stuck);
+  --rich-chart-color:var(--chart-1);
+  color: var(--text-primary);
+  font: 16px/1.5 var(--font-sans,sans-serif);
+  overflow-wrap: anywhere;
+}
+.rich-answer .rich-button,
+.rich-answer input:not([type=checkbox]),
+.rich-answer select {
+  font: inherit;
+  color: inherit;
+  min-height: 36px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.rich-answer .rich-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  border: 0;
+  padding: 6px 14px 6px 0;
+  background: none;
+  color: var(--accent-ink);
+  font-weight: var(--fw-emph,600);
+  cursor: pointer;
+}
+.rich-answer input[type=text] {
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  padding: 7px 12px;
+  background: var(--surface);
+  width: 100%;
+}
+.rich-answer select {
+  border-radius: 4px;
+}
+.rich-answer input[type=range] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--text-primary);
+}
+.rich-answer input {
+  caret-color: var(--text-primary);
+}
+.rich-answer :focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+.rich-answer :disabled {
+  opacity: .5;
+  cursor: default;
+}
+.rich-answer .rich-button:is(:hover, :focus-visible):not(:disabled) {
+  color: var(--accent-ink);
+  text-shadow: var(--hover-glow);
+  outline: none;
+}
+.rich-answer [hidden] {
+  display: none !important;
+}
+.rich-answer pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.rich-answer-field,
+.rich-answer > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.rich-answer ::selection {
+  background: var(--text-primary);
+  color: var(--surface);
+}
+.rich-answer output,
+.rich-answer dd {
+  font-variant-numeric: tabular-nums;
+}
+.rich-answer .rich-answer-tabs .rich-button {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  border-radius: 0;
+}
+.rich-answer .rich-answer-tabs [aria-selected=true] {
+  color: var(--ink);
+}
+.rich-answer .rich-answer-caption {
+  font-size: max(13px, var(--rich-fontSize,13px));
+  color: var(--text-secondary);
+}
+.rich-answer .rich-answer-stat output {
+  font-size: max(24px, var(--rich-fontSize,24px));
+}
+.rich-answer .rich-answer-divider + .rich-answer-grid > .rich-answer-stat {
+  border-top: 0;
+}
+.rich-answer [data-tone] {
+  --rich-tone:var(--text-secondary);
+}
+.rich-answer [data-tone=primary] {
+  --rich-tone:var(--text-primary);
+}
+.rich-answer [data-tone=success] {
+  --rich-tone:var(--status-success);
+}
+.rich-answer [data-tone=warning] {
+  --rich-tone:var(--warning-fg);
+}
+.rich-answer [data-tone=danger] {
+  --rich-tone:var(--error-fg);
+}
+.rich-answer .rich-answer-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  flex: 0 0 auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--rich-tone);
+  border-radius: 999px;
+  color: var(--rich-tone);
+  font-size: max(13px, var(--rich-fontSize,13px));
+  font-weight: 500;
+  line-height: 1.4;
+}
+.rich-answer [data-tone=default].rich-answer-badge {
+  border-color: var(--border-default);
+}
+.rich-answer .rich-answer-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--rich-tone);
+  background: var(--surface-elevated);
+  border-radius: 0 4px 4px 0;
+  line-height: 1.5;
+}
+.rich-answer .rich-answer-alert strong {
+  color: var(--rich-tone);
+  font-weight: 600;
+}
+.rich-answer [data-tone=default].rich-answer-alert strong,
+.rich-answer [data-tone=default].rich-answer-alert {
+  border-left-color: var(--border-default);
+}
+.rich-answer [data-tone=default].rich-answer-alert strong {
+  color: var(--text-primary);
+}
+.rich-answer .rich-answer-alert-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rich-answer .rich-answer-progress .rich-answer-control-label {
+  align-items: baseline;
+}
+.rich-answer .rich-answer-progress .rich-answer-control-label > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rich-answer .rich-answer-progress output {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.rich-answer .rich-answer-progress .rich-answer-track > div {
+  background: var(--rich-tone);
+  transition: width .2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rich-answer .rich-answer-progress .rich-answer-track > div {
+    transition: none;
+  }
+}
+[data-bot-reply-bubble] .rich-answer-alert {
+  background: var(--surface);
+}
+@container (max-width:600px) {
+  .rich-answer .rich-answer-row:not(:has(> :not(.rich-answer-badge))) {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .rich-answer .rich-button,
+  .rich-answer-check,
+  .rich-answer summary,
+  .rich-answer select,
+  .rich-answer input:not([type=checkbox]) {
+    min-height: 44px;
+  }
+}

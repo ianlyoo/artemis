@@ -227,7 +227,7 @@ class LedgerTests(unittest.TestCase):
         self.assertFalse(self.ledger.stopped())
         self.ledger.claim_run(Role.LEAD, task, "mock")
 
-    def test_a_task_history_and_the_newest_events(self):
+    def test_the_newest_events(self):
         task = self.task()
         other = self.ledger.add_project(Role.OWNER, "notes", "folder", self.ledger.path.parent / "notes")
         self.ledger.note(Role.LEAD, "elsewhere", project=other)
@@ -235,13 +235,6 @@ class LedgerTests(unittest.TestCase):
         self.ledger.submit(Role.WORKER, task, COMMIT, "Tests recorded", {1: CommandEvidence(CHECK, 0, "OK")})
         self.ledger.judge(Role.JUDGE, task, RuleJudge())
         self.ledger.end_run(Role.WORKER, run, "done", "verified")
-        history = self.ledger.task_history(task)
-        self.assertEqual([row["id"] for row in history["runs"]], [run])
-        self.assertEqual([row["claim"] for row in history["submissions"]], ["Tests recorded"])
-        self.assertEqual([(row["criterion"], row["kind"]) for row in history["evidence"]], [(1, "command")])
-        self.assertEqual([row["kind"] for row in history["verdicts"]], ["pass"])
-        with self.assertRaisesRegex(WorkflowError, "does not exist"):
-            self.ledger.task_history(task + 1)
         self.assertEqual([row["kind"] for row in self.ledger.latest_events(2)], ["pass", "finished"])
         self.assertEqual([row["kind"] for row in self.ledger.latest_events(5, kinds=("task", "pass"))],
                          ["task", "pass"])

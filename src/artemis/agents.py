@@ -18,7 +18,7 @@ from threading import Thread
 import time
 from urllib.parse import urlsplit
 
-from .process import checkout_env
+from .process import checkout_env, group, kill_tree
 from .roles import WorkflowError
 from . import worker_adapters
 from .worker_adapters import Launch, Spec, section, setting
@@ -206,13 +206,11 @@ class Outcome:
 def run_turn(start: Launch, cwd: Path, timeout_s: float, on_line: Callable[[str], None] | None = None,
              stopped: Callable[[], bool] = lambda: False) -> Outcome:
     """Run one launch to its end in its own process group, streaming stdout lines to on_line."""
-    options = ({"start_new_session": True} if os.name != "nt"
-               else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP})
     argv = [shutil.which(start.argv[0]) or start.argv[0], *start.argv[1:]]     # finds npm's .cmd shims on Windows
     env = checkout_env() | start.env
     with subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE,
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
-                          errors="replace", **options) as process:
+                          errors="replace", **group()) as process:
         lines: list[str] = []
         errors: list[str] = []
 
@@ -254,23 +252,6 @@ def answer(start: Launch, outcome: Outcome) -> str:
         detail = " ".join(outcome.stderr.split())[-300:]
         raise WorkflowError(f"it ended (exit {outcome.exit_code}) without an answer" + (f": {detail}" if detail else ""))
     return reply
-
-
-def kill_tree(process: subprocess.Popen) -> None:
-    try:
-        if os.name == "nt":
-            subprocess.run(("taskkill", "/PID", str(process.pid), "/T", "/F"), capture_output=True, check=False)
-        else:
-            os.killpg(process.pid, 15)
-        process.wait(timeout=5)
-    except (ProcessLookupError, subprocess.TimeoutExpired):
-        if os.name != "nt":
-            try:
-                os.killpg(process.pid, 9)
-            except ProcessLookupError:
-                pass
-        process.kill()
-        process.wait()
 
 
 class _Unscrubbed:

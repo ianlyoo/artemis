@@ -100,9 +100,8 @@ class Flow(unittest.TestCase):
         (folder / "incoming").mkdir(parents=True)
         (folder / "incoming" / "a.mov").write_bytes(b"stand-in clip")
         self.artemis("project", "add", folder)
-        [project] = self.ledger.projects()
         cookie = post("/api/pair", {"token": token})[0].getheader("Set-Cookie").split(";", 1)[0]
-        sent = post("/api/messages", {"text": "Sort this week's files", "project_id": project["id"]}, cookie)[1]["id"]
+        sent = int(post("/chat/send", {"text": "Sort this week's files"}, cookie)[1]["messageId"][1:])
 
         def said():
             return [row["text"] for row in self.ledger.messages() if row["role"] == Role.LEAD]

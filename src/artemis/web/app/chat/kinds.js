@@ -1,0 +1,1 @@
+export const VISUAL=Object.freeze(["chart","table","timeline","sketch"]),KIND=Object.freeze({chart:"Chart",table:"Table",timeline:"Timeline",sketch:"Sketch",mermaid:"Diagram"}),visualKind=e=>e?.type==="code"&&e.lang==="mermaid"?"mermaid":VISUAL.includes(e?.type)?e.type:null;

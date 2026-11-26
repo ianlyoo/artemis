@@ -1,0 +1,59 @@
+.m-explorer .m-sheet {
+  --ui:14px;
+  --ex-text:15px;
+  --tab-h:52px;
+  position: absolute;
+  top: 0;
+  right: auto;
+  bottom: 0;
+  width: min(360px, calc(100% - 48px));
+  max-height: none;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  display: flex;
+  border-radius: 0;
+  background: var(--ide-side);
+  touch-action: pan-y;
+  transform: translateX(var(--drag,0px));
+  animation-name: m-explorer-in;
+}
+.m-explorer[data-closing] .m-sheet {
+  transform: translateX(-100%);
+}
+.m-explorer .ide-explorer {
+  flex: 1;
+  width: 100%;
+}
+.m-explorer .ex-head {
+  height: 52px;
+}
+.m-explorer :is(.ex-sec-head, .ex-row, .ex-search, .ide-icon) {
+  min-height: 44px;
+}
+.m-explorer .ex-title {
+  font-size: 17px;
+  color: var(--ink);
+}
+.m-explorer .ex-sec-head {
+  font-size: 13px;
+}
+.m-explorer .ex-sec + .ex-sec {
+  margin-top: 12px;
+}
+.m-explorer .ex-foot {
+  display: none;
+}
+.m-explorer-open .ide-glyph {
+  width: 20px;
+  height: 20px;
+}
+@keyframes m-explorer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.m-explorer .ex-sections {
+  touch-action: pan-y;
+}

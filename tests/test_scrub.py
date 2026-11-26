@@ -7,6 +7,7 @@ import os
 import random
 import sqlite3
 import unittest
+import unittest.mock
 from urllib.parse import quote, quote_plus
 
 from artemis import vault as vault_module
@@ -190,6 +191,15 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(said.endswith(f"2 of 3 values found in {result.files} files (2 secrets and the vault key)\n"))
         for form in [*encodings(VALUE).values(), OTHER, planted]:
             self.assertNotIn(form, said)
+
+    def test_a_file_gone_before_it_is_read_holds_nothing(self):
+        """A running home's SQLite -wal or -journal can vanish between the listing and the read."""
+        from artemis import scrub
+        listed = scrub._searched
+        gone = self.paths.ledger.with_name(self.paths.ledger.name + "-journal")
+        with unittest.mock.patch.object(scrub, "_searched", lambda paths: [*listed(paths), gone]):
+            result = audit(self.vault, self.paths)
+        self.assertEqual(result.hits, [])
 
     def test_the_vault_key_is_searched_for_raw_and_in_base64(self):
         key = self.vault.master_key()

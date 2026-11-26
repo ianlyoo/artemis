@@ -1,0 +1,1 @@
+function t(...r){let n=r.flatMap(e=>typeof e=="string"?e.trim().split(/\s+/):[]).filter(Boolean);if(n.length!==0)return Array.from(new Set(n)).join(" ")}function i(r,n=[],e){return{ariaLabelledBy:e?t(e.labelID,r):void 0,ariaDescribedBy:t(e?.describedByIDs,...n)}}export{t as a,i as b};

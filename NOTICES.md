@@ -1,6 +1,6 @@
 # Notices
 
-Artemis's own code is Apache-2.0. The App redistributes two small libraries, listed below with their licences. Everything else is installed as a dependency, not copied.
+Artemis's own code is Apache-2.0. Python dependencies are installed at install time; browser bundles, fonts, and vendored libraries shipped in the App keep their own licences, recorded in `THIRD_PARTY_NOTICES` and alongside the vendored files.
 
 ## Dependencies
 
@@ -31,9 +31,7 @@ Unslop is by Damir Sokolovsky and is licensed under [CC BY 4.0](https://creative
 
 ## Redistributed in the App
 
-`src/artemis/web/vendor/preact-htm.js` is `preact/standalone.module.js` from the htm 3.1.1 package on npm, unmodified. It bundles htm and Preact 10. Their licence texts ship beside it.
+The built App under `src/artemis/web/app/` is built from `app/src/` by `tools/build_web` (see `app/package.json` and `app/package-lock.json`).
 
-| Component | Licence | Licence text |
-|---|---|---|
-| htm 3.1.1 | Apache-2.0 | `src/artemis/web/vendor/LICENSE-htm.txt` |
-| Preact 10 (as bundled by htm 3.1.1) | MIT, Copyright (c) 2015-present Jason Miller | `src/artemis/web/vendor/LICENSE-preact.txt` |
+- **Bundled JavaScript islands & fonts**: full licence texts for every bundled npm package (React, Astryx, StyleX, KaTeX, Mermaid, Prism, ts-fsrs, and their transitive dependencies) and the bundled Pretendard Variable web fonts (SIL OFL 1.1) are collected in [`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES).
+- **Vendored browser libraries**: prebuilt browser libraries under `app/src/boards/vendor/` (DOMPurify under Apache-2.0, marked under MIT, LZMA-JS under MIT, PDF.js under Apache-2.0 with its standard font and CMap notices), `app/src/vendor/codemirror/` (MIT), `app/src/vendor/xterm/` (MIT), `app/src/vendor/deepseek-chat-demo/` (MIT), and `app/src/chat/rich/` (Apache-2.0) retain their licence files beside their bundles.

@@ -1,0 +1,1 @@
+import{l as o}from"./chunk-ZSK6NCTD.js";import{b as e}from"./chunk-AGXDBOIK.js";import{d as c}from"./chunk-SGBOX2D7.js";var t=c(e(),1);function n({icon:r,...u}){return(0,t.jsx)(o,{...u,icon:r,isIconOnly:!0})}n.displayName="IconButton";export{n as a};

@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY, at REAL NOT NULL, role TEXT NOT NULL CHECK(role IN ('you', 'lead', 'artemis')),
-    text TEXT NOT NULL, project_id INTEGER REFERENCES projects, card_id INTEGER, turn TEXT
+    text TEXT NOT NULL, project_id INTEGER REFERENCES projects, card_id INTEGER, turn TEXT,
+    attachments TEXT NOT NULL DEFAULT '[]', client TEXT UNIQUE
 );
 CREATE TABLE IF NOT EXISTS requests (
     id INTEGER PRIMARY KEY, project_id INTEGER REFERENCES projects, text TEXT NOT NULL,
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS verdicts (
 CREATE TABLE IF NOT EXISTS cards (
     id INTEGER PRIMARY KEY, project_id INTEGER REFERENCES projects, request_id INTEGER REFERENCES requests,
     task_id INTEGER REFERENCES tasks, run_id INTEGER REFERENCES runs,
-    kind TEXT NOT NULL CHECK(kind IN ('money out', 'irreversible delete', 'send as you', 'choice', 'secret')),
+    kind TEXT NOT NULL CHECK(kind IN ('money out', 'irreversible delete', 'send as you', 'choice', 'secret', 'step')),
     what TEXT NOT NULL, why TEXT NOT NULL,
     command TEXT, cwd TEXT, shell TEXT, secrets TEXT NOT NULL DEFAULT '[]', rule TEXT, options TEXT,
     state TEXT NOT NULL CHECK(state IN ('waiting', 'approved', 'declined', 'running', 'done', 'failed', 'unknown',
@@ -148,9 +149,40 @@ LEFT JOIN verdicts v ON v.id = (
     SELECT MAX(id) FROM verdicts WHERE submission_id = s.id
 )
 LEFT JOIN receipts r ON r.submission_id = s.id;
+CREATE TABLE IF NOT EXISTS boards (
+    id TEXT PRIMARY KEY, title TEXT NOT NULL, layout TEXT, blocks TEXT NOT NULL,
+    created_at REAL NOT NULL, updated_at REAL NOT NULL, rev INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_queue (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    attachments TEXT NOT NULL DEFAULT '[]',
+    state TEXT NOT NULL CHECK(state IN ('queued', 'sending', 'sent', 'canceled')),
+    held INTEGER NOT NULL DEFAULT 0,
+    revision INTEGER NOT NULL DEFAULT 1,
+    created_at REAL NOT NULL,
+    updated_at REAL NOT NULL,
+    message_id INTEGER REFERENCES messages
+);
+CREATE INDEX IF NOT EXISTS chat_queue_agent ON chat_queue(agent_id, state, position);
+CREATE TABLE IF NOT EXISTS secret_requests (
+    id TEXT PRIMARY KEY,
+    card_id INTEGER NOT NULL REFERENCES cards,
+    label TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('open', 'saved', 'deleted', 'superseded', 'expired', 'cancelled')),
+    length INTEGER,
+    replaces_id TEXT REFERENCES secret_requests,
+    created_at REAL NOT NULL,
+    expires_at REAL NOT NULL,
+    saved_at REAL,
+    deleted_at REAL
+);
+CREATE INDEX IF NOT EXISTS secret_requests_card ON secret_requests(card_id);
 """
 
-CARD_KINDS = (*Interrupt, "choice", "secret")
+CARD_KINDS = (*Interrupt, "choice", "secret", "step")
 SECRET_NAME = re.compile(r"[A-Z][A-Z0-9_]{0,63}")
 
 
@@ -259,6 +291,12 @@ class Ledger:
                                     "and start again.")
             db.execute("PRAGMA journal_mode = WAL")
             db.executescript(f"BEGIN IMMEDIATE;\n{SCHEMA}\nPRAGMA user_version = {VERSION};\nCOMMIT;")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(messages)")}
+            if "attachments" not in columns:     # a home from before the App sent files
+                db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
+            if "client" not in columns:          # and before it named its messages
+                db.execute("ALTER TABLE messages ADD COLUMN client TEXT")
+                db.execute("CREATE UNIQUE INDEX IF NOT EXISTS messages_client ON messages(client)")
 
     @contextmanager
     def _write(self, actor: Role, *expected: Role, intervention: bool = False):
@@ -461,7 +499,7 @@ class Ledger:
             _event(db, actor, f"card.{state}", row["what"], project=row["project_id"], request=row["request_id"],
                    task=row["task_id"], card=card, data={"standing": standing})
 
-    def choose(self, actor: Role, card: int, option: str) -> None:
+    def choose(self, actor: Role, card: int, option: str, *, comment: str | None = None) -> None:
         with self._write(actor, Role.OWNER, intervention=True) as db:
             row = self._waiting(db, card, "choice")
             labels = {item["id"]: item["label"] for item in json.loads(row["options"])}
@@ -469,8 +507,25 @@ class Ledger:
                 raise WorkflowError(f"Choose one of: {', '.join(labels)}.")
             db.execute("UPDATE cards SET state = 'done', answer = ?, decided = ? WHERE id = ?",
                        (option, time.time(), card))
-            _event(db, actor, "card.answered", f"{row['what']}: {labels[option]}", project=row["project_id"],
-                   request=row["request_id"], task=row["task_id"], card=card, data={"option": option})
+            note = comment.strip() if isinstance(comment, str) and comment.strip() else None
+            detail = f"{row['what']}: {labels[option]}" + (f" · {note}" if note else "")
+            data = {"option": option, **({"comment": note} if note else {})}
+            _event(db, actor, "card.answered", detail, project=row["project_id"],
+                   request=row["request_id"], task=row["task_id"], card=card, data=data)
+
+    def step_done(self, actor: Role, card: int, *, quiet: bool = False) -> None:
+        """Mark a waiting step card done once the person carried it out; quiet clears it without waking the lead."""
+        if self.expire_cards():
+            if self.card(card)["state"] == "expired":
+                raise WorkflowError("This card expired before you answered it.")
+        with self._write(actor, Role.OWNER, intervention=True) as db:
+            row = self._waiting(db, card, "step")
+            db.execute("UPDATE cards SET state = 'done', answer = 'done', decided = ? WHERE id = ?",
+                       (time.time(), card))
+            kind = "step.cleared" if quiet else "card.answered"
+            data = {"step": True, **({"quiet": True} if quiet else {})}
+            _event(db, actor, kind, f"{row['what']}: done", project=row["project_id"],
+                   request=row["request_id"], task=row["task_id"], card=card, data=data)
 
     def secret_set(self, actor: Role, card: int) -> str:
         """Close a secret card once the vault holds the value. Returns the secret's name."""
@@ -596,29 +651,35 @@ class Ledger:
     # The conversation and the lead's sessions
 
     def say(self, actor: Role, text: str, project: int | None = None, card: int | None = None,
-            turn: str | None = None) -> int:
+            turn: str | None = None, attachments: list | None = None, client: str | None = None) -> int:
+        """One message into the conversation. client is the App's own name for a message the person sent, so
+        the App knows it again in the stream."""
         role = {Role.OWNER: "you", Role.LEAD: "lead", Role.HOME: "artemis"}.get(actor)
         if role is None:
             raise WorkflowError("Only you, the lead or Artemis speak in the conversation.")
+        attached = json.dumps(attachments or [])
         with self._write(actor, actor, intervention=True) as db:
-            key = db.execute("INSERT INTO messages(at, role, text, project_id, card_id, turn) "
-                             "VALUES (?, ?, ?, ?, ?, ?)", (time.time(), role, text, project, card, turn)).lastrowid
+            key = db.execute("INSERT INTO messages(at, role, text, project_id, card_id, turn, attachments, client) "
+                             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                             (time.time(), role, text, project, card, turn, attached, client)).lastrowid
             _event(db, actor, "said", text[:200], project=project, card=card, data={"message": key})
             return key
 
+    def sent_by(self, client: str) -> sqlite3.Row | None:
+        """The message the App sent under this name, if it was sent."""
+        with self._read() as db:
+            return db.execute("SELECT * FROM messages WHERE client = ?", (client,)).fetchone()
+
     def message(self, message: int) -> sqlite3.Row:
         with self._read() as db:
             return _one(db, "SELECT * FROM messages WHERE id = ?", message)
 
-    def messages(self, after: int = 0, limit: int = 200) -> list[sqlite3.Row]:
+    def messages(self, after: int = 0, limit: int = 200, before: int | None = None) -> list[sqlite3.Row]:
+        """The newest `limit` messages after one id (and before another), oldest first."""
         with self._read() as db:
-            rows = db.execute("SELECT * FROM messages WHERE id > ? ORDER BY id DESC LIMIT ?",
-                              (after, limit)).fetchall()
+            rows = db.execute("SELECT * FROM messages WHERE id > ? AND id < ? ORDER BY id DESC LIMIT ?",
+                              (after, before or 2 ** 62, limit)).fetchall()
             return rows[::-1]
-
-    def message(self, message: int) -> sqlite3.Row:
-        with self._read() as db:
-            return _one(db, "SELECT * FROM messages WHERE id = ?", message)
 
     def notes(self, actor: Role, limit: int = 10) -> list[sqlite3.Row]:
         """The newest notes one role recorded, oldest first."""
@@ -969,21 +1030,6 @@ class Ledger:
             sql, args = sql + " AND project_id = ?", [*args, project]
         with self._read() as db:
             return db.execute(sql + " ORDER BY id DESC LIMIT ?", [*args, limit]).fetchall()[::-1]
-
-    def task_history(self, task: int) -> dict[str, list[sqlite3.Row]]:
-        """A task's runs, submissions, evidence and verdicts, oldest first."""
-        joined = "JOIN submissions s ON s.id = {}.submission_id WHERE s.task_id = ?"
-        with self._read() as db:
-            _one(db, "SELECT id FROM tasks WHERE id = ?", task)
-            return {
-                "runs": db.execute("SELECT * FROM runs WHERE task_id = ? ORDER BY id", (task,)).fetchall(),
-                "submissions": db.execute("SELECT * FROM submissions WHERE task_id = ? ORDER BY id",
-                                          (task,)).fetchall(),
-                "evidence": db.execute("SELECT e.* FROM evidence e " + joined.format("e")
-                                       + " ORDER BY e.submission_id, e.criterion", (task,)).fetchall(),
-                "verdicts": db.execute("SELECT v.* FROM verdicts v " + joined.format("v") + " ORDER BY v.id",
-                                       (task,)).fetchall(),
-            }
 
     def last_read(self) -> sqlite3.Row | None:
         with self._read() as db:

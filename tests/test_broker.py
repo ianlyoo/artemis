@@ -172,9 +172,10 @@ class ToolSetTests(BrokerCase):
         lead = {tool["name"] for tool in self.call("tools/list", "lead-token")["tools"]}
         self.assertEqual(worker, {"run", "job", "job_stop", "http_request", "read_file", "list_dir", "search",
                                   "write_file", "move", "trash", "secret_names", "secret_request", "ask", "note",
-                                  "check"})
+                                  "board", "check"})
         self.assertEqual(lead, {"projects", "status", "evidence", "read_file", "list_dir", "search", "task_create",
-                                "task_retry", "task_drop", "schedule", "ask", "secret_request", "lesson", "note"})
+                                "task_retry", "task_drop", "schedule", "ask", "secret_request", "lesson", "note",
+                                "board"})
         for name in ("run", "write_file", "http_request", "project_add"):
             with self.subTest(name=name), self.assertRaisesRegex(ToolError, "not one of your tools"):
                 self.call(name, "lead-token")
@@ -488,6 +489,13 @@ class SecretTests(BrokerCase):
                           origin="https://api.example.com", kind="send")
         again = self.call("secret_request", "lead-token", name="NEW_KEY", why="same", use="env")
         self.assertEqual(first, again)
+        from_worker = [row["text"] for row in self.ledger.messages() if row["card_id"] == first["card"]]
+        self.assertEqual(len(from_worker), 1, "a worker's request is answered in the conversation too, once")
+        self.assertRegex(from_worker[0], r"^to call the API\n\n```secret [0-9a-f]{32}\n```$")
+        asked = self.call("secret_request", "lead-token", name="LEAD_KEY", why="for the mail service", use="env")
+        said = [row["text"] for row in self.ledger.messages() if row["card_id"] == asked["card"]]
+        self.assertEqual(len(said), 1)
+        self.assertRegex(said[0], r"^for the mail service\n\n```secret [0-9a-f]{32}\n```$")
         card = self.ledger.card(first["card"])
         self.assertEqual(json.loads(card["options"]), {"name": "NEW_KEY", "use": "http",
                                                        "origin": "https://api.example.com", "kind": "send"})
@@ -755,6 +763,15 @@ class OtherWorkerToolTests(BrokerCase):
         card = self.call("ask", kind="choice", what="Which folder?", why="Two look alike.",
                          options=[{"id": "a", "label": "2024"}, {"id": "b", "label": "2025"}])["card"]
         self.assertEqual(self.ledger.card(card)["kind"], "choice")
+        said = [row["text"] for row in self.ledger.messages() if row["card_id"] == card]
+        self.assertEqual(len(said), 1, "a worker's choice is answered in the conversation")
+        self.assertIn("Which folder?", said[0])
+        with self.assertRaisesRegex(ToolError, r"options\[1\]\.label is too long"):
+            self.call("ask", kind="choice", what="?", why="?", options=[
+                {"id": "a", "label": "Same"}, {"id": "b", "label": "The accountant's new template"}])
+        lined = self.call("ask", kind="choice", what="Which layout?", why="?", options=[
+            {"id": "a", "label": "Same"}, {"id": "b", "label": "New template", "line": "The accountant's new one"}])
+        self.assertEqual(json.loads(self.ledger.card(lined["card"])["options"])[1]["line"], "The accountant's new one")
         with self.assertRaisesRegex(ToolError, "own id"):
             self.call("ask", kind="choice", what="?", why="?", options=[{"id": "a", "label": "x"},
                                                                        {"id": "a", "label": "y"}])

@@ -1,0 +1,1 @@
+var c=1e-4;function l(e,n){return{duration:e.duration,at:o=>n(e.at(o)),velocity:o=>{let t=e.at(o);return(n(t+c)-n(t-c))/(2*c)*e.velocity(o)}}}function p(e,n,{clamp:o=!0}={}){let[t,s]=e,[a,u]=n;return i=>{let r=t===s?i<t?0:1:(i-t)/(s-t);return o&&(r=Math.min(1,Math.max(0,r))),r===0?a:r===1?u:a+(u-a)*r}}export{l as a,p as b};

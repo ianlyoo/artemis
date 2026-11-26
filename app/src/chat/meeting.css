@@ -1,0 +1,157 @@
+.meeting .meeting-top p {
+  margin: 0;
+}
+.meeting .msg-lead[data-speaker=member] .g151-agent-mark {
+  color: var(--state-owner);
+}
+.chat-col > :is(.meeting-goes, .meeting-plan) {
+  margin-top: calc(var(--s-pad) * 1.1);
+}
+.meeting .meeting-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2em 1em;
+}
+.meeting .meeting-bar > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.meeting .meeting-acts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 1em;
+  margin-left: auto;
+}
+.meeting .meeting-acts > [hidden] {
+  display: none;
+}
+.meeting .meeting-end {
+  padding: 0;
+  color: var(--muted);
+}
+.meeting .meeting-end:is(:hover, :focus-visible) {
+  color: var(--ink);
+}
+.meeting .room-state.is-running {
+  color: var(--state-running);
+}
+.meeting .room-state.is-running::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  margin-right: -.5em;
+  border-radius: 50%;
+  background: var(--state-running);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--state-running) 70%, transparent);
+  animation: cv-breathe 1.6s ease-in-out infinite;
+}
+.meeting .room-state.is-problem {
+  color: var(--state-stuck);
+}
+.meeting .meeting-ask {
+  justify-self: end;
+  margin: 0 0 .6em auto;
+}
+.chat-phone.meeting .meeting-bar {
+  gap: .2em .5em;
+  pointer-events: none;
+}
+.chat-phone.meeting .meeting-acts {
+  gap: .5em;
+}
+.chat-phone.meeting .meeting-bar > * {
+  pointer-events: auto;
+}
+.chat-phone.meeting .meeting-end {
+  min-height: 32px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 13px;
+}
+.chat-phone.meeting .meeting-ask {
+  max-width: 100%;
+  margin: 0;
+}
+.meeting .meeting-ask:has(> .meeting-note:not([hidden])) {
+  width: min(100%, 30em);
+}
+.meeting .meeting-note {
+  --color-background-surface:var(--surface-inset);
+  --color-border-emphasized:transparent;
+  --color-text-secondary:color-mix(in srgb,var(--ink-quiet) 80%,var(--ink));
+  min-width: 0;
+  margin: .5em 0 .3em;
+}
+.meeting .meeting-note[hidden] {
+  display: none;
+}
+.meeting-record .meeting-decision + .meeting-decision {
+  margin-top: calc(var(--s-pad) * 1.1);
+}
+.meeting-record .meeting-decision-head {
+  margin: 0 0 .35em;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.meeting-record .meeting-decision-head a {
+  color: inherit;
+}
+.meeting-record .meeting-decision-head a:is(:hover, :focus-visible) {
+  color: var(--ink);
+}
+.meeting-record .meeting-said {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.meeting-record .meeting-summary {
+  color: var(--muted);
+}
+.meeting-record .meeting-none {
+  margin: 0;
+  color: var(--muted);
+}
+.meeting-record .meeting-minutes {
+  margin-top: calc(var(--s-pad) * 1.1);
+}
+.meeting-record .meeting-minutes > summary {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  width: max-content;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+.meeting-record .meeting-minutes > summary::-webkit-details-marker {
+  display: none;
+}
+.meeting-record .meeting-minutes > summary::before {
+  content: "";
+  width: .38em;
+  height: .38em;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--dur-hover,.2s) ease;
+}
+.meeting-record .meeting-minutes[open] > summary::before {
+  transform: rotate(45deg);
+}
+.meeting-record .meeting-minutes > summary:is(:hover, :focus-visible) {
+  color: var(--ink);
+}
+.meeting-record .meeting-minutes > .bv-prose {
+  margin-top: .6em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .meeting .room-state.is-running::before {
+    animation: none;
+  }
+}

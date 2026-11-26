@@ -1,0 +1,740 @@
+{
+  "choice_spec": [
+    {
+      "id": "options_basic",
+      "body": "{\"options\": [\"예\", \"아니오\"]}"
+    },
+    {
+      "id": "options_rich_korean",
+      "body": "{\"q\": \"어떤 방향으로 진행할까요?\", \"options\": [\"A안\", {\"label\": \"B안\", \"line\": \"단계적으로 적용해요\", \"media\": [{\"kind\": \"image\", \"path\": \"/demo/b.png\"}]}], \"guess\": \"B안\", \"plan\": 12, \"step\": 5, \"project\": 9}"
+    },
+    {
+      "id": "options_six_max",
+      "body": "{\"options\": [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\"]}"
+    },
+    {
+      "id": "options_trim_labels",
+      "body": "{\"options\": [\"  알파  \", \"  베타  \"], \"guess\": \"알파\"}"
+    },
+    {
+      "id": "options_guess_untrimmed_fails",
+      "body": "{\"options\": [\"  알파  \", \"베타\"], \"guess\": \"  알파  \"}"
+    },
+    {
+      "id": "options_bad_step_omitted",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"step\": 0}"
+    },
+    {
+      "id": "options_float_int_step_kept",
+      "body": "{\"options\":[\"예\",\"아니오\"],\"step\":3.0}"
+    },
+    {
+      "id": "options_unsafe_step_omitted",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"step\": 9007199254740992}"
+    },
+    {
+      "id": "options_bool_step_omitted",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"step\": true}"
+    },
+    {
+      "id": "options_emoji_utf16_boundary_ok",
+      "body": "{\"options\": [\"😀😀😀😀😀😀😀😀😀😀\", \"기타\"]}"
+    },
+    {
+      "id": "options_emoji_utf16_boundary_too_long",
+      "body": "{\"options\": [\"😀😀😀😀😀😀😀😀😀😀😀\", \"기타\"]}"
+    },
+    {
+      "id": "options_media_empty_fails",
+      "body": "{\"options\": [\"a\", {\"label\": \"b\", \"media\": []}]}"
+    },
+    {
+      "id": "options_media_seven_fails",
+      "body": "{\"options\": [\"a\", {\"label\": \"b\", \"media\": [1, 2, 3, 4, 5, 6, 7]}]}"
+    },
+    {
+      "id": "options_replaces_and_supersedes",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"replaces\": 4, \"supersedes\": [\"dec-1\", \"dec-2\"], \"supersede_phrases\": [\"이전 결정 철회\"]}"
+    },
+    {
+      "id": "options_too_few",
+      "body": "{\"options\": [\"혼자\"]}"
+    },
+    {
+      "id": "options_too_many",
+      "body": "{\"options\": [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\"]}"
+    },
+    {
+      "id": "options_duplicate",
+      "body": "{\"options\": [\"예\", \"예\"]}"
+    },
+    {
+      "id": "options_label_too_long",
+      "body": "{\"options\": [\"예\", \"가가가가가가가가가가가가가가가가가가가가가\"]}"
+    },
+    {
+      "id": "options_multiline_line",
+      "body": "{\"options\": [\"a\", {\"label\": \"b\", \"line\": \"one\\ntwo\"}]}"
+    },
+    {
+      "id": "options_unknown_key",
+      "body": "{\"options\": [\"a\", \"b\"], \"extra\": 1}"
+    },
+    {
+      "id": "options_permission_forbidden",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"permission\": {\"kind\": \"delete\", \"goal\": 1, \"target\": {\"paths\": [\"/tmp/a\"]}}}"
+    },
+    {
+      "id": "rows_basic",
+      "body": "{\"rows\": [{\"q\": \"알파 배포를 진행할까요?\", \"guess\": \"예\"}, {\"q\": \"로그를 비울까요?\", \"guess\": \"아니오\"}]}"
+    },
+    {
+      "id": "rows_max_length_100",
+      "body": "{\"rows\": [{\"q\": \"가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가\", \"guess\": \"예\"}]}"
+    },
+    {
+      "id": "rows_over_100_fails",
+      "body": "{\"rows\": [{\"q\": \"가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가\", \"guess\": \"예\"}]}"
+    },
+    {
+      "id": "rows_invalid_guess",
+      "body": "{\"rows\": [{\"q\": \"확인\", \"guess\": \"네\"}]}"
+    },
+    {
+      "id": "rows_with_q_forbidden",
+      "body": "{\"rows\": [{\"q\": \"확인\", \"guess\": \"예\"}], \"q\": \"제목\"}"
+    },
+    {
+      "id": "both_options_and_rows",
+      "body": "{\"options\": [\"예\", \"아니오\"], \"rows\": [{\"q\": \"a\", \"guess\": \"예\"}]}"
+    },
+    {
+      "id": "perm_delete_valid",
+      "body": "{\"rows\": [{\"q\": \"임시 파일을 삭제할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"delete\", \"goal\": 7, \"target\": {\"paths\": [\"/work/tmp/a.log\", \"host-1:/data/old.tmp\"]}}}"
+    },
+    {
+      "id": "perm_delete_dotdot_fails",
+      "body": "{\"rows\": [{\"q\": \"삭제할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"delete\", \"goal\": 7, \"target\": {\"paths\": [\"/work/../etc/passwd\"]}}}"
+    },
+    {
+      "id": "perm_delete_trailing_slash_fails",
+      "body": "{\"rows\": [{\"q\": \"삭제할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"delete\", \"goal\": 7, \"target\": {\"paths\": [\"/work/dir/\"]}}}"
+    },
+    {
+      "id": "perm_payment_valid",
+      "body": "{\"rows\": [{\"q\": \"구독을 결제할까요?\", \"guess\": \"아니오\"}], \"permission\": {\"kind\": \"payment\", \"goal\": 3, \"target\": {\"payee\": \"Cloud Vendor\", \"cap\": {\"amount\": 25000, \"currency\": \"KRW\"}}}}"
+    },
+    {
+      "id": "perm_payment_bad_currency",
+      "body": "{\"rows\": [{\"q\": \"결제할까요?\", \"guess\": \"아니오\"}], \"permission\": {\"kind\": \"payment\", \"goal\": 3, \"target\": {\"payee\": \"Vendor\", \"cap\": {\"amount\": 10, \"currency\": \"usd\"}}}}"
+    },
+    {
+      "id": "perm_payment_bool_amount_fails",
+      "body": "{\"rows\": [{\"q\": \"결제할까요?\", \"guess\": \"아니오\"}], \"permission\": {\"kind\": \"payment\", \"goal\": 3, \"target\": {\"payee\": \"Vendor\", \"cap\": {\"amount\": true, \"currency\": \"USD\"}}}}"
+    },
+    {
+      "id": "perm_send_message_attachments_sorted",
+      "body": "{\"rows\": [{\"q\": \"메일을 보낼까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 5, \"target\": {\"to\": \"team@example.com\", \"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"attachments\": [\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\", \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"]}}}"
+    },
+    {
+      "id": "perm_send_empty_attachments_omitted",
+      "body": "{\"rows\": [{\"q\": \"메일을 보낼까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 5, \"target\": {\"to\": \"team@example.com\", \"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"attachments\": []}}}"
+    },
+    {
+      "id": "perm_send_entries_legacy",
+      "body": "{\"rows\": [{\"q\": \"항목을 보낼까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 5, \"target\": {\"to\": \"Portal\", \"sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"entries\": 3}}}"
+    },
+    {
+      "id": "perm_send_form_valid",
+      "body": "{\"rows\": [{\"q\": \"폼을 제출할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 8, \"target\": {\"to\": \"Portal\", \"form\": {\"page\": \"https://portal.example.com/apply\", \"entries\": [\"홍길동\", [\"2026\", \"11\"]], \"files\": [\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"], \"choices\": [{\"name\": \"동의\", \"value\": true}, {\"name\": \"트랙\", \"group\": \"지원\", \"value\": [\"백엔드\"]}], \"publish\": \"제출하기\"}}}}"
+    },
+    {
+      "id": "perm_send_form_http_fails",
+      "body": "{\"rows\": [{\"q\": \"폼을 제출할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 8, \"target\": {\"to\": \"Portal\", \"form\": {\"page\": \"http://portal.example.com/apply\", \"entries\": [], \"files\": [], \"choices\": [], \"publish\": \"Send\"}}}}"
+    },
+    {
+      "id": "perm_send_edits_valid",
+      "body": "{\"rows\": [{\"q\": \"문서를 수정할까요?\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"send_as_owner\", \"goal\": 9, \"target\": {\"to\": \"Docs\", \"edits\": [{\"page\": \"https://docs.example.com/p/1\", \"text\": \"첫 줄\\n둘째 줄\"}], \"sha256\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}}}"
+    },
+    {
+      "id": "perm_two_rows_fails",
+      "body": "{\"rows\": [{\"q\": \"1\", \"guess\": \"예\"}, {\"q\": \"2\", \"guess\": \"예\"}], \"permission\": {\"kind\": \"delete\", \"goal\": 1, \"target\": {\"paths\": [\"/tmp/x\"]}}}"
+    },
+    {
+      "id": "bad_json_empty",
+      "body": ""
+    },
+    {
+      "id": "bad_json_syntax",
+      "body": "{not json"
+    },
+    {
+      "id": "bad_json_array",
+      "body": "[]"
+    },
+    {
+      "id": "bad_supersede_phrases_without_supersedes",
+      "body": "{\"options\": [\"a\", \"b\"], \"supersede_phrases\": [\"철회 문구\"]}"
+    }
+  ],
+  "same_spec": [
+    {
+      "id": "same_options_reordered_keys",
+      "a": {
+        "options": [
+          "예",
+          "아니오"
+        ],
+        "step": 4
+      },
+      "b": {
+        "step": 4,
+        "options": [
+          "예",
+          "아니오"
+        ]
+      }
+    },
+    {
+      "id": "same_options_ignores_display_hints",
+      "a": {
+        "options": [
+          "A",
+          "B"
+        ],
+        "q": "질문",
+        "guess": "A",
+        "lines": [
+          "설명",
+          ""
+        ]
+      },
+      "b": {
+        "options": [
+          "A",
+          "B"
+        ]
+      }
+    },
+    {
+      "id": "diff_options_values",
+      "a": {
+        "options": [
+          "A",
+          "B"
+        ]
+      },
+      "b": {
+        "options": [
+          "A",
+          "C"
+        ]
+      }
+    },
+    {
+      "id": "diff_step_present_vs_absent",
+      "a": {
+        "options": [
+          "A",
+          "B"
+        ],
+        "step": 4
+      },
+      "b": {
+        "options": [
+          "A",
+          "B"
+        ]
+      }
+    },
+    {
+      "id": "same_step_null_vs_absent",
+      "a": {
+        "options": [
+          "A",
+          "B"
+        ],
+        "step": null
+      },
+      "b": {
+        "options": [
+          "A",
+          "B"
+        ]
+      }
+    },
+    {
+      "id": "diff_project",
+      "a": {
+        "rows": [
+          {
+            "q": "진행?",
+            "guess": "예"
+          }
+        ],
+        "project": 10
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "진행?",
+            "guess": "예"
+          }
+        ],
+        "project": 11
+      }
+    },
+    {
+      "id": "same_rows",
+      "a": {
+        "rows": [
+          {
+            "q": "A",
+            "guess": "예"
+          },
+          {
+            "q": "B",
+            "guess": "아니오"
+          }
+        ]
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "A",
+            "guess": "예"
+          },
+          {
+            "q": "B",
+            "guess": "아니오"
+          }
+        ]
+      }
+    },
+    {
+      "id": "diff_rows_guess",
+      "a": {
+        "rows": [
+          {
+            "q": "A",
+            "guess": "예"
+          }
+        ]
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "A",
+            "guess": "아니오"
+          }
+        ]
+      }
+    },
+    {
+      "id": "diff_options_vs_rows",
+      "a": {
+        "options": [
+          "예",
+          "아니오"
+        ]
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "예",
+            "guess": "예"
+          }
+        ]
+      }
+    },
+    {
+      "id": "null_spec",
+      "a": null,
+      "b": {
+        "options": [
+          "A",
+          "B"
+        ]
+      }
+    },
+    {
+      "id": "empty_dicts",
+      "a": {},
+      "b": {}
+    },
+    {
+      "id": "same_perm_delete",
+      "a": {
+        "rows": [
+          {
+            "q": "삭제?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "delete",
+          "goal": 1,
+          "target": {
+            "paths": [
+              "/a",
+              "/b"
+            ]
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "삭제?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "delete",
+          "goal": 1,
+          "target": {
+            "paths": [
+              "/a",
+              "/b"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "diff_perm_delete_path_order",
+      "a": {
+        "rows": [
+          {
+            "q": "삭제?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "delete",
+          "goal": 1,
+          "target": {
+            "paths": [
+              "/a",
+              "/b"
+            ]
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "삭제?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "delete",
+          "goal": 1,
+          "target": {
+            "paths": [
+              "/b",
+              "/a"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "same_perm_attachments_null_vs_empty",
+      "a": {
+        "rows": [
+          {
+            "q": "전송?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 1,
+          "target": {
+            "to": "a@example.com",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "attachments": null
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "전송?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 1,
+          "target": {
+            "to": "a@example.com",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "attachments": []
+          }
+        }
+      }
+    },
+    {
+      "id": "same_perm_form_server_adds_sha256",
+      "a": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [
+                "x"
+              ],
+              "files": [],
+              "choices": [
+                {
+                  "name": "ok",
+                  "value": true
+                }
+              ],
+              "publish": "Send"
+            }
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [
+                "x"
+              ],
+              "files": [],
+              "choices": [
+                {
+                  "name": "ok",
+                  "value": true
+                }
+              ],
+              "publish": "Send"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "same_perm_edits_server_adds_sha256",
+      "a": {
+        "rows": [
+          {
+            "q": "수정?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Docs",
+            "edits": [
+              {
+                "page": "https://d.example/1",
+                "text": "hi"
+              }
+            ]
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "수정?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Docs",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "edits": [
+              {
+                "page": "https://d.example/1",
+                "text": "hi"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "diff_perm_form_both_sha256_mismatch",
+      "a": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [
+                "x"
+              ],
+              "files": [],
+              "choices": [],
+              "publish": "Send"
+            }
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [
+                "x"
+              ],
+              "files": [],
+              "choices": [],
+              "publish": "Send"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "diff_perm_payment_cap",
+      "a": {
+        "rows": [
+          {
+            "q": "결제?",
+            "guess": "아니오"
+          }
+        ],
+        "permission": {
+          "kind": "payment",
+          "goal": 3,
+          "target": {
+            "payee": "V",
+            "cap": {
+              "amount": 100,
+              "currency": "USD"
+            }
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "결제?",
+            "guess": "아니오"
+          }
+        ],
+        "permission": {
+          "kind": "payment",
+          "goal": 3,
+          "target": {
+            "payee": "V",
+            "cap": {
+              "amount": 200,
+              "currency": "USD"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "diff_bool_vs_int_choice_value",
+      "a": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [],
+              "files": [],
+              "choices": [
+                {
+                  "name": "ok",
+                  "value": true
+                }
+              ],
+              "publish": "Send"
+            }
+          }
+        }
+      },
+      "b": {
+        "rows": [
+          {
+            "q": "제출?",
+            "guess": "예"
+          }
+        ],
+        "permission": {
+          "kind": "send_as_owner",
+          "goal": 2,
+          "target": {
+            "to": "Portal",
+            "form": {
+              "page": "https://p.example/a",
+              "entries": [],
+              "files": [],
+              "choices": [
+                {
+                  "name": "ok",
+                  "value": 1
+                }
+              ],
+              "publish": "Send"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

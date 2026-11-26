@@ -1,0 +1,20 @@
+.msg-body > [data-segment=interview] {
+  display: block;
+}
+.chat .interview-card {
+  display: block;
+  max-width: 36em;
+}
+.chat .interview-card:empty {
+  min-height: calc(var(--t-body) * 5.5);
+  border-radius: calc(var(--highlight-radius) * 1.5);
+  background: var(--surface-section);
+}
+html[data-layout=phone] .chat .interview-card {
+  max-width: none;
+}
+.chat .interview-card-problem {
+  margin: 0;
+  font-size: var(--t-meta);
+  color: var(--muted);
+}

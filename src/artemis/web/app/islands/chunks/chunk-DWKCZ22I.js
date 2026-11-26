@@ -1,0 +1,1 @@
+function n(e){return{onClick:t=>{t.preventDefault(),t.stopPropagation()},onKeyDown:t=>{t.key==="Enter"||t.key===" "?t.preventDefault():e?.(t)}}}function o(e,t){return t?Object.fromEntries(Object.entries(e).filter(([r])=>!/^on[A-Z]/.test(r)||/^on(Focus|Blur)/.test(r))):e}export{n as a,o as b};

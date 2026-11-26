@@ -3,6 +3,7 @@ from contextlib import redirect_stdout
 from hashlib import sha1
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,6 +13,7 @@ import threading
 from types import SimpleNamespace
 import tomllib
 import unittest
+from unittest import mock
 
 from artemis import lessons
 from artemis.judge import CommandEvidence, Criterion, RuleJudge
@@ -471,6 +473,14 @@ class Commands(Lab):
         with redirect_stdout(io.StringIO()) as out:
             self.assertEqual(args.func(args, self.ledger), 0)
         return out.getvalue()
+
+    def test_list_works_on_a_home_that_has_never_been_served(self):
+        """The CLI opens the ledger for `lesson` as for its other verbs, so a fresh home lists nothing, not an error."""
+        from artemis import cli
+        with TemporaryDirectory() as fresh, mock.patch.dict(os.environ, {"ARTEMIS_HOME": str(Path(fresh, "home"))}), \
+                redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(cli.main(["lesson", "list"]), 0)
+        self.assertEqual(out.getvalue(), "Nothing learned yet.\n")
 
     def test_list_accept_and_retire(self):
         self.assertEqual(self.run_cli("lesson", "list"), "Nothing learned yet.\n")

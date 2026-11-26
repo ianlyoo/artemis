@@ -186,9 +186,14 @@ def _searched(paths: Paths) -> Iterator[Path]:
 
 
 def _found(path: Path, pattern: re.Pattern, longest: int) -> Iterator[bytes]:
-    """Every form in the file, read a megabyte at a time with an overlap so no form is cut in two."""
+    """Every form in the file, read a megabyte at a time with an overlap so no form is cut in two. A file that is
+    gone by the time it is read (SQLite's -wal and -journal come and go with a running home) holds nothing."""
     tail = b""
-    with path.open("rb") as file:
+    try:
+        file = path.open("rb")
+    except FileNotFoundError:
+        return
+    with file:
         while chunk := file.read(CHUNK):
             data = tail + chunk
             yield from (match.group() for match in pattern.finditer(data))

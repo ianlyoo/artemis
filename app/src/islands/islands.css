@@ -1,0 +1,7 @@
+@import "@astryxdesign/core/reset.css";
+@import "@astryxdesign/core/astryx.css";
+@import "./theme.css";
+@import "../vendor/deepseek-chat-demo/CodeBlock.css";
+[data-astryx-island] :not(#\#):not(#\#):not(#\#) {
+  all: revert-layer;
+}

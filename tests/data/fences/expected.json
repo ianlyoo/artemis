@@ -1,0 +1,1253 @@
+{
+  "empty": [],
+  "whitespace_only": [],
+  "plain_md_korean": [
+    {
+      "type": "md",
+      "text": "안녕하세요.\n두 번째 줄이에요."
+    }
+  ],
+  "md_multi_paragraphs": [
+    {
+      "type": "md",
+      "text": "First paragraph.\n\nSecond paragraph with `inline code`."
+    }
+  ],
+  "code_python": [
+    {
+      "type": "md",
+      "text": "예제 코드입니다."
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "def add(a, b):\n    return a + b"
+    },
+    {
+      "type": "md",
+      "text": "끝."
+    }
+  ],
+  "code_no_lang": [
+    {
+      "type": "code",
+      "lang": "",
+      "text": "plain text block"
+    }
+  ],
+  "code_extra_info": [
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "print('ok')",
+      "info": "python title=demo.py"
+    }
+  ],
+  "code_json_passthrough": [
+    {
+      "type": "code",
+      "lang": "json",
+      "text": "{\"kind\": \"bar\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}"
+    }
+  ],
+  "mermaid_closed": [
+    {
+      "type": "md",
+      "text": "흐름도예요."
+    },
+    {
+      "type": "code",
+      "lang": "mermaid",
+      "text": "graph LR\n  A[시작] --> B[종료]"
+    }
+  ],
+  "table_valid_title_tone": [
+    {
+      "type": "block",
+      "block": {
+        "columns": [
+          "항목",
+          "상태"
+        ],
+        "rows": [
+          [
+            "빌드",
+            "통과"
+          ],
+          [
+            "배포",
+            "대기"
+          ]
+        ],
+        "title": "작업 요약",
+        "tone": "accent",
+        "type": "table",
+        "id": "chat1"
+      }
+    }
+  ],
+  "table_type_field_match": [
+    {
+      "type": "block",
+      "block": {
+        "columns": [
+          "항목",
+          "상태"
+        ],
+        "rows": [
+          [
+            "빌드",
+            "통과"
+          ],
+          [
+            "배포",
+            "대기"
+          ]
+        ],
+        "type": "table",
+        "id": "chat1"
+      }
+    }
+  ],
+  "table_headers_and_object_rows": [
+    {
+      "type": "block",
+      "block": {
+        "rows": [
+          [
+            "알파",
+            "95.5",
+            "true",
+            ""
+          ],
+          [
+            "베타",
+            "0",
+            "false",
+            "양호"
+          ]
+        ],
+        "columns": [
+          "이름",
+          "점수",
+          "활성",
+          "비고"
+        ],
+        "type": "table",
+        "id": "chat1"
+      }
+    }
+  ],
+  "table_bad_json": [
+    {
+      "type": "md",
+      "text": "앞 문단"
+    },
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\": [\"a\"],",
+      "reason": "invalid_json: table fence: invalid JSON object"
+    },
+    {
+      "type": "md",
+      "text": "뒤 문단"
+    }
+  ],
+  "table_json_nan_rejected": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\":[\"a\"],\"rows\":[[NaN]]}",
+      "reason": "invalid_json: table fence: invalid JSON object"
+    }
+  ],
+  "table_json_array": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "[1, 2, 3]",
+      "reason": "invalid_json: table fence: invalid JSON object"
+    }
+  ],
+  "table_unknown_field": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"colour\": \"blue\"}",
+      "reason": "unknown_field: chat1.colour"
+    }
+  ],
+  "table_row_width_mismatch": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\": [\"a\", \"b\"], \"rows\": [[\"only-one\"]]}",
+      "reason": "invalid_value: table.row_width"
+    }
+  ],
+  "table_object_row_key_mismatch": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"headers\": [\"a\"], \"rows\": [{\"a\": \"1\", \"b\": \"2\"}]}",
+      "reason": "invalid_value: table.row keys must match columns"
+    }
+  ],
+  "table_mixed_object_and_array_rows": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"headers\": [\"a\"], \"rows\": [{\"a\": \"1\"}, [\"2\"]]}",
+      "reason": "invalid_value: table.row"
+    }
+  ],
+  "table_nested_object_cell": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"headers\": [\"a\"], \"rows\": [{\"a\": {\"nested\": \"x\"}}]}",
+      "reason": "invalid_value: table.row[0]"
+    }
+  ],
+  "table_conflicting_aliases": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\": [\"a\"], \"headers\": [\"b\"], \"rows\": [[\"1\"]]}",
+      "reason": "invalid_value: conflicting columns aliases"
+    }
+  ],
+  "table_matching_aliases": [
+    {
+      "type": "block",
+      "block": {
+        "columns": [
+          "a"
+        ],
+        "rows": [
+          [
+            "1"
+          ]
+        ],
+        "type": "table",
+        "id": "chat1"
+      }
+    }
+  ],
+  "table_long_reason_clipped": [
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\": [\"항목\", \"상태\"], \"rows\": [[\"빌드\", \"통과\"], [\"배포\", \"대기\"]], \"kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk\": 1}",
+      "reason": "unknown_field: chat1.kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk…"
+    }
+  ],
+  "chart_valid_bar": [
+    {
+      "type": "block",
+      "block": {
+        "kind": "bar",
+        "labels": [
+          "월요일",
+          "화요일"
+        ],
+        "series": [
+          {
+            "name": "처리 건수",
+            "values": [
+              12,
+              19
+            ]
+          }
+        ],
+        "title": "주간 현황",
+        "type": "chart",
+        "id": "chat1"
+      }
+    }
+  ],
+  "chart_aliases_line": [
+    {
+      "type": "block",
+      "block": {
+        "series": [
+          {
+            "name": "속도",
+            "values": [
+              1.5,
+              2.25,
+              3
+            ]
+          },
+          {
+            "name": "목표",
+            "values": [
+              2,
+              2,
+              2
+            ]
+          }
+        ],
+        "kind": "line",
+        "labels": [
+          "1주",
+          "2주",
+          "3주"
+        ],
+        "type": "chart",
+        "id": "chat1"
+      }
+    }
+  ],
+  "chart_xaxis_data_alias": [
+    {
+      "type": "block",
+      "block": {
+        "kind": "bar",
+        "series": [
+          {
+            "name": "온도",
+            "values": [
+              14,
+              28
+            ]
+          }
+        ],
+        "labels": [
+          "봄",
+          "여름"
+        ],
+        "type": "chart",
+        "id": "chat1"
+      }
+    }
+  ],
+  "chart_xaxis_extra_key_rejected": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"bar\", \"xAxis\": {\"categories\": [\"봄\"], \"extra\": 1}, \"series\": [{\"name\": \"온도\", \"values\": [14]}]}",
+      "reason": "invalid_value: chart.labels"
+    }
+  ],
+  "chart_xaxis_conflicting_aliases": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"bar\", \"xAxis\": {\"categories\": [\"a\"], \"data\": [\"b\"]}, \"series\": [{\"name\": \"s\", \"values\": [1]}]}",
+      "reason": "invalid_value: conflicting categories aliases"
+    }
+  ],
+  "chart_bad_json": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"line\",",
+      "reason": "invalid_json: chart fence: invalid JSON object"
+    }
+  ],
+  "chart_invalid_kind": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"pie\", \"labels\": [\"월요일\", \"화요일\"], \"series\": [{\"name\": \"처리 건수\", \"values\": [12, 19]}]}",
+      "reason": "invalid_value: chart.kind"
+    }
+  ],
+  "chart_series_length_mismatch": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"line\", \"labels\": [\"a\", \"b\"], \"series\": [{\"name\": \"s\", \"values\": [1]}]}",
+      "reason": "invalid_value: chart.series_length"
+    }
+  ],
+  "chart_non_numeric_value": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"bar\", \"labels\": [\"a\"], \"series\": [{\"name\": \"s\", \"values\": [\"1\"]}]}",
+      "reason": "invalid_value: chart.value"
+    }
+  ],
+  "chart_bool_value_rejected": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"bar\", \"labels\": [\"a\"], \"series\": [{\"name\": \"s\", \"values\": [true]}]}",
+      "reason": "invalid_value: chart.value"
+    }
+  ],
+  "chart_conflicting_x_aliases": [
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\": \"bar\", \"labels\": [\"a\"], \"x\": [\"b\"], \"series\": [{\"name\": \"s\", \"values\": [1]}]}",
+      "reason": "invalid_value: conflicting labels aliases"
+    }
+  ],
+  "timeline_valid": [
+    {
+      "type": "block",
+      "block": {
+        "items": [
+          {
+            "when": "09:15",
+            "label": "점검 시작",
+            "detail": "로그 확인 완료"
+          }
+        ],
+        "title": "일정",
+        "type": "timeline",
+        "id": "chat1"
+      }
+    }
+  ],
+  "timeline_aliases": [
+    {
+      "type": "block",
+      "block": {
+        "items": [
+          {
+            "when": "10:00",
+            "label": "시작"
+          },
+          {
+            "detail": "정상 종료",
+            "when": "11:30",
+            "label": "완료"
+          }
+        ],
+        "type": "timeline",
+        "id": "chat1"
+      }
+    }
+  ],
+  "timeline_mismatched_type": [
+    {
+      "type": "code",
+      "lang": "timeline",
+      "text": "{\"items\": [{\"when\": \"09:15\", \"label\": \"점검 시작\", \"detail\": \"로그 확인 완료\"}], \"type\": \"chart\"}",
+      "reason": "invalid_fence: timeline fence: mismatched type"
+    }
+  ],
+  "timeline_unknown_item_field": [
+    {
+      "type": "code",
+      "lang": "timeline",
+      "text": "{\"items\": [{\"when\": \"09:00\", \"label\": \"체크\", \"extra\": 1}]}",
+      "reason": "unknown_field: timeline.item.extra"
+    }
+  ],
+  "diagram_valid_escaped_mermaid": [
+    {
+      "type": "block",
+      "block": {
+        "title": "파이프라인",
+        "type": "code",
+        "id": "chat1",
+        "lang": "mermaid",
+        "text": "flowchart TD\n n0[\"입력 #40;A#47;B#41;<br/>2줄\"]\n n1[\"출력 #35;1\"]\n n0 -->|\"변환 -#62; 완료\"| n1"
+      },
+      "legacyKind": "diagram"
+    }
+  ],
+  "diagram_unlabeled_edge_and_coords": [
+    {
+      "type": "block",
+      "block": {
+        "type": "code",
+        "id": "chat1",
+        "lang": "mermaid",
+        "text": "flowchart TD\n n0[\"첫 단계\"]\n n1[\"둘째 단계\"]\n n0 --> n1"
+      },
+      "legacyKind": "diagram"
+    }
+  ],
+  "diagram_unknown_node": [
+    {
+      "type": "code",
+      "lang": "diagram",
+      "text": "{\"nodes\": [{\"id\": \"a\", \"label\": \"A\"}], \"edges\": [{\"from\": \"a\", \"to\": \"missing\"}]}",
+      "reason": "unknown_node: a/missing"
+    }
+  ],
+  "diagram_duplicate_node": [
+    {
+      "type": "code",
+      "lang": "diagram",
+      "text": "{\"nodes\": [{\"id\": \"a\", \"label\": \"A\"}, {\"id\": \"a\", \"label\": \"B\"}], \"edges\": []}",
+      "reason": "duplicate_id: a"
+    }
+  ],
+  "sketch_valid_all_shapes": [
+    {
+      "type": "block",
+      "block": {
+        "w": 320,
+        "h": 180,
+        "shapes": [
+          {
+            "k": "path",
+            "d": "M 10 10 L 80 40 A 20 20 0 0 1 100 60 Z",
+            "ink": "gold"
+          },
+          {
+            "k": "line",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              50,
+              50
+            ],
+            "ink": "cool",
+            "width": 2,
+            "label": "축"
+          },
+          {
+            "k": "arrow",
+            "from": [
+              10,
+              20
+            ],
+            "to": [
+              90,
+              20
+            ],
+            "ink": "gold"
+          },
+          {
+            "k": "circle",
+            "c": [
+              60,
+              60
+            ],
+            "r": 12,
+            "fill": true,
+            "ink": "gold"
+          },
+          {
+            "k": "rect",
+            "at": [
+              120,
+              20
+            ],
+            "size": [
+              40,
+              25
+            ],
+            "r": 4,
+            "fill": false,
+            "ink": "gold"
+          },
+          {
+            "k": "text",
+            "at": [
+              15,
+              140
+            ],
+            "text": "메모",
+            "ink": "gold",
+            "size": "m"
+          }
+        ],
+        "type": "sketch",
+        "id": "chat1"
+      }
+    }
+  ],
+  "sketch_invalid_path_start": [
+    {
+      "type": "code",
+      "lang": "sketch",
+      "text": "{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"L 10 10\"}]}",
+      "reason": "invalid_path: sketch.d"
+    }
+  ],
+  "sketch_invalid_path_arity": [
+    {
+      "type": "code",
+      "lang": "sketch",
+      "text": "{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"M 10\"}]}",
+      "reason": "invalid_path: sketch.d"
+    }
+  ],
+  "sketch_invalid_arc_flag": [
+    {
+      "type": "code",
+      "lang": "sketch",
+      "text": "{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"path\", \"d\": \"M 0 0 A 10 10 0 2 1 20 20\"}]}",
+      "reason": "invalid_path: sketch.arc_flag"
+    }
+  ],
+  "sketch_invalid_circle_radius": [
+    {
+      "type": "code",
+      "lang": "sketch",
+      "text": "{\"w\": 100, \"h\": 100, \"shapes\": [{\"k\": \"circle\", \"c\": [5, 5], \"r\": 0}]}",
+      "reason": "invalid_value: shape.r"
+    }
+  ],
+  "secret_ref_valid": [
+    {
+      "type": "md",
+      "text": "키를 확인하세요."
+    },
+    {
+      "type": "block",
+      "block": {
+        "key": "demo.api-token",
+        "label": "데모 API 토큰",
+        "type": "secret",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "md",
+      "text": "끝."
+    }
+  ],
+  "secret_ref_template_header": [
+    {
+      "type": "block",
+      "block": {
+        "key": "demo.api-token",
+        "label": "데모 API 토큰",
+        "template": "Bearer {value}",
+        "type": "secret",
+        "id": "chat1"
+      }
+    }
+  ],
+  "secret_ref_emoji_label_60_cp": [
+    {
+      "type": "block",
+      "block": {
+        "key": "demo.emoji",
+        "label": "🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑",
+        "type": "secret",
+        "id": "chat1"
+      }
+    }
+  ],
+  "secret_ref_one_line": [
+    {
+      "type": "md",
+      "text": "앞"
+    },
+    {
+      "type": "block",
+      "block": {
+        "key": "demo.key",
+        "label": "원라인 키",
+        "type": "secret",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "md",
+      "text": "뒤"
+    }
+  ],
+  "secret_ref_bad_json": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "{bad json",
+      "reason": "invalid_json: secret fence: invalid JSON object"
+    }
+  ],
+  "secret_ref_title_disallowed": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"title\": \"제목\"}",
+      "reason": "unknown_field: chat1.title"
+    }
+  ],
+  "secret_request_info": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "",
+      "info": "secret 0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "secret_request_body": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "secret_request_one_line": [
+    {
+      "type": "md",
+      "text": "입력해 주세요."
+    },
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "0123456789abcdef0123456789abcdef",
+      "info": "secret 0123456789abcdef0123456789abcdef"
+    },
+    {
+      "type": "md",
+      "text": "감사합니다."
+    }
+  ],
+  "choices_options_korean": [
+    {
+      "type": "md",
+      "text": "어떻게 진행할까요?"
+    },
+    {
+      "type": "code",
+      "lang": "choices",
+      "text": "{\"q\": \"진행 방식\", \"options\": [\"바로 진행\", \"잠시 보류\"], \"guess\": \"바로 진행\"}"
+    }
+  ],
+  "choices_rows_korean": [
+    {
+      "type": "code",
+      "lang": "choices",
+      "text": "{\"rows\": [{\"q\": \"테스트를 실행할까요?\", \"guess\": \"예\"}]}"
+    }
+  ],
+  "choices_one_line_is_prose": [
+    {
+      "type": "md",
+      "text": "안내 ```choices {\"options\":[\"예\",\"아니오\"]}``` 문장"
+    }
+  ],
+  "step_multiline_info": [
+    {
+      "type": "code",
+      "lang": "step",
+      "text": "",
+      "info": "step 42"
+    }
+  ],
+  "step_one_line_hash": [
+    {
+      "type": "md",
+      "text": "진행 전 확인:"
+    },
+    {
+      "type": "code",
+      "lang": "step",
+      "text": "",
+      "info": "step #42"
+    },
+    {
+      "type": "md",
+      "text": "완료 후 알려 주세요."
+    }
+  ],
+  "step_body_id": [
+    {
+      "type": "code",
+      "lang": "step",
+      "text": "42"
+    }
+  ],
+  "answer_one_line_and_multiline": [
+    {
+      "type": "code",
+      "lang": "answer",
+      "text": "",
+      "info": "answer slot_a"
+    },
+    {
+      "type": "code",
+      "lang": "answer",
+      "text": "초안 내용",
+      "info": "answer slot-b"
+    }
+  ],
+  "open_valid_with_title": [
+    {
+      "type": "open",
+      "target": {
+        "kind": "board",
+        "id": "weekly-plan"
+      },
+      "title": "주간 계획 보드"
+    }
+  ],
+  "open_valid_one_line": [
+    {
+      "type": "md",
+      "text": "보드를 열어보세요."
+    },
+    {
+      "type": "open",
+      "target": {
+        "kind": "board",
+        "id": "overview-1"
+      }
+    }
+  ],
+  "open_bad_json": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{not json",
+      "reason": "invalid_json: open fence: invalid JSON object"
+    }
+  ],
+  "open_missing_board": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{\"title\": \"제목만\"}",
+      "reason": "invalid_value: open.board: a non-empty string"
+    }
+  ],
+  "open_unknown_field": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{\"board\": \"b1\", \"extra\": true}",
+      "reason": "unknown_field: open.extra"
+    }
+  ],
+  "open_control_char_board": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{\"board\": \"bad\\u0007id\"}",
+      "reason": "invalid_value: open.board: at most 200 characters"
+    }
+  ],
+  "open_board_too_long": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{\"board\": \"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}",
+      "reason": "invalid_value: open.board: at most 200 characters"
+    }
+  ],
+  "attach_valid": [
+    {
+      "type": "md",
+      "text": "파일을 첨부했어요."
+    },
+    {
+      "type": "attach",
+      "paths": [
+        "reports/a.pdf",
+        "charts/b.png"
+      ]
+    }
+  ],
+  "attach_empty_refused": [
+    {
+      "type": "code",
+      "lang": "attach",
+      "text": "   ",
+      "reason": "invalid_value: attach: one file path a line"
+    }
+  ],
+  "nested_4_backticks_wrapping_3": [
+    {
+      "type": "code",
+      "lang": "markdown",
+      "text": "예시:\n```chart\n{\"kind\":\"bar\",\"labels\":[\"a\"],\"series\":[{\"name\":\"s\",\"values\":[1]}]}\n```"
+    }
+  ],
+  "tilde_wrapping_backticks": [
+    {
+      "type": "code",
+      "lang": "md",
+      "text": "```python\nprint(1)\n```"
+    }
+  ],
+  "backticks_wrapping_tildes": [
+    {
+      "type": "code",
+      "lang": "text",
+      "text": "~~~table\n{\"columns\":[\"a\"],\"rows\":[[\"1\"]]}\n~~~"
+    }
+  ],
+  "tilde_typed_fences": [
+    {
+      "type": "block",
+      "block": {
+        "columns": [
+          "항목",
+          "상태"
+        ],
+        "rows": [
+          [
+            "빌드",
+            "통과"
+          ],
+          [
+            "배포",
+            "대기"
+          ]
+        ],
+        "type": "table",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "block",
+      "block": {
+        "kind": "bar",
+        "labels": [
+          "월요일",
+          "화요일"
+        ],
+        "series": [
+          {
+            "name": "처리 건수",
+            "values": [
+              12,
+              19
+            ]
+          }
+        ],
+        "type": "chart",
+        "id": "chat2"
+      }
+    }
+  ],
+  "tilde_length_mismatch_closing": [
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "line1\n~~~\nline2"
+    }
+  ],
+  "closing_with_trailing_text_ignored": [
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "x = 1\n```not-close\ny = 2"
+    }
+  ],
+  "indent_3_vs_4_spaces": [
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "   ok()"
+    },
+    {
+      "type": "md",
+      "text": "    ```python\n    prose()\n    ```"
+    }
+  ],
+  "backtick_in_info_vs_tilde_info": [
+    {
+      "type": "md",
+      "text": "```js `inline`\nstill prose"
+    },
+    {
+      "type": "code",
+      "lang": "txt",
+      "text": "inside tilde",
+      "info": "txt `ok`"
+    }
+  ],
+  "untyped_one_line_and_mismatched": [
+    {
+      "type": "md",
+      "text": "앞\n```ls -la```\n````step 42```\n뒤"
+    }
+  ],
+  "unclosed_chart_streaming": [
+    {
+      "type": "md",
+      "text": "분석 중..."
+    },
+    {
+      "type": "pending",
+      "lang": "chart",
+      "text": "{\"kind\":\"bar\""
+    }
+  ],
+  "unclosed_chart_final": [
+    {
+      "type": "md",
+      "text": "분석 중..."
+    },
+    {
+      "type": "code",
+      "lang": "chart",
+      "text": "{\"kind\":\"bar\"",
+      "reason": "missing closing fence"
+    }
+  ],
+  "unclosed_table_streaming": [
+    {
+      "type": "md",
+      "text": "표 생성 중..."
+    },
+    {
+      "type": "pending",
+      "lang": "table",
+      "text": "{\"columns\":[\"a\"]"
+    }
+  ],
+  "unclosed_table_final": [
+    {
+      "type": "md",
+      "text": "표 생성 중..."
+    },
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{\"columns\":[\"a\"]",
+      "reason": "missing closing fence"
+    }
+  ],
+  "unclosed_python_streaming": [
+    {
+      "type": "pending",
+      "lang": "python",
+      "text": "def f():"
+    }
+  ],
+  "unclosed_python_final": [
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "def f():"
+    }
+  ],
+  "unclosed_mermaid_streaming": [
+    {
+      "type": "pending",
+      "lang": "mermaid",
+      "text": "graph TD\n  A -->"
+    }
+  ],
+  "unclosed_choices_streaming": [
+    {
+      "type": "md",
+      "text": "선택해 주세요."
+    },
+    {
+      "type": "pending",
+      "lang": "choices",
+      "text": "{\"options\":[\"예\""
+    }
+  ],
+  "unclosed_open_streaming": [
+    {
+      "type": "pending",
+      "lang": "open",
+      "text": "{\"board\":\"b1\""
+    }
+  ],
+  "unclosed_open_final": [
+    {
+      "type": "code",
+      "lang": "open",
+      "text": "{\"board\":\"b1\"",
+      "reason": "missing closing fence"
+    }
+  ],
+  "unclosed_secret_ref_streaming": [
+    {
+      "type": "pending",
+      "lang": "secret",
+      "text": "{\"key\":\"demo.k\""
+    }
+  ],
+  "unclosed_secret_ref_final": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "{\"key\":\"demo.k\"",
+      "reason": "missing closing fence"
+    }
+  ],
+  "unclosed_secret_req_streaming": [
+    {
+      "type": "pending",
+      "lang": "secret",
+      "text": "",
+      "info": "secret 0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "unclosed_secret_req_final": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "",
+      "info": "secret 0123456789abcdef0123456789abcdef"
+    }
+  ],
+  "unclosed_step_streaming": [
+    {
+      "type": "md",
+      "text": "다음 단계:"
+    },
+    {
+      "type": "pending",
+      "lang": "step",
+      "text": "",
+      "info": "step 77"
+    }
+  ],
+  "crlf_mixed_korean": [
+    {
+      "type": "md",
+      "text": "요약입니다."
+    },
+    {
+      "type": "block",
+      "block": {
+        "columns": [
+          "항목",
+          "상태"
+        ],
+        "rows": [
+          [
+            "빌드",
+            "통과"
+          ],
+          [
+            "배포",
+            "대기"
+          ]
+        ],
+        "type": "table",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "print('안녕')"
+    },
+    {
+      "type": "md",
+      "text": "마무리."
+    }
+  ],
+  "lone_cr_endings": [
+    {
+      "type": "md",
+      "text": "첫 줄"
+    },
+    {
+      "type": "block",
+      "block": {
+        "items": [
+          {
+            "when": "09:15",
+            "label": "점검 시작",
+            "detail": "로그 확인 완료"
+          }
+        ],
+        "type": "timeline",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "md",
+      "text": "마지막 줄"
+    }
+  ],
+  "multi_block_numbering_skips_failed": [
+    {
+      "type": "md",
+      "text": "전체 보고서입니다."
+    },
+    {
+      "type": "code",
+      "lang": "table",
+      "text": "{broken",
+      "reason": "invalid_json: table fence: invalid JSON object"
+    },
+    {
+      "type": "block",
+      "block": {
+        "kind": "bar",
+        "labels": [
+          "월요일",
+          "화요일"
+        ],
+        "series": [
+          {
+            "name": "처리 건수",
+            "values": [
+              12,
+              19
+            ]
+          }
+        ],
+        "type": "chart",
+        "id": "chat1"
+      }
+    },
+    {
+      "type": "code",
+      "lang": "python",
+      "text": "x = 1"
+    },
+    {
+      "type": "block",
+      "block": {
+        "items": [
+          {
+            "when": "09:15",
+            "label": "점검 시작",
+            "detail": "로그 확인 완료"
+          }
+        ],
+        "type": "timeline",
+        "id": "chat2"
+      }
+    },
+    {
+      "type": "open",
+      "target": {
+        "kind": "board",
+        "id": "summary-board"
+      },
+      "title": "요약"
+    },
+    {
+      "type": "block",
+      "block": {
+        "key": "demo.api-token",
+        "label": "데모 API 토큰",
+        "type": "secret",
+        "id": "chat3"
+      }
+    },
+    {
+      "type": "code",
+      "lang": "choices",
+      "text": "{\"options\": [\"승인\", \"보류\"]}"
+    },
+    {
+      "type": "md",
+      "text": "이상입니다."
+    }
+  ],
+  "secret_ref_template_link_refused": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"template\": \"https://example.com/hook?token={value}\"}",
+      "reason": "invalid_value: secret.template: disallowed scheme or origin"
+    }
+  ],
+  "secret_ref_template_app_link_refused": [
+    {
+      "type": "code",
+      "lang": "secret",
+      "text": "{\"key\": \"demo.api-token\", \"label\": \"데모 API 토큰\", \"template\": \"app:///config?inline={value}\"}",
+      "reason": "invalid_value: secret.template: disallowed scheme or origin"
+    }
+  ]
+}

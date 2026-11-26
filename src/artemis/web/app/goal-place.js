@@ -1,0 +1,1 @@
+export function goalPlace(e,t=Date.now()){return typeof e?.state!="string"||e.state==="done"?null:e.state!=="owner"&&e.current_move?.kind==="paused"&&Date.parse(e.next_check_at)>t?"later":e.is_running===!0&&(e.active_worker_count??0)>0?"live":"waiting"}

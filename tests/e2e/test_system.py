@@ -123,14 +123,16 @@ class System(unittest.TestCase):
     # The steps
 
     def test_1_the_home_is_up_and_the_app_api_answers(self):
-        status, state = self.api("GET", "/api/state")
+        status, settings = self.api("GET", "/api/settings")
         self.assertEqual(status, 200)
-        self.assertLessEqual({"stopped", "counts", "projects", "cards", "lessons", "version"}, set(state))
-        self.assertEqual(self.api("GET", "/api/state", token=False)[0], 401)
-        status, digest = self.api("GET", "/api/digest")
-        self.assertEqual((status, set(digest) >= {"lines", "counts", "text"}), (200, True))
+        self.assertLessEqual({"adapters", "standing", "devices", "schedules", "vault", "version", "lead"},
+                             set(settings))
+        self.assertEqual(self.api("GET", "/api/settings", token=False)[0], 401)
+        status, setup = self.api("GET", "/api/setup")
+        self.assertEqual((status, "stopped" in setup), (200, True))
+        self.assertEqual(self.artemis("digest").returncode, 0)
         with LOOPBACK.open(urllib.request.Request(
-                f"http://127.0.0.1:{self.home.port}/api/events", headers={
+                f"http://127.0.0.1:{self.home.port}/events", headers={
                     "Authorization": "Bearer " + self.paths.token.read_text(encoding="utf-8").strip()}),
                 timeout=30) as events:
             self.assertTrue(events.headers["Content-Type"].startswith("text/event-stream"))
@@ -142,7 +144,7 @@ class System(unittest.TestCase):
         for name in ("beach.jpg", "hill.jpg", "notes.txt"):
             (photos / name).write_bytes(secrets.token_bytes(64))
         for path in (repo, photos):
-            self.assertIn(self.api("POST", "/api/projects", {"path": str(path)})[0], (200, 201))
+            self.artemis("project", "add", path)
         listed = self.artemis("project", "list").stdout
         self.assertRegex(listed, r"(?m)\brepo\b.*Prøject repo")
         self.assertRegex(listed, r"(?m)\bfolder\b.*Fotos ü")
@@ -161,7 +163,7 @@ class System(unittest.TestCase):
         until(lambda: self.state(task) in ("verified", "stuck"))
         self.assertEqual(self.state(task), "verified")
         self.assertTrue((photos / "jpg" / "beach.jpg").is_file())
-        self.assertEqual(self.api("POST", f"/api/undo/{task}")[0], 200)
+        self.artemis("undo", str(task))
         self.assertEqual(sorted(path.name for path in photos.iterdir()), ["beach.jpg", "hill.jpg", "notes.txt"])
 
     @needs("broker", "mcp", "httpop", "vault", "sdk:mcp")
@@ -189,7 +191,10 @@ class System(unittest.TestCase):
         self.assertLessEqual({"run", "http_request", "write_file", "note"}, tools)
         self.assertEqual(called["state"], "held")
         self.assertEqual(self.outside.received, [])
-        self.assertEqual(self.api("POST", f"/api/cards/{called['card']}/approve", {})[0], 200)
+        status, approval = self.api("GET", f"/approvals/{called['card']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(self.api("POST", f"/approvals/{called['card']}/decide",
+                                  {"verdict": "approve", "scope_hash": approval["scope_hash"]})[0], 200)
         until(lambda: self.home.ledger.card(called["card"])["state"] in ("done", "failed", "unknown"))
         self.assertEqual(self.home.ledger.card(called["card"])["state"], "done")
         [arrived] = self.outside.received
@@ -206,13 +211,17 @@ class System(unittest.TestCase):
         card = self.home.ledger.open_card(_role("HOME"), "send as you", "Tell everyone", "it speaks for you",
                                           project=project["id"], command="notify-team --all",
                                           cwd=project["path"], shell="sh")
-        self.assertEqual(self.api("POST", f"/api/cards/{card}/decline", {})[0], 200)
-        line = until(lambda: next((line for line in self.api("GET", "/api/digest")[1]["lines"]
-                                   if line.get("question")), None))
-        self.assertEqual(line["question"], f"You declined D{card}. Always ask before `notify-team`?")
+        status, approval = self.api("GET", f"/approvals/{card}")
+        self.assertEqual(status, 200)
+        self.assertEqual(self.api("POST", f"/approvals/{card}/decide",
+                                  {"verdict": "deny", "scope_hash": approval["scope_hash"]})[0], 200)
+        lesson = until(lambda: next((row for row in self.home.ledger.lessons(state="proposed")
+                                     if row["kind"] == "guard"), None))
+        self.assertIn(f"You declined D{card}. Always ask before `notify-team`?", self.artemis("lesson", "list").stdout)
+        self.assertIn(f"L{lesson['id']}", self.artemis("digest").stdout)
         self.assertEqual(guard.classify(["notify-team", "--all"], guard.SHELL, guard.Rules.load(self.paths)).kind,
                          None)
-        self.assertEqual(self.api("POST", f"/api/lessons/{line['ref'][1:]}/accept", {})[0], 200)
+        self.assertEqual(self.api("POST", f"/api/lessons/{lesson['id']}/accept", {})[0], 200)
         until(lambda: "learned" in tomllib.loads(self.paths.rules.read_text(encoding="utf-8")))
         self.assertEqual(guard.classify(["notify-team", "--all"], guard.SHELL, guard.Rules.load(self.paths)).kind,
                          "send as you")
@@ -220,11 +229,11 @@ class System(unittest.TestCase):
     def test_7_stop_and_resume(self):
         request = self.artemis("request", "One more", "--project", self.project("repo")["name"]).stdout.strip()
         self.assertEqual(self.api("POST", "/api/stop", {"reason": "lunch"})[0], 200)
-        self.assertTrue(self.api("GET", "/api/state")[1]["stopped"])
+        self.assertTrue(self.api("GET", "/api/setup")[1]["stopped"])
         self.assertIn("stopped until you resume",
                       self.artemis("task", request, "One more", "--check", "true", check=False).stderr)
         self.assertEqual(self.api("POST", "/api/resume", {})[0], 200)
-        self.assertFalse(self.api("GET", "/api/state")[1]["stopped"])
+        self.assertFalse(self.api("GET", "/api/setup")[1]["stopped"])
 
 
 def _role(name):

@@ -20,14 +20,13 @@ import os
 from pathlib import Path, PureWindowsPath
 import re
 import shutil
-import signal
 import subprocess
 import threading
 import time
 
-from . import guard, httpop, lessons, undo
+from . import boards, guard, httpop, lessons, undo
 from .judge import Criterion, capture, within
-from .process import check_env, executable, join_command, split_command
+from .process import check_env, executable, group, join_command, kill_tree, split_command
 from .roles import Interrupt, Role, WorkflowError
 from .schedule import next_after
 from .vault import VaultLocked
@@ -60,7 +59,10 @@ STR, INT, BOOL = {"type": "string"}, {"type": "integer"}, {"type": "boolean"}
 NAME = {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"}
 PROJECT = {"type": ["integer", "string"], "description": "The project's number or name."}
 LIST = {"type": "array", "items": STR, "maxItems": 20}
-OPTIONS = {"type": "array", "minItems": 2, "maxItems": 8, "items": _object(("id", "label"), id=STR, label=STR)}
+OPTIONS = {"type": "array", "minItems": 2, "maxItems": 8, "items": _object(
+    ("id", "label"), id=STR,
+    label={"type": "string", "maxLength": 20, "description": "The words on its button, at most 20 characters."},
+    line={"type": "string", "maxLength": 200, "description": "One line under the button, for what the label cannot hold."})}
 HOST_CHECKS = {"type": "array", "maxItems": 20, "items": _object(
     ("type", "path"), type={"enum": ["exists", "contains", "count", "preserved"]}, path=STR, text=STR,
     min={"type": "integer", "minimum": 1}, to=STR)}
@@ -69,6 +71,15 @@ MAX_BYTES = {"type": "integer", "minimum": 1, "maximum": 1024 * 1024}
 SECRET_REQUEST = _object(("name", "why", "use"), name=NAME, why=STR, use={"enum": ["http", "env"]}, origin=STR,
                          kind={"enum": ["none", "send", "spend"]})
 CHOICE = _object(("kind", "what", "why", "options"), kind={"enum": ["choice"]}, what=STR, why=STR, options=OPTIONS)
+BOARD = _object(("title", "blocks"), id={"type": "string", "maxLength": 96},
+                title={"type": "string", "maxLength": 200},
+                layout=_object(width={"enum": ["narrow", "wide", "full"]}),
+                blocks={"type": "array", "minItems": 1, "maxItems": 200, "items": {"type": "object"}})
+BOARD_DESC = ("Publish or replace a board shown in the Artemis App. Give title and blocks (type in heading, text, "
+              "table, chart, timeline, code, notes, answer, step, secret — secret names a vault secret in key, "
+              "never its value). Pass the same id to replace a board, or omit id for a new one.")
+LEAD_ASK = _object(("kind", "what", "why"), kind={"enum": ["choice", "step"]}, what=STR, why=STR,
+                   options=OPTIONS, link=STR, project=PROJECT)
 CHECKS_TEXT = ("checks are commands that must exit 0 (one command each, no shell); files must exist in the commit; "
                "host_checks look at a folder project: exists {path} (and changed since the start), contains "
                "{path, text}, count {path: a folder or glob, min}, preserved {path: the files at the start, to: "
@@ -104,10 +115,13 @@ WORKER = (
     Tool("job_stop", "Stop a job and everything it started.", _object(("job",), job=INT), "_job_stop"),
     Tool("http_request", "Make one HTTP request. Name a vault secret in `secret` and Artemis adds it to the request "
          "itself, only for the website it belongs to; you never see it. A request that sends as the person can come "
-         "back \"held\": do not retry it, report it. save_to writes the response body to a file in the project.",
+         "back \"held\": do not retry it, report it. save_to writes the response body to a file in the project. "
+         "purpose says what the request does in plain words, like \"Post the weekly summary to the team channel\": "
+         "it is the title of the card the person answers.",
          _object(("method", "url"), method={"enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]}, url=STR,
                  headers={"type": "object", "additionalProperties": STR, "maxProperties": 50},
-                 body={"type": "string", "maxLength": 1024 * 1024}, secret=NAME, save_to=STR), "_http_request"),
+                 body={"type": "string", "maxLength": 1024 * 1024}, secret=NAME, save_to=STR,
+                 purpose={"type": "string", "maxLength": 200}), "_http_request"),
     Tool("read_file", "Read a text file in the project (the first 256 KB, or max_bytes).",
          _object(("path",), path=STR, max_bytes=MAX_BYTES), "_read_file"),
     Tool("list_dir", "List a folder in the project (at most 500 entries), optionally only names matching glob.",
@@ -127,6 +141,7 @@ WORKER = (
     Tool("ask", "Put a choice to the person. Returns the card number; the answer arrives in a later attempt.", CHOICE,
          "_ask"),
     Tool("note", "Record a short note on this task.", _object(("text",), text=STR), "_note"),
+    Tool("board", BOARD_DESC, BOARD, "_board"),
     Tool("check", "Run your task's check number `number` (from 1) now, the way the judge will, and say whether it "
          "passes.", _object(("number",), number={"type": "integer", "minimum": 1}), "_check"),
 )
@@ -155,7 +170,9 @@ LEAD = (
          "'every 1d at 08:30', 'weekly fri 18:00'. " + CHECKS_TEXT,
          _object(("project", "title", "brief", "kind", "spec"), project=PROJECT, title=STR, brief=STR,
                  kind=TASK_KINDS, spec=STR, checks=LIST, files=LIST, host_checks=HOST_CHECKS), "_schedule"),
-    Tool("ask", "Put a choice to the person on a card. Returns the card number.", CHOICE, "_ask"),
+    Tool("ask", "Put a choice or a hand-done step to the person on a card. A choice needs options; a step is "
+         "something only the person can do by hand (optionally with a link). Returns the card number.",
+         LEAD_ASK, "_ask"),
     Tool("secret_request", "Ask the person to add a secret the vault lacks. use is http (give the origin) or env. "
          "Returns the card number.", SECRET_REQUEST, "_secret_request"),
     Tool("lesson", "Propose a lesson: a rule for prompts, a check, a guard pattern or a placement change. It applies "
@@ -165,6 +182,7 @@ LEAD = (
          "_lesson"),
     Tool("note", "Record your own reading of the situation (shown as inferred).", _object(("text",), text=STR),
          "_note"),
+    Tool("board", BOARD_DESC, BOARD, "_board"),
 )
 
 TOOLS = {"worker": {tool.name: tool for tool in WORKER}, "lead": {tool.name: tool for tool in LEAD}}
@@ -219,28 +237,6 @@ def _is(value, name: str) -> bool:
 
 # Running commands
 
-def _group() -> dict:
-    """Start the child in its own process group, so it and everything it starts can be stopped together."""
-    if os.name == "nt":
-        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-    return {"start_new_session": True}
-
-
-def _kill_tree(popen: subprocess.Popen) -> None:
-    if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(popen.pid), "/T", "/F"], capture_output=True, check=False)
-        return
-    for sig in (signal.SIGTERM, signal.SIGKILL):
-        try:
-            os.killpg(popen.pid, sig)
-            popen.wait(timeout=5)
-            return
-        except ProcessLookupError:
-            return
-        except subprocess.TimeoutExpired:
-            continue
-
-
 class _Process:
     """One command: the child, the tail of its output scrubbed as it streams, its time limit and the stop."""
 
@@ -248,7 +244,7 @@ class _Process:
                  stream, halt):
         self.popen = subprocess.Popen(
             command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL if stdin is None else subprocess.PIPE, **_group())
+            stdin=subprocess.DEVNULL if stdin is None else subprocess.PIPE, **group())
         self.output, self.exit_code, self.ended_by = "", None, ""
         self.done = threading.Event()
         self._stream, self._lock = stream, threading.Lock()
@@ -290,7 +286,7 @@ class _Process:
     def stop(self, reason: str) -> None:
         if not self.done.is_set():
             self.ended_by = self.ended_by or reason
-            _kill_tree(self.popen)
+            kill_tree(self.popen)
 
     def result(self) -> dict:
         if not self.done.is_set():
@@ -812,18 +808,44 @@ class Broker:
         card = ledger.open_card(Role(grant.role), "secret", f"Add the secret {name}", why, project=grant.project,
                                 task=grant.task, run=grant.run if grant.task else None, options=options)
         self._record(grant, "secret.requested", f"{name} ({use})", card=card)
+        from .web.secret_requests import request_for_card    # the App's card, in the one conversation the person has
+        asked = request_for_card(ledger, card)["id"]
+        ledger.say(Role.LEAD, f"{why}\n\n```secret {asked}\n```", project=grant.project, card=card)
         return {"card": card}
 
-    def _ask(self, grant, kind: str, what: str, why: str, options: list) -> dict:
+    def _ask(self, grant, kind: str, what: str, why: str, options: list | None = None,
+             link: str | None = None, project=None) -> dict:
+        proj = grant.project if project is None else self._project(project)[0]
+        if kind == "step":
+            if grant.role != "lead":
+                raise ToolError("Only the lead opens a step for the person.")
+            if options is not None:
+                raise ToolError("A step takes no options.")
+            clean_link = link.strip() if isinstance(link, str) and link.strip() else None
+            if clean_link and any(ord(char) < 32 for char in clean_link):
+                raise ToolError("A step link cannot contain control characters.")
+            card = self.home.ledger.open_card(Role.LEAD, "step", what, why, project=proj, task=grant.task,
+                                              options={"link": clean_link} if clean_link else None)
+            self.home.ledger.say(Role.LEAD, f"{what}\n\n```step {card}\n```", project=proj, card=card)
+            return {"card": card}
+        if not options:
+            raise ToolError("A choice needs options.")
         if len({option["id"] for option in options}) != len(options):
             raise ToolError("Each option needs its own id.")
-        card = self.home.ledger.open_card(Role(grant.role), kind, what, why, project=grant.project, task=grant.task,
+        card = self.home.ledger.open_card(Role(grant.role), kind, what, why, project=proj, task=grant.task,
                                           run=grant.run if grant.task else None, options=options)
+        from .web.owner import choice_fence    # answered in the conversation, whichever agent asks
+        self.home.ledger.say(Role.LEAD, choice_fence(what, options), project=proj, card=card)
         return {"card": card}
 
     def _note(self, grant, text: str) -> dict:
         self.home.ledger.note(Role(grant.role), text, project=grant.project, task=grant.task)
         return {"noted": True}
+
+    def _board(self, grant, title: str, blocks: list[dict], id: str | None = None,
+               layout: dict | None = None) -> dict:
+        return boards.publish(self.home.ledger, Role(grant.role), title, blocks, board_id=id, layout=layout,
+                              project=grant.project, task=grant.task)
 
     def _check(self, grant, number: int) -> dict:
         criteria = json.loads(self.home.ledger.task_brief(grant.task)["criteria"])
@@ -1009,9 +1031,11 @@ class Broker:
 
     def _lesson(self, grant, kind: str, text: str, payload: dict | None = None, project=None) -> dict:
         number = None if project is None else self._project(project)[0]
-        lesson = self.home.ledger.add_lesson(Role.LEAD, kind, text, payload, [{"from": "lead"}], project=number,
-                                             state="proposed")
-        return {"lesson": lesson, "state": "proposed"}
+        lesson = lessons.propose(self.home.ledger, Role.LEAD, kind, text, payload, [{"from": "lead"}], project=number)
+        if lesson is None:
+            raise ToolError("That lesson is already there.")
+        return {"lesson": lesson, "state": next(row["state"] for row in self.home.ledger.lessons(number, state=None)
+                                                if row["id"] == lesson)}
 
 
 def _walk(start: Path):

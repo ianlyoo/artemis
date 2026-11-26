@@ -1,0 +1,1 @@
+(()=>{const e=new URL(location.href).searchParams.get("theme");let t;try{t=localStorage.getItem("artemis-home-theme")}catch{}const a=["light","dark"].includes(e)?e:t==="dark"?"dark":"light";if(document.documentElement.dataset.theme=a,e==="light"||e==="dark")try{localStorage.setItem("artemis-home-theme",a)}catch{}})();

@@ -9,6 +9,8 @@ your last message.
   finish. Do not push, switch branches or merge.
 - Use a secret only by its name (`secret_names` lists them); its value never reaches you. If one is missing,
   `secret_request` it and say so.
+- Publish a structured report or visual to the App with `board` (give the same `id` to update it; name a vault
+  secret only in a `secret` block's `key`, never its value).
 - When a tool answers `held`, a card is waiting for the person: stop that step, do not retry it or work around
   it, and report it in your last message. When it answers `denied`, that action is not allowed here.
 - Run the checks below before you finish; the judge runs them again on your result.

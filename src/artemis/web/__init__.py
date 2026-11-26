@@ -14,13 +14,11 @@ import hmac
 import http.server
 import ipaddress
 import json
-import os
 from pathlib import Path
 import queue
 import re
 import secrets
 import select
-import shlex
 import socket
 import socketserver
 import ssl
@@ -32,24 +30,35 @@ from urllib.parse import parse_qs, urlsplit
 from cryptography import x509
 import segno
 
-from .. import __version__, agents, attention, demo_receiver, httpop, lessons
+from .. import __version__, agents, lessons
 from ..broker import ToolError
-from ..config import HomeConfig, repo_name, write_lead
+from ..config import HomeConfig, base_url_setting, model_setting, name_setting, write_setting
 from ..home import PAIR_S
 from ..roles import Interrupt, Role, WorkflowError
 from ..scrub import audit
 from ..tls import address, ensure_cert, fingerprint, lan_names, qr_text
 from ..vault import VaultLocked
+from . import boards, chat_files, conversation, frames, owner, secret_requests, workspace
+from .wire import Refused, module_frames, refresh_kinds
+
+# The App's feature modules, each with ROUTES, FRAMES and REFRESH (wire.py says how); frames is the core one.
+FEATURES = (workspace, frames, conversation, chat_files, boards, owner, secret_requests)
 
 
-STATIC = Path(__file__).parent
+APP = Path(__file__).parent / "app"          # the App: its built front-end (tools/build_web)
+CLIENT = Path(__file__).parent / "client.js"   # how the App reaches this home: its paths and its live stream
+BUILT = re.compile(r"/static/[0-9a-f]{12}/(.+)")   # a file of one build, named by the build's id: cached for good
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
-         ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8"}
+         ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml",
+         ".png": "image/png", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2",
+         ".webmanifest": "application/manifest+json", ".json": "application/json", ".txt": "text/plain; charset=utf-8",
+         ".wasm": "application/wasm", ".wav": "audio/wav", ".mp3": "audio/mpeg"}
+ENCODINGS = (("br", ".br"), ("gzip", ".gz"))   # the build's own compressed copies, served when the browser takes them
 HEADERS = {
-    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
-                               "connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; "
-                               "frame-ancestors 'none'",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                               "img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; "
+                               "connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; "
+                               "form-action 'self'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "X-Frame-Options": "DENY",
@@ -62,36 +71,17 @@ COOKIE = "artemis_session"
 PAIR_TRIES = 5                    # wrong pairing tokens before the App takes none until a new link is made
 SESSION_SECONDS = 30 * 86400      # a device unseen this long pairs again
 POLL_SECONDS = 0.5
-POLL_WAIT = 25.0                  # a long poll answers within this
 HEARTBEAT_SECONDS = 15.0
-MAX_STREAMS = 32                  # live streams; past this the App polls, and writes always find a thread
+FRESH_SECONDS = 60.0     # the App calls data over 90 s old stale; a quiet home re-reads it at least this often
+MAX_STREAMS = 32                  # live streams; past this, writes still find a thread
 MAX_BODY = 1 << 20                # the most the App ever sends
 DRAIN_MAX = 16 << 20              # a longer body is read off and dropped up to this, so its sender gets the 413
-LOG_TAIL = 8192
 REPLIES = 2000                    # answers kept for repeated X-Request-Ids
-TURN_WAIT = 20.0                  # closing waits this long for a lead that is still answering
-TURN_RECORD_SECONDS = 3600        # a lead turn's record comes at most this long before the reply it names
-OPEN_CARDS = ("waiting", "approved", "running")
-STANDING_KINDS = (Interrupt.SEND, Interrupt.DELETE)
-# Ledger events that read as a quiet line in the conversation.
-UPDATE_KINDS = ("project.added", "task", "started", "reported", "pass", "reject", "red", "stale", "applied", "stuck",
-                "stopped", "dropped", "card.opened", "card.approved", "card.declined", "card.done", "card.failed",
-                "card.unknown", "card.answered", "card.expired", "secret.set", "secret.requested", "run.held",
-                "run.denied", "lesson.added", "lesson.active", "lesson.retired", "lesson.unproven", "schedule.fired",
-                "schedule.late", "review", "undo", "halt", "resume", "device.pending", "device.allowed",
-                "device.revoked", "standing.revoked", "lead.switched")
+TURN_WAIT = 20.0                  # closing waits this long for a lead still answering and streams still open
 SYSTEMS = (("iPhone", "iPhone"), ("iPad", "iPad"), ("Android", "Android"), ("Windows", "Windows"),
            ("Macintosh", "Mac"), ("CrOS", "ChromeOS"), ("Linux", "Linux"))
 BROWSERS = (("Edg/", "Edge"), ("FxiOS", "Firefox"), ("Firefox/", "Firefox"), ("CriOS", "Chrome"),
             ("Chrome/", "Chrome"), ("Safari/", "Safari"))
-
-
-class Refused(Exception):
-    """A request the App answers with an HTTP error status and one plain sentence."""
-
-    def __init__(self, status: int, message: str, **extra):
-        super().__init__(message)
-        self.status, self.extra = status, extra
 
 
 def _digest(token: str) -> str:
@@ -188,22 +178,8 @@ def _host(value: str) -> str:
     return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
 
 
-def _today() -> float:
-    now = time.localtime()
-    return time.mktime((now.tm_year, now.tm_mon, now.tm_mday, 0, 0, 0, 0, 0, -1))
-
-
 def _loads(text: str | None, default=None):
     return default if text is None else json.loads(text)
-
-
-def _argv(command: str | None) -> list[str] | None:
-    """A card's command as the broker keeps it, a JSON argv; None for none, or for a command written as text."""
-    try:
-        argv = json.loads(command) if command else None
-    except ValueError:
-        return None
-    return argv if isinstance(argv, list) and argv and all(isinstance(word, str) for word in argv) else None
 
 
 def _label(name: str | None) -> str | None:
@@ -223,11 +199,10 @@ class AppServer(http.server.ThreadingHTTPServer):
         self.hosts = LOCAL_NAMES | (tls.names if tls else frozenset())
         self.auth = Auth(home)
         self.closing = threading.Event()
-        self.titles: dict[int, str] = {}
         self.replies: OrderedDict[tuple[str, str], Reply] = OrderedDict()
         self.replies_lock = threading.Lock()
         self.streams = 0
-        self.streams_lock = threading.Lock()
+        self.streams_changed = threading.Condition()   # shutdown waits on it for the last stream
         self.turns: set[threading.Thread] = set()
         self.turns_lock = threading.Lock()
         self.scrub = home.vault.scrubber.scrub if home.vault is not None else str
@@ -271,6 +246,27 @@ class AppServer(http.server.ThreadingHTTPServer):
             turns = list(self.turns)
         for thread in turns:
             thread.join(max(0.0, deadline - time.monotonic()))
+        with self.streams_changed:      # a stream reads the ledger until it sees the close
+            self.streams_changed.wait_for(lambda: not self.streams, max(0.0, deadline - time.monotonic()))
+
+    def frame(self, kind: str, payload) -> None:
+        """Send one frame to every open App stream now (a change no ledger event records)."""
+        self.home.publish("frame", {"kind": kind, "payload": payload})
+
+    def say(self, text: str, attachments: list | None = None, client: str | None = None) -> int:
+        """The person's message into the conversation, from the App's send or its queue; the lead answers it."""
+        message = self.home.ledger.say(Role.OWNER, text, attachments=attachments, client=client)
+        if self.home.lead is None:
+            self.home.ledger.say(Role.HOME, "No lead runs in this home yet, so nobody answers here. Your message is "
+                                            "kept; `artemis doctor providers` shows which agent can lead.")
+        else:
+            self.answer(message)
+        return message
+
+    def idle(self) -> bool:
+        """No answer is being written: a queued message goes now."""
+        with self.turns_lock:
+            return not self.turns
 
     def answer(self, message: int) -> None:
         """The lead answers a message in a thread of its own, and shutdown waits for it: a home that closes does not
@@ -288,6 +284,8 @@ class AppServer(http.server.ThreadingHTTPServer):
         finally:
             with self.turns_lock:
                 self.turns.discard(threading.current_thread())
+            if not self.closing.is_set():
+                chat_files.drain(self)     # the next message the person queued while this answer was written
 
     def url(self, host: str) -> str:
         return f"{self.scheme}://{host}:{self.server_address[1]}/"
@@ -320,22 +318,6 @@ class AppServer(http.server.ThreadingHTTPServer):
                           "The phone then shows a 4-digit code: allow it in the App on this computer "
                           "or with `artemis device allow <code>`."])
 
-    def title(self, task: int | None) -> str | None:
-        if task is None:
-            return None
-        if task not in self.titles:
-            self.titles[task] = self.home.ledger.task_brief(task)["title"]
-        return self.titles[task]
-
-    def envelope(self, row) -> dict:
-        """One ledger event as the App receives it: the C2 envelope, the task's title, and whether it reads as an
-        update line in the conversation."""
-        return {"id": row["id"], "at": row["at"], "kind": row["kind"], "role": row["role"],
-                "project_id": row["project_id"], "task_id": row["task_id"], "card_id": row["card_id"],
-                "detail": row["detail"], "data": _loads(row["data"]), "title": self.title(row["task_id"]),
-                "update": row["kind"] in UPDATE_KINDS}
-
-
 class Handler(http.server.BaseHTTPRequestHandler):
     server: AppServer
     server_version = "Artemis"
@@ -343,19 +325,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     ROUTES = (
-        ("GET", r"/api/me", "me"), ("GET", r"/api/state", "state"),
-        ("GET", r"/api/messages", "messages"), ("POST", r"/api/messages", "say"),
-        ("GET", r"/api/updates", "updates"), ("GET", r"/api/events", "events"),
-        ("GET", r"/api/projects/(\d+)", "project"), ("POST", r"/api/projects", "add_project"),
-        ("GET", r"/api/tasks/(\d+)", "task"),
-        ("GET", r"/api/digest", "digest"), ("POST", r"/api/digest/read", "digest_read"),
-        ("POST", r"/api/cards/(\d+)/(approve|decline|choose|secret)", "card"),
+        ("GET", r"/api/me", "me"),
         ("GET", r"/api/secrets", "secrets"), ("POST", r"/api/secrets", "add_secret"),
         ("POST", r"/api/secrets/([A-Z][A-Z0-9_]*)/remove", "remove_secret"),
         ("GET", r"/api/secrets/audit", "secrets_audit"), ("POST", r"/api/vault/unlock", "unlock"),
-        ("GET", r"/api/lessons", "lessons"), ("POST", r"/api/lessons/(\d+)/(retire|accept)", "lesson"),
-        ("POST", r"/api/stop", "stop"), ("POST", r"/api/resume", "resume"), ("POST", r"/api/undo/(\d+)", "undo"),
-        ("GET", r"/api/settings", "settings"), ("POST", r"/api/settings/lead", "set_lead"),
+        ("POST", r"/api/lessons/(\d+)/(retire|accept)", "lesson"),
+        ("POST", r"/api/stop", "stop"), ("POST", r"/api/resume", "resume"),
+        ("GET", r"/api/settings", "settings"),
+        ("GET", r"/api/setup", "setup_state"), ("POST", r"/api/setup", "save_setup"),
+        ("GET", r"/events", "live"),
         ("POST", r"/api/standing/(\d+)/revoke", "revoke_standing"),
         ("GET", r"/api/devices", "devices"), ("POST", r"/api/devices/(\d+)/(allow|revoke)", "device_action"),
         ("POST", r"/api/pair/new", "pair_link"), ("POST", r"/api/signout", "signout"),
@@ -378,10 +356,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.reply: Reply | None = None
         self.device = None
         try:
-            self.raw = self.read_body()
+            parts = urlsplit(self.path)
+            self.raw = self.read_body(*self.body_limit(method, parts.path))
             if _host(self.headers.get("Host", "")) not in self.server.hosts:
                 raise Refused(403, "This address is not one Artemis answers to.")
-            parts = urlsplit(self.path)
             self.query = parse_qs(parts.query)
             if (self.server.tls and not isinstance(self.connection, ssl.SSLSocket)
                     and parts.path != "/broker/call" and not self.headers.get("Authorization")):
@@ -391,8 +369,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if parts.path == "/api/pair" and method == "POST":
                 self.same_origin()
                 return self.pair()
-            if parts.path.startswith("/api/"):
+            if parts.path.startswith("/api/") or self.routed(parts.path):
                 return self.api(method, parts.path)
+            if parts.path == "/healthz" and method == "GET":
+                return self.send_json({"ok": True})
             if method != "GET":
                 raise Refused(405, "Only the App's own pages are served here.")
             self.static(parts.path)
@@ -444,13 +424,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             caller = "cli"
         else:
             raise Refused(401, "Pair this browser first: open the link Artemis printed when it started.")
-        for verb, pattern, name in self.ROUTES:
+        for verb, pattern, answer in self.routes():
             found = re.fullmatch(pattern, path)
             if found and verb == method:
                 if method == "POST" and self.repeated(caller):
                     return
                 try:
-                    return getattr(self, name)(*found.groups())
+                    return answer(*found.groups())
                 except WorkflowError as exc:
                     raise Refused(409, str(exc)) from None
                 except VaultLocked as exc:
@@ -458,6 +438,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 except ValueError as exc:
                     raise Refused(400, str(exc)) from None
         raise Refused(404, "There is no such page in the App's API.")
+
+    def routes(self):
+        """(method, path pattern, answer) for every path the App's API answers: the server's own, then each
+        feature module's."""
+        for verb, pattern, name in self.ROUTES:
+            yield verb, pattern, getattr(self, name)
+        for module in FEATURES:
+            for verb, pattern, function in getattr(module, "ROUTES", ()):
+                yield verb, pattern, (lambda *groups, function=function: function(self, *groups))
+
+    def routed(self, path: str) -> bool:
+        return any(re.fullmatch(pattern, path) for _, pattern, _ in self.routes())
 
     def repeated(self, caller: str) -> bool:
         """A write sent again with the same X-Request-Id gets the first answer instead of being done twice."""
@@ -508,12 +500,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def read_body(self) -> bytes:
+    def body_limit(self, method: str, path: str) -> tuple[int, int, str]:
+        """(max bytes, drain cap, 413 error) for this route; feature modules may raise the cap for uploads."""
+        for module in FEATURES:
+            override = getattr(module, "body_limit", None)
+            if override is not None:
+                found = override(method, path)
+                if found is not None:
+                    limit, error = found
+                    return limit, max(DRAIN_MAX, limit + (1 << 20)), error
+        return MAX_BODY, DRAIN_MAX, "That is more than the App sends."
+
+    def read_body(self, limit: int = MAX_BODY, drain: int = DRAIN_MAX,
+                  too_large: str = "That is more than the App sends.") -> bytes:
         """This request's whole body, read off the connection before any answer. The next request on a kept-alive
         connection then starts where it should, and a refusal reaches a client that has finished sending: closing a
         socket with bytes still unread resets it on some systems (Windows does), and the client sees "connection
         aborted" in place of the answer. A body longer than the App sends is read off in pieces and dropped; one
-        declared longer than DRAIN_MAX is not read, and its connection ends."""
+        declared longer than drain is not read, and its connection ends."""
         coding = self.headers.get("Transfer-Encoding", "").strip().lower()
         if coding not in ("", "chunked"):
             self.close_connection = True
@@ -525,20 +529,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if not (declared.isascii() and declared.isdigit()):
                 self.close_connection = True
                 raise Refused(400, "Content-Length is not a size.")
-            if int(declared) > DRAIN_MAX:
+            if int(declared) > drain:
                 self.close_connection = True
-                raise Refused(413, "That is more than the App sends.")
+                raise Refused(413, too_large)
             pieces = self.pieces(int(declared))
         kept, size = [], 0
         for piece in pieces:
             size += len(piece)
-            if size > DRAIN_MAX:
+            if size > drain:
                 break
-            if size <= MAX_BODY:
+            if size <= limit:
                 kept.append(piece)
-        if size > MAX_BODY:
+        if size > limit:
             self.close_connection = True
-            raise Refused(413, "That is more than the App sends.")
+            raise Refused(413, too_large)
         return b"".join(kept)
 
     def pieces(self, length: int):
@@ -572,13 +576,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
             raise Refused(400, "The request body is not a JSON object.")
         return data
 
-    def number(self, name: str) -> float | None:
-        value = self.query.get(name, [""])[0]
-        try:
-            return float(value) if value else None
-        except ValueError:
-            raise Refused(400, f"{name} must be a number.") from None
-
     def found(self, read, key: int):
         try:
             return read(key)
@@ -586,15 +583,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
             raise Refused(404, "There is no such record.") from None
 
     def static(self, path: str) -> None:
-        name = "index.html" if path in ("/", "/index.html") else path.lstrip("/")
-        target = (STATIC / name).resolve()
-        if (not target.is_relative_to(STATIC.resolve()) or target.suffix not in TYPES or not target.is_file()):
+        """A file of the App: its page, a file of its build (/static/<build>/...), fonts and icons, and client.js.
+        A build's files never change under their name, so they are cached for good; the rest is checked each time."""
+        built = BUILT.fullmatch(path)
+        name = "index.html" if path in ("/", "/index.html") else built.group(1) if built else path.lstrip("/")
+        target = CLIENT if path == "/client.js" else (APP / name).resolve()
+        if (target != CLIENT and not target.is_relative_to(APP.resolve())) or target.suffix not in TYPES \
+                or not target.is_file():
             raise Refused(404, "There is no such page.")
-        body = target.read_bytes()
+        taken = self.headers.get("Accept-Encoding", "")
+        encoding, suffix = next(((coding, ending) for coding, ending in ENCODINGS
+                                 if coding in taken and target.with_name(target.name + ending).is_file()), (None, ""))
+        body = target.with_name(target.name + suffix).read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", TYPES[target.suffix])
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Cache-Control", "public, max-age=31536000, immutable" if built else "no-cache")
+        if encoding:
+            self.send_header("Content-Encoding", encoding)
+            self.send_header("Vary", "Accept-Encoding")
         for header, value in HEADERS.items():
             self.send_header(header, value)
         self.end_headers()
@@ -659,131 +666,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     # Reading the ledger
 
-    def state(self) -> None:
-        home, ledger, since = self.server.home, self.ledger, _today()
-        all_cards = ledger.cards()
-        cards = [self.card_json(card) for card in all_cards if card["state"] in OPEN_CARDS]
-        schedules = ledger.schedules()
-        projects = [self.project_summary(project, since, schedules, all_cards) for project in ledger.projects()]
-        chosen, running = home.config.agents, [row["agent"] for row in ledger.work() if row["state"] == "running"]
-        workers = [{"provider": name, "label": _label(name),
-                    "available": agents.available(name, home.config, home.vault, ledger=ledger),
-                    "chosen": name == chosen.worker, "live": running.count(name)} for name in agents.PROVIDERS]
-        lead = agents.lead_provider(home.config, home.vault, ledger) if chosen.lead == "auto" else chosen.lead
-        wakes = sum(1 for row in ledger.latest_events(200, kinds=("lead.wake",)) if row["at"] >= since)
-        cursor, read = ledger.latest_events(1), ledger.last_read()
-        waiting = [self.device_json(row) for row in ledger.devices() if row["state"] == "pending"]
-        self.send_json({
-            "stopped": ledger.stopped(), "counts": {**ledger.counts(since), "wakes": wakes}, "since": since,
-            "projects": projects, "cards": cards, "lessons": [self.lesson_json(row) for row in ledger.lessons()],
-            "lead": {"provider": lead, "label": _label(lead), "answers": home.lead is not None},
-            "workers": workers, "max_workers": chosen.max_workers,
-            "agents": dict(agents.LABELS),
-            "vault": self.vault_json(), "devices_waiting": waiting, "loopback": self.loopback,
-            "lan": self.server.lan_host() is not None,
-            "device": None if self.device is None else self.device_json(self.device, mine=True),
-            "read_at": read["at"] if read else None, "cursor": cursor[0]["id"] if cursor else 0,
-            "version": __version__,
-        })
-
-    def project_summary(self, project, since: float, schedules, cards) -> dict:
-        """A project at a glance: what was last asked of it, its newest evidence, what is due and what blocks it."""
-        key, ledger = project["id"], self.ledger
-        last = ledger.latest_events(1, project=key)
-        asked = ledger.latest_events(1, kinds=("request",), project=key)
-        rows = [row for row in ledger.work(project=key) if row["state"] != "dropped"]
-        done = sorted((row for row in rows if row["state"] in ("shipped", "verified")),
-                      key=lambda row: row["ended"] or row["started"] or 0)
-        due = sorted((row for row in schedules if row["project_id"] == key and row["active"]),
-                     key=lambda row: row["next_at"])
-        waiting = [card for card in cards if card["project_id"] == key and card["state"] == "waiting"]
-        stuck = [row for row in rows if row["state"] == "stuck"]
-        blocker = ({"kind": "card", "id": waiting[0]["id"], "text": waiting[0]["what"]} if waiting else
-                   {"kind": "task", "id": stuck[0]["id"], "text": f"{stuck[0]['title']}: {stuck[0]['note'] or 'stuck'}"}
-                   if stuck else None)
-        return {**self.project_json(project), "counts": ledger.counts(since, project=key),
-                "last": self.server.envelope(last[0]) if last else None,
-                "objective": asked[0]["detail"] if asked else None,
-                "evidence": {"task_id": done[-1]["id"], "title": done[-1]["title"], "label": done[-1]["state"],
-                             "proof": self.proof(done[-1]), "at": done[-1]["ended"]} if done else None,
-                "due": {"title": due[0]["title"], "at": due[0]["next_at"]} if due else None,
-                "blocker": blocker}
-
-    def messages(self) -> None:
-        """The conversation; a lead's reply names the agent that wrote it, from its turn's record."""
-        after = int(self.number("after") or 0)
-        cards = {card["id"]: card for card in self.ledger.cards()}
-        rows = self.ledger.messages(after)
-        since = min((row["at"] for row in rows), default=0) - TURN_RECORD_SECONDS
-        by = {data["turn"]: data.get("provider") for kind in ("lead.turn", "lead.wake")
-              for data in (_loads(row["data"]) for row in self.ledger.events(kind=kind, since=since))
-              if isinstance(data, dict) and data.get("turn")}
-        self.send_json([{"id": row["id"], "at": row["at"], "role": row["role"], "text": row["text"],
-                         "project_id": row["project_id"], "card_id": row["card_id"], "turn": row["turn"],
-                         "by": _label(by.get(row["turn"])),
-                         "card": self.card_json(cards[row["card_id"]]) if row["card_id"] in cards else None}
-                        for row in rows])
-
-    def updates(self) -> None:
-        """The newest update lines; a card.opened line carries its card as it is now, so the thread can show it."""
-        limit = min(int(self.number("limit") or 300), 1000)
-        cards = {card["id"]: card for card in self.ledger.cards()}
-        self.send_json([{**self.server.envelope(row),
-                         "card": self.card_json(cards[row["card_id"]])
-                         if row["kind"] == "card.opened" and row["card_id"] in cards else None}
-                        for row in self.ledger.latest_events(limit, kinds=UPDATE_KINDS)])
-
-    def project(self, key: str) -> None:
-        project = self.found(self.ledger.project, int(key))
-        self.send_json({
-            "project": self.project_json(project),
-            "tasks": [self.task_json(row) for row in self.ledger.work(project=project["id"])
-                      if row["state"] != "dropped"],
-            "schedules": [self.schedule_json(row) for row in self.ledger.schedules(project["id"])],
-            "lessons": [self.lesson_json(row) for row in self.ledger.lessons(project["id"])],
-        })
-
-    def task(self, key: str) -> None:
-        row = self.found(self.ledger.work, int(key))[0]
-        task, history = self.ledger.task_brief(row["id"]), self.ledger.task_history(row["id"])
-        labels = [item["label"] for item in json.loads(task["criteria"])]
-        events = self.ledger.events(task=row["id"])
-        reviews = [self.server.envelope(event) for event in events if event["kind"] == "review"]
-        log = self.server.home.paths.logs / f"task-{row['id']}.log"
-        tail = log.read_bytes()[-LOG_TAIL:].decode("utf-8", "replace") if log.is_file() else ""
-        self.send_json({
-            "task": {**self.task_json(row), "brief": task["brief"], "criteria": labels},
-            "runs": [{"id": run["id"], "agent": run["agent"], "label": _label(run["agent"]),
-                      "branch": run["branch"], "started": run["started"], "ended": run["ended"],
-                      "outcome": run["outcome"], "note": run["note"]} for run in history["runs"]],
-            "submissions": [{"id": item["id"], "sha": item["sha"], "claim": item["claim"]}
-                            for item in history["submissions"]],
-            "evidence": [evidence_json(item, labels) for item in history["evidence"]],
-            "verdicts": [{"submission": item["submission_id"], "kind": item["kind"], "gaps": json.loads(item["gaps"])}
-                         for item in history["verdicts"]],
-            "review": reviews[-1] if reviews else None,
-            "log_tail": tail,
-            "files_changed": [event["detail"] for event in events if event["kind"] == "file.changed"],
-            "undo": (self.server.home.paths.undo / f"task-{row['id']}").is_dir(),
-        })
-
-    def digest(self) -> None:
-        project = self.number("project")
-        found = attention.digest(self.ledger, project=None if project is None else int(project),
-                                 since=self.number("since"))
-        # A line's proof is written for the terminal, where a question ends with the command that answers it; the
-        # App asks the question with a button instead, so the proof stops before it.
-        self.send_json({"lines": [{"label": line.label, "ref": line.ref, "title": line.title,
-                                   "proof": line.proof.partition(f" · {line.question}")[0] if line.question
-                                   else line.proof, "project": line.project, "question": line.question}
-                                  for line in found.lines],
-                        "counts": found.counts, "text": found.text})
-
-    def digest_read(self) -> None:
-        """The person has read the digest: the next one starts from here."""
-        self.ledger.mark_read(Role.OWNER)
-        self.send_json({"read_at": self.ledger.last_read()["at"]})
-
     def secrets(self) -> None:
         vault = self.vault()
         uses: dict[str, list[float]] = {}
@@ -798,9 +680,6 @@ class Handler(http.server.BaseHTTPRequestHandler):
         """Search what Artemis wrote for any stored value. Only counts come back, never where or which."""
         found = audit(self.vault(), self.server.home.paths)
         self.send_json({"values": found.values, "files": found.files, "found": len(found.hits)})
-
-    def lessons(self) -> None:
-        self.send_json([self.lesson_json(row) for row in self.ledger.lessons(state=None)])
 
     def settings(self) -> None:
         ledger, cards = self.ledger, {card["id"]: card for card in self.ledger.cards()}
@@ -825,114 +704,59 @@ class Handler(http.server.BaseHTTPRequestHandler):
         })
 
     def lead_json(self) -> dict:
-        """Who leads, how it was chosen, and every agent that could, each with why it cannot lead here yet."""
-        home = self.server.home
-        chosen = home.config.agents.lead
-        provider = agents.lead_provider(home.config, home.vault, self.ledger) if chosen == "auto" else chosen
-        return {"chosen": chosen, "provider": provider, "label": _label(provider),
-                "fixed": bool(os.environ.get("ARTEMIS_LEAD")),
-                "choices": [{"provider": name, "label": _label(name), "why": self.cannot_lead(name)}
-                            for name in agents.LEADS]}
-
-    def cannot_lead(self, name: str) -> str | None:
-        """Why this agent cannot lead here now, in a few words; None when it can (the rules lead_provider uses)."""
-        home = self.server.home
-        if not agents.ready(name, home.config, home.vault):
-            return ("needs a model and its key in config.toml's [api]" if name == "api"
-                    else "not installed or not signed in on this computer")
-        if not agents.qualified(name, "lead", self.ledger):
-            if agents.status(name, "lead", self.ledger) == "unqualified":
-                return "did not qualify to lead here; run `artemis doctor providers` to try again"
-            return "not qualified to lead yet: run `artemis doctor providers`"
-        return None
+        return conversation.lead_choices(self.server.home)
 
     # Acting
 
-    def set_lead(self) -> None:
-        """Choose who leads: the [agents] lead line of the home's config.toml, read again so the next turn uses it."""
-        home = self.server.home
-        name = str(self.body().get("lead", ""))
-        if os.environ.get("ARTEMIS_LEAD"):
-            raise Refused(409, "ARTEMIS_LEAD was set when Artemis started, and it decides who leads. "
-                               "Start Artemis without it to choose here.")
-        if name != "auto" and name not in agents.LEADS:
-            raise Refused(400, f"There is no lead called {name!r}. Choose auto or one of: {', '.join(agents.LEADS)}.")
-        why = None if name == "auto" else self.cannot_lead(name)
-        if why:
-            raise Refused(409, f"{_label(name)} cannot lead yet: {why}.")
-        if name != home.config.agents.lead:
-            write_lead(home.paths.config, name)
+    def setup_state(self) -> None:   # not setup(): BaseRequestHandler.setup opens the connection
+        """What the first-run setup and Settings show: whether the setup was finished, the names, what Artemis asks
+        the person first, whether all automatic work is stopped (POST /api/stop and /api/resume), and where each step
+        stands (who can lead, the API, the vault, paired devices, projects)."""
+        home, ledger = self.server.home, self.ledger
+        self.send_json({
+            "done": bool(ledger.events(kind="setup.finished", limit=1)), "stopped": ledger.stopped(),
+            "name": home.config.lead.name, "you": home.config.lead.you,
+            "ask": list(home.config.interrupts.ask), "phone_only": list(home.config.cards.phone_only),
+            "kinds": list(Interrupt), "here": self.loopback, "lead": self.lead_json(), "vault": self.vault_json(),
+            "api": {"base_url": home.config.api.base_url, "model": home.config.api.model, "key": home.config.api.key},
+            "devices": len(ledger.devices()), "projects": len(ledger.projects()),
+        })
+
+    def save_setup(self) -> None:
+        """Keep what the person chose in the first-run setup (or later in Settings). Every field is optional:
+        name and you (the lead's name and theirs), ask (the kinds of action put to them first), phone_only
+        (the kinds only a paired phone approves) and api {base_url?, model?} (the OpenAI-compatible API that can lead),
+        each a line of the home's config.toml; done ends the setup."""
+        home, data = self.server.home, self.body()
+        writes = [("lead", key, name_setting(data[key], "A name")) for key in ("name", "you") if key in data]
+        if ("ask" in data or "phone_only" in data or "api" in data) and not self.loopback:
+            raise Refused(403, "What Artemis asks you first, and the API it uses, change on the computer it runs on.")
+        api = data.get("api", {})
+        if not isinstance(api, dict) or set(api) - {"base_url", "model"}:
+            raise Refused(400, "api takes base_url and model.")
+        if "base_url" in api:
+            writes.append(("api", "base_url", base_url_setting(str(api["base_url"]))))
+        if "model" in api:
+            writes.append(("api", "model", model_setting(api["model"])))
+        if "ask" in data or "phone_only" in data:
+            chosen = {}
+            for key, now in (("ask", home.config.interrupts.ask), ("phone_only", home.config.cards.phone_only)):
+                value = data.get(key, list(now))
+                if not isinstance(value, list) or any(item not in list(Interrupt) for item in value):
+                    raise Refused(400, f"{key} lists only: {', '.join(Interrupt)}.")
+                chosen[key] = [kind for kind in Interrupt if kind in value]
+            if not set(chosen["phone_only"]) <= set(chosen["ask"]):
+                raise Refused(400, "A kind approved only from a phone is one Artemis asks you about first.")
+            writes += [("interrupts", "ask", chosen["ask"]), ("cards", "phone_only", chosen["phone_only"])]
+        for section, key, value in writes:
+            write_setting(home.paths.config, section, key, value)
+        if writes:
             home.config = HomeConfig.load(home.paths)
-            provider = agents.lead_provider(home.config, home.vault, self.ledger)
-            said = (f"Lead switched to {_label(provider)}" if name != "auto"
-                    else f"Lead set to automatic, which is {_label(provider)} now")
-            self.ledger.record(Role.OWNER, "lead.switched", said, data={"lead": name, "provider": provider})
-        self.send_json(self.lead_json())
-
-    def say(self) -> None:
-        data = self.body()
-        text = str(data.get("text", "")).strip()
-        if not text or len(text) > 20000:
-            raise Refused(400, "A message is between 1 and 20000 characters.")
-        project = data.get("project_id")
-        if project is not None:
-            if not isinstance(project, int):
-                raise Refused(400, "project_id is a project's number.")
-            project = self.found(self.ledger.project, project)["id"]
-        message = self.ledger.say(Role.OWNER, text, project=project)
-        if self.server.home.lead is None:
-            self.ledger.say(Role.HOME, "No lead runs in this home yet, so nobody answers here. Your message is "
-                                       "kept; `artemis start` in a terminal talks to the lead.", project=project)
-        else:
-            self.server.answer(message)
-        self.send_json({"id": message})
-
-    def add_project(self) -> None:
-        data = self.body()
-        path = Path(str(data.get("path", "")).strip()).expanduser()
-        if not path.is_absolute() or not path.is_dir():
-            raise Refused(400, "Give the full path of a folder on this computer.")
-        path = path.resolve()
-        kind = "repo" if (path / ".git").exists() else "folder"
-        name = str(data.get("name") or "").strip() or repo_name(path)
-        self.send_json({"id": self.ledger.add_project(Role.OWNER, name, kind, path), "kind": kind, "name": name})
-
-    def card(self, key: str, action: str) -> None:
-        self.found(self.ledger.card, int(key))
-        data = self.body()
-        if action == "secret":
-            self.hidden = (str(data.get("value", "")),) if data.get("value") else ()
-        self.ledger.expire_cards()
-        card = self.ledger.card(int(key))
-        if card["state"] == "expired":
-            raise Refused(409, "This card expired before you answered it. Nothing ran.")
-        if card["state"] != "waiting":
-            raise Refused(409, "This card is no longer waiting for you.")
-        if action in ("approve", "decline"):
-            if card["kind"] not in tuple(Interrupt):
-                raise Refused(400, f"This is a {card['kind']} card; it is answered, not approved.")
-            approve = action == "approve"
-            if approve and card["kind"] in self.phone_only() and not (self.device is not None and self.device["phone"]):
-                raise Refused(403, "This one is approved on your paired phone. You can decline it here.")
-            standing = None
-            if approve and data.get("standing"):
-                if card["kind"] not in STANDING_KINDS:
-                    raise Refused(400, "Money out is asked every time; it never gets a standing approval.")
-                standing = self.standing_for(card["id"])
-                if standing is None:
-                    raise Refused(400, "Only one exact operation from a scheduled task can be approved for good; "
-                                       "this one is approved once.")
-            self.ledger.decide_card(Role.OWNER, card["id"], approve, standing=standing)   # the home carries it out
-        elif action == "choose":
-            self.ledger.choose(Role.OWNER, card["id"], str(data.get("option", "")))
-        else:
-            if card["kind"] != "secret":
-                raise Refused(400, f"This is a {card['kind']} card, not a secret card.")
-            wanted = _loads(card["options"], {})
-            self.store_secret(wanted["name"], str(data.get("value", "")), wanted.get("kind", "none"),
-                              wanted.get("note", ""), wanted.get("use") or "env", wanted.get("origin"))
-            self.ledger.secret_set(Role.OWNER, card["id"])
-        self.send_json(self.card_json(self.ledger.card(card["id"])))
+            self.ledger.record(Role.OWNER, "setup.changed", "Setup changed: " + ", ".join(
+                f"{section}.{key}" for section, key, _ in writes), data={"changed": [key for _, key, _ in writes]})
+        if data.get("done") is True and not self.ledger.events(kind="setup.finished", limit=1):
+            self.ledger.record(Role.OWNER, "setup.finished", "First-run setup finished")
+        self.setup_state()
 
     def phone_only(self) -> tuple[str, ...]:
         """Card kinds approved only from a paired phone: [cards] phone_only in the home's config.toml."""
@@ -1014,71 +838,72 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.ledger.resume(Role.OWNER, str(self.body().get("reason") or "Resumed from the App"))
         self.send_json({"stopped": self.ledger.stopped()})
 
-    def undo(self, key: str) -> None:
-        from ..undo import restore
-        task = self.found(self.ledger.task_brief, int(key))
-        self.send_json({"restored": restore(self.server.home.paths, task["id"])})
+    # The live stream
 
-    # The live stream, and the long poll for when a stream cannot be held open
-
-    def events(self) -> None:
-        after = int(self.headers.get("Last-Event-ID") or self.number("after") or 0)
-        if self.query.get("poll", [""])[0] == "1":
-            return self.poll(after)
-        with self.server.streams_lock:
+    def live(self) -> None:
+        """The App's live stream: every feature's frames when it opens, then each frame again when a ledger event
+        changes it (wire.py), frames modules send themselves, and a heartbeat. What the ledger recorded goes out
+        before anything published after it (the person's message before the reply it starts), and the frames that
+        follow the ledger go out again at least every FRESH_SECONDS, because time alone ages what they show."""
+        query = {key: values[0] for key, values in self.query.items()}
+        with self.server.streams_changed:
             if self.server.streams >= MAX_STREAMS:
-                raise Refused(503, "Too many live views are open; this one checks every few seconds instead.")
+                raise Refused(503, "Too many live views are open.")
             self.server.streams += 1
-        try:
-            self.stream(after)
-        finally:
-            with self.server.streams_lock:
-                self.server.streams -= 1
-
-    def poll(self, after: int) -> None:
-        """Answer as soon as there is a newer event, or after POLL_WAIT seconds with none."""
-        deadline = time.monotonic() + POLL_WAIT
-        rows = self.ledger.events(after, limit=500)
-        while not rows and time.monotonic() < deadline and not self.server.closing.is_set():
-            self.server.closing.wait(POLL_SECONDS)
-            rows = self.ledger.events(after, limit=500)
-        self.send_json({"events": [self.server.envelope(row) for row in rows],
-                        "cursor": rows[-1]["id"] if rows else after})
-
-    def stream(self, after: int) -> None:
         feed = self.server.home.subscribe()
         try:
-            self.follow(feed, after)
+            self.send_response(200)
+            for header, value in (("Content-Type", "text/event-stream; charset=utf-8"), ("Cache-Control", "no-cache"),
+                                  ("X-Accel-Buffering", "no"), ("Connection", "close")):
+                self.send_header(header, value)
+            self.end_headers()
+            self.close_connection = True
+            self.wfile.write(b"retry: 2000\n\n")
+            after = max([row["id"] for row in self.ledger.latest_events(1)], default=0)
+            self.frames(query, [kind for module in FEATURES for kind in getattr(module, "FRAMES", {})])
+            beat = fresh = time.monotonic()
+            while not self.server.closing.is_set():
+                try:
+                    item = feed.get(timeout=POLL_SECONDS)
+                except queue.Empty:
+                    item = {}
+                if item is None:
+                    return
+                kinds: set[str] = set()
+                if time.monotonic() - fresh >= FRESH_SECONDS:
+                    kinds, fresh = refresh_kinds(FEATURES, ""), time.monotonic()
+                for row in self.ledger.events(after, limit=500):
+                    kinds |= refresh_kinds(FEATURES, row["kind"])
+                    self.sent(module_frames(FEATURES, "EVENTS", row["kind"], self.server, row, query))
+                    after = row["id"]
+                self.frames(query, sorted(kinds))
+                if item.get("kind") == "frame":
+                    self.emit(item["data"])
+                elif item:
+                    self.sent(module_frames(FEATURES, "FEED", item["kind"], self.server, item["data"], query))
+                if self.hung_up():
+                    return
+                if time.monotonic() - beat >= HEARTBEAT_SECONDS:
+                    self.emit({"kind": "heartbeat", "payload": {"fetched_at": frames.now()}})
+                    beat = time.monotonic()
         finally:
             self.server.home.unsubscribe(feed)
+            with self.server.streams_changed:
+                self.server.streams -= 1
+                self.server.streams_changed.notify_all()
 
-    def follow(self, feed: queue.Queue, after: int) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.close_connection = True
-        self.wfile.write(b"retry: 2000\n\n")
-        beat = time.monotonic()
-        while not self.server.closing.is_set():
-            for row in self.ledger.events(after, limit=500):
-                self.emit(self.server.envelope(row), row["id"])
-                after = row["id"]
-            try:
-                while True:   # transient items such as said.delta; None means this client fell behind
-                    item = feed.get(timeout=POLL_SECONDS)
-                    if item is None:
-                        return
-                    self.emit({"kind": item["kind"], "at": item.get("at"), "data": item["data"]})
-            except queue.Empty:
-                pass
-            if self.hung_up():
-                return
-            if time.monotonic() - beat >= HEARTBEAT_SECONDS:
-                self.wfile.write(b": still here\n\n")
-                self.wfile.flush()
-                beat = time.monotonic()
+    def sent(self, frames) -> None:
+        for kind, payload in frames:
+            self.emit({"kind": kind, "payload": payload})
+
+    def frames(self, query: dict, kinds) -> None:
+        """Build and send these frames, each from the module that has it."""
+        for kind in kinds:
+            for module in FEATURES:
+                build = getattr(module, "FRAMES", {}).get(kind)
+                payload = None if build is None else build(self.server, query)
+                if payload is not None:
+                    self.emit({"kind": kind, "payload": payload})
 
     def hung_up(self) -> bool:
         """Whether the client has closed its end. A stream only writes, so a write would find out too, but only when
@@ -1096,9 +921,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         finally:
             self.connection.settimeout(before)
 
-    def emit(self, data: dict, key: int | None = None) -> None:
+    def emit(self, data: dict) -> None:
         text = self.server.scrub(json.dumps(data, ensure_ascii=False))
-        self.wfile.write(((f"id: {key}\n" if key is not None else "") + f"data: {text}\n\n").encode("utf-8"))
+        self.wfile.write(f"data: {text}\n\n".encode("utf-8"))
         self.wfile.flush()
 
     # The broker's door for agents on this machine
@@ -1122,38 +947,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     # Shapes
 
-    def project_json(self, row) -> dict:
-        return {"id": row["id"], "name": row["name"], "kind": row["kind"], "path": row["path"]}
-
     def device_json(self, row, mine: bool = False) -> dict:
         """A device as the App lists it. Its comparison code shows only to itself and on this computer."""
         show = row["state"] == "pending" and (mine or self.loopback)
         return {"id": row["id"], "name": row["name"], "state": row["state"], "phone": bool(row["phone"]),
                 "created": row["created"], "last_seen": row["last_seen"], "code": row["code"] if show else None,
                 "this": mine}
-
-    def card_json(self, row) -> dict:
-        state = row["state"]
-        if state == "waiting" and row["expires"] is not None and row["expires"] < time.time():
-            state = "expired"
-        task = self.ledger.work(row["task_id"]) if row["task_id"] is not None else []
-        http = {key: json.loads(row["command"]).get(key) for key in ("method", "url", "save_to")} \
-            if httpop.is_http(row) else None
-        argv = None if http else _argv(row["command"])
-        return {"id": row["id"], "kind": row["kind"], "what": row["what"], "why": row["why"],
-                "command": None if http else shlex.join(argv) if argv is not None else row["command"],
-                "argv": argv, "request": http,
-                "cwd": row["cwd"], "shell": row["shell"],
-                "secrets": json.loads(row["secrets"]), "rule": row["rule"], "options": _loads(row["options"]),
-                "state": state, "answer": row["answer"], "result": row["result"], "expires": row["expires"],
-                "allow_standing": row["kind"] in STANDING_KINDS and row["state"] == "waiting"
-                and self.standing_for(row["id"]) is not None,
-                "receiver": demo_receiver.NAME if http and demo_receiver.listening(self.ledger, http["url"]) else None,
-                "phone_only": row["kind"] in self.phone_only(),
-                "task": {"id": task[0]["id"], "title": task[0]["title"], "label": task[0]["state"],
-                         "proof": self.proof(task[0])} if task else None,
-                "project_id": row["project_id"], "task_id": row["task_id"], "created": row["created"],
-                "decided": row["decided"]}
 
     def lesson_json(self, row) -> dict:
         return {"id": row["id"], "kind": row["kind"], "text": row["text"], "state": row["state"],
@@ -1162,38 +961,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "question": lessons.question(row), "from": lessons.source_text(row),
                 "created": row["created"]}
 
-    def proof(self, row) -> str:
-        """A task's evidence in one line, in the digest's own words."""
-        return attention._task_line(self.ledger, row, self.ledger.project(row["project_id"])["kind"])[1]
-
     def schedule_json(self, row) -> dict:
         return {"id": row["id"], "title": row["title"], "spec": row["spec"], "kind": row["kind"],
                 "project_id": row["project_id"], "next_at": row["next_at"], "last_at": row["last_at"],
                 "active": bool(row["active"])}
 
-    def task_json(self, row) -> dict:
-        provider = row["agent"] or row["provider"]
-        return {"id": row["id"], "title": row["title"], "kind": row["kind"], "state": row["state"],
-                "label": row["state"], "provider": provider, "provider_label": _label(provider),
-                "proof": self.proof(row), "project_id": row["project_id"], "request_id": row["request_id"],
-                "started": row["started"], "ended": row["ended"], "note": row["note"], "sha": row["sha"],
-                "target": row["target"], "landed": row["landed"], "review": bool(row["review"]),
-                "schedule_id": row["schedule_id"]}
-
-
-def evidence_json(row, labels: list[str]) -> dict:
-    data = json.loads(row["data"])
-    label = labels[row["criterion"] - 1] if row["criterion"] <= len(labels) else f"check {row['criterion']}"
-    said = "exit_code" in data and label == " ".join(data["argv"])   # a check named by its command shows its exit
-    summary = f"{label} exit {data['exit_code']}" if said else label
-    return {"submission": row["submission_id"], "criterion": row["criterion"], "label": label, "kind": row["kind"],
-            "summary": summary, "exit_code": data.get("exit_code"), "output": data.get("output", "")[-2000:]}
-
-
 def start(home, port: int, lan: bool | str, tls: tuple[Path, Path] | None) -> AppServer:
     """Serve the App and its API from a daemon thread; on the network, print the phone's link. HTTPS when lan or
     tls is given. lan is True for this machine's own network, or the name a phone opens (a Tailscale or DNS name, a
-    public address), which the certificate covers and the phone's link uses."""
+    public address), which the certificate covers and the phone's link uses. Other devices reach the App only after
+    its first-run setup is finished on this computer, so a new home never waits on a network without its settings."""
+    if lan and not home.ledger.events(kind="setup.finished", limit=1):
+        raise WorkflowError("Other devices can open the App (--lan) once its first-run setup is finished. Start "
+                            "Artemis without --lan, open the link it prints on this computer (on a server, through "
+                            "an SSH tunnel), finish the setup there, then start it again with --lan.")
     server = AppServer(("0.0.0.0" if lan else "127.0.0.1", port), home,
                        _tls(home, lan, tls) if (lan or tls) else None, address(lan) if isinstance(lan, str) else None)
     threading.Thread(target=server.serve_forever, name="artemis-app", daemon=True).start()

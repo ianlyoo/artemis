@@ -96,7 +96,22 @@ def propose(ledger: Ledger, actor: Role, kind: str, text: str, payload: dict | N
            for row in ledger.lessons(project, state=None)):
         return None
     now = kind == "placement" or (kind in ("rule", "guard") and _requirement(ledger, source))
-    return ledger.add_lesson(actor, kind, text, payload, source, project=project, state="active" if now else "proposed")
+    lesson = ledger.add_lesson(actor, kind, text, payload, source, project=project, state="active" if now else "proposed")
+    _ask(ledger, _lesson(ledger, lesson))
+    return lesson
+
+
+def _ask(ledger: Ledger, row) -> None:
+    """Put a lesson that waits for your yes to you as a Yes/No card, said in the conversation like any choice, so
+    My turn and the chat answer it where they show it; the answer accepts or retires the lesson."""
+    words = asked(ledger, row)
+    if words is None:
+        return
+    from .web.owner import choice_fence
+    options = [{"id": "accept", "label": "Yes", "lesson": row["id"]}, {"id": "retire", "label": "No", "lesson": row["id"]}]
+    card = ledger.open_card(Role.HOME, "choice", words, "Artemis learned this from what happened; it applies only "
+                            "if you say yes.", project=row["project_id"], options=options)
+    ledger.say(Role.LEAD, choice_fence(words, options), project=row["project_id"], card=card)
 
 
 def _require_payload(kind: str, payload: dict, project: int | None) -> None:
@@ -384,6 +399,11 @@ def _history(ledger: Ledger, project: int | None) -> dict[int, dict]:
     return tasks
 
 
+def applied(ledger: Ledger, project: int | None = None) -> dict[int, list[int]]:
+    """Rule lesson numbers each task's first run carried, keyed by task id."""
+    return {task: list(entry["carried"]) for task, entry in _history(ledger, project).items() if entry["carried"]}
+
+
 def _count(ledger: Ledger, event: dict) -> None:
     """At the end of a task's first attempt, count it for every lesson its prompt carried."""
     history = _history(ledger, event["project_id"])
@@ -427,6 +447,31 @@ def question(row) -> str | None:
     return f"You declined D{card}. {asked}" if card else asked
 
 
+def asked(ledger: Ledger, row) -> str | None:
+    """question() in plain words for the App's card: what you said no to by its name, the command as words."""
+    if question(row) is None:
+        return None
+    if row["kind"] != "guard":
+        return f"Use “{row['text']}” from now on?"
+    cited = {item["card"] for item in json.loads(row["source"] or "[]") if "card" in item}
+    declined = [card["what"] for card in ledger.cards() if card["id"] in cited]   # the cards the source names
+    said = f"You said no to “{declined[0]}”. " if declined else ""
+    return f"{said}Always ask before running {' '.join(json.loads(row['payload'])['argv'])}?"
+
+
+def card_lesson(card) -> int | None:
+    """The lesson a Yes/No card asks about, or None for any other card."""
+    options = json.loads(card["options"] or "null") if card["kind"] == "choice" else None
+    return options[0].get("lesson") if isinstance(options, list) and isinstance(options[0], dict) else None
+
+
+def _answer(ledger: Ledger, lesson: int, option: str) -> None:
+    """Close the lesson's waiting card with the answer given elsewhere (the CLI, POST /api/lessons)."""
+    for card in ledger.cards(state="waiting"):
+        if card_lesson(card) == lesson:
+            ledger.choose(Role.OWNER, card["id"], option)
+
+
 def listing(ledger: Ledger, include_retired: bool = False) -> str:
     names = {row["id"]: row["name"] for row in ledger.projects(include_archived=True)}
     lines = []
@@ -442,20 +487,23 @@ def listing(ledger: Ledger, include_retired: bool = False) -> str:
 
 
 def retire(ledger: Ledger, lesson: int) -> None:
+    """Your no: the lesson stops applying, and its card, if one still asks, is answered No."""
     _lesson(ledger, lesson)
     ledger.set_lesson(Role.OWNER, lesson, "retired")
+    _answer(ledger, lesson, "retire")
 
 
 def accept(ledger: Ledger, lesson: int) -> None:
-    """Your yes: a proposed, unproven or retired lesson applies from now on. A check still has to pass its proof."""
+    """Your yes: a proposed, unproven or retired lesson applies from now on, and its card, if one still asks, is
+    answered Yes. A check still has to pass its proof."""
     row = _lesson(ledger, lesson)
-    if row["state"] == "active":
-        return
-    if row["kind"] == "check":
-        reason = _unproven(ledger, row)
-        if reason is not None:
-            raise WorkflowError(f"L{lesson} stays proposed: {reason}.")
-    ledger.set_lesson(Role.OWNER, lesson, "active")
+    if row["state"] != "active":
+        if row["kind"] == "check":
+            reason = _unproven(ledger, row)
+            if reason is not None:
+                raise WorkflowError(f"L{lesson} stays proposed: {reason}.")
+        ledger.set_lesson(Role.OWNER, lesson, "active")
+    _answer(ledger, lesson, "accept")
 
 
 def add_commands(sub) -> None:
@@ -470,10 +518,7 @@ def add_commands(sub) -> None:
     lesson.set_defaults(func=command)
 
 
-def command(args, ledger: Ledger | None = None) -> int:
-    if ledger is None:
-        from .home import Paths
-        ledger = Ledger(Paths.from_env().ledger)
+def command(args, ledger: Ledger) -> int:
     if args.lesson_verb == "list":
         print(listing(ledger, include_retired=args.all))
     elif args.lesson_verb == "retire":

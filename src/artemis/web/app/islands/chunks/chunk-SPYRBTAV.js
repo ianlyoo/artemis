@@ -1,0 +1,1 @@
+import{f as s}from"./chunk-TNOFUOAE.js";var e=s("utils/press-claim/state",1,()=>({watchers:new Set}));function a(){for(let t of[...e.watchers])t()}function c(t){return e.watchers.add(t),()=>{e.watchers.delete(t)}}export{a,c as b};

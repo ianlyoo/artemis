@@ -76,9 +76,11 @@ class LeadTurns(unittest.TestCase):
         scrubbed = reply.replace(SECRET, "[secret:SHOP_TOKEN]")
         (said,) = self.lead_messages()
         self.assertEqual(said["text"], scrubbed)
-        self.assertEqual({kind for kind, _ in self.home.published}, {"said.delta"})
-        self.assertEqual({data["turn"] for _, data in self.home.published}, {said["turn"]})
-        self.assertEqual("".join(data["text"] for _, data in self.home.published), scrubbed)
+        published = self.home.published
+        self.assertEqual([kind for kind, _ in published if kind != "said.delta"], ["turn.started", "turn.ended"])
+        self.assertEqual({data["turn"] for _, data in published}, {said["turn"]})
+        self.assertEqual("".join(data["text"] for kind, data in published if kind == "said.delta"), scrubbed)
+        self.assertIsNone(self.lead.saying)
         turns = [row for row in self.home.ledger.events() if row["kind"] == "lead.turn"]
         self.assertEqual(len(turns), 1)
         self.assertRegex(turns[0]["detail"], r"^Claude Code answered in \d+ s$")
@@ -181,5 +183,6 @@ class MockLead(unittest.TestCase):
         self.assertEqual(said["role"], "lead")
         self.assertTrue(said["text"].startswith("mock lead (no AI): 1 task(s) for shop:"))
         self.assertIn("#7 Add a --json flag to shop", said["text"])
-        self.assertEqual("".join(data["text"] for _, data in home.published).strip(), said["text"])
+        self.assertEqual("".join(data["text"] for kind, data in home.published if kind == "said.delta").strip(),
+                         said["text"])
         self.assertIn("Post it to the blog waits for you (card 4)", said["text"])

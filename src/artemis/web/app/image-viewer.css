@@ -1,0 +1,381 @@
+.iv {
+  --iv-ink:var(--accent-ink,#1c1c1a);
+  --iv-halo:var(--accent-halo,color-mix(in srgb,var(--iv-ink) 22%,transparent));
+  --iv-quiet:color-mix(in srgb,var(--iv-ink) 64%,transparent);
+  --iv-solid:color-mix(in srgb,var(--paper,#f3f3ec) 28%,#fff);
+  --iv-back:color-mix(in srgb,var(--iv-solid) 96%,transparent);
+  --iv-scrim:color-mix(in srgb,var(--iv-solid) 72%,transparent);
+  --iv-lift:0 30px 80px -36px color-mix(in srgb,var(--ink,#1d302e) 45%,transparent);
+  --iv-open:var(--dur-sheet,.3s);
+  --iv-step:var(--dur-float,.2s);
+  --iv-hover:var(--dur-hover,.18s);
+  --iv-ease:var(--ease-out,cubic-bezier(.2,.8,.2,1));
+  --iv-grow:var(--hover-grow,1.035);
+  --iv-shift:var(--enter-shift,10px);
+  --iv-hit:max(44px,calc(var(--ui,12px) * 3.7));
+  --iv-icon:max(22px,calc(var(--ui,12px) * 1.9));
+  --iv-data:var(--t-data,max(13px,calc(var(--ui,12px) * 1.1667)));
+  --iv-body:var(--t-body,calc(var(--ui,12px) * 1.3333));
+  --iv-pad:var(--s-pad,calc(var(--ui,12px) * 1.6));
+  --iv-in:var(--s-in,calc(var(--iv-pad) * .75));
+  --iv-pane:var(--s-pane,calc(var(--ui,12px) * 1.8));
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  color: var(--iv-ink);
+  font-family: var(--font-sans,inherit);
+  overscroll-behavior: contain;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme=dark] .iv {
+  --iv-ink:var(--accent-ink,#f3f3ef);
+  --iv-halo:var(--accent-halo,color-mix(in srgb,var(--iv-ink) 40%,transparent));
+  --iv-solid:#000;
+  --iv-back:rgb(0 0 0 / .95);
+  --iv-lift:0 0 0 1px rgb(255 255 255 / .07);
+}
+.iv::backdrop {
+  background: transparent;
+}
+.iv [hidden] {
+  display: none !important;
+}
+.iv-back {
+  position: absolute;
+  inset: 0;
+  background: var(--iv-back);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity var(--iv-open) var(--iv-ease);
+}
+.iv.is-open .iv-back {
+  opacity: 1;
+}
+.iv.is-closing .iv-back {
+  transition-duration: var(--iv-step);
+  transition-timing-function: var(--ease-in,ease-in);
+}
+.iv-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  outline: 0;
+  cursor: zoom-out;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.iv-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.iv-frame.is-settling {
+  transition: transform var(--iv-step) var(--iv-ease), opacity var(--iv-step) var(--iv-ease);
+}
+.iv-frame.is-arriving {
+  animation: iv-arrive var(--iv-open) var(--iv-ease) both;
+}
+.iv-frame.is-from-next {
+  animation: iv-from-next var(--iv-open) var(--iv-ease) both;
+}
+.iv-frame.is-from-prev {
+  animation: iv-from-prev var(--iv-open) var(--iv-ease) both;
+}
+.iv-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  transform-origin: center;
+  opacity: 0;
+  box-shadow: var(--iv-lift);
+  pointer-events: auto;
+  cursor: zoom-in;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+.iv-img.is-ready {
+  opacity: 1;
+}
+.iv-img.is-gliding {
+  transition: transform var(--iv-open) var(--iv-ease);
+}
+.iv-img.is-leaving {
+  transition: opacity var(--iv-step) var(--ease-in,ease-in), scale var(--iv-step) var(--ease-in,ease-in);
+  opacity: 0;
+  scale: .96;
+}
+.iv.is-zoomed .iv-img {
+  cursor: grab;
+}
+.iv.is-dragging .iv-img {
+  cursor: grabbing;
+}
+.iv-video {
+  display: block;
+  background: #000;
+  object-fit: contain;
+}
+.iv-problem {
+  position: absolute;
+  inset: auto 0 50%;
+  margin: 0;
+  text-align: center;
+  font-size: var(--iv-body);
+  color: var(--iv-quiet);
+  pointer-events: none;
+}
+.iv-bar,
+.iv-foot,
+.iv-nav {
+  opacity: 0;
+  transition: opacity var(--iv-open) var(--iv-ease);
+}
+.iv.is-zoomed {
+  --iv-scrim:color-mix(in srgb,var(--iv-solid) 90%,transparent);
+}
+.iv.is-open :is(.iv-bar, .iv-foot, .iv-nav) {
+  opacity: 1;
+}
+.iv-bar {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--iv-in);
+  padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 8px max(var(--iv-pane), env(safe-area-inset-left));
+  background: linear-gradient(var(--iv-scrim), transparent);
+  pointer-events: none;
+}
+.iv-count,
+.iv-level {
+  font-size: var(--iv-data);
+  font-variant-numeric: var(--t-nums,tabular-nums);
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.iv-count {
+  color: var(--iv-ink);
+}
+.iv-level {
+  color: var(--iv-quiet);
+  padding-right: calc(var(--iv-in) * .5);
+}
+.iv-note {
+  color: var(--iv-quiet);
+  font-size: var(--iv-data);
+}
+.iv-note:empty {
+  display: none;
+}
+.iv-space {
+  flex: 1;
+}
+.iv-zooms {
+  display: flex;
+  align-items: center;
+  margin-right: calc(var(--iv-in) * .5);
+}
+.iv-control {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--iv-hit);
+  height: var(--iv-hit);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--iv-quiet);
+  cursor: pointer;
+  pointer-events: auto;
+  text-decoration: none;
+  font: inherit;
+  transition: color var(--iv-hover) var(--ease-hover,ease), opacity var(--iv-open) var(--iv-ease);
+}
+.iv-control svg {
+  width: var(--iv-icon);
+  height: var(--iv-icon);
+  overflow: visible;
+  transform-origin: center;
+  transition: transform var(--iv-hover) var(--ease-hover,ease), filter var(--iv-hover) var(--ease-hover,ease);
+}
+.iv-control:is(:hover, :focus-visible) {
+  color: var(--iv-ink);
+}
+.iv-control:is(:hover, :focus-visible) svg {
+  transform: scale(calc(1 + (var(--iv-grow) - 1) * 2.4));
+  filter: drop-shadow(0 0 .32em var(--iv-halo));
+}
+.iv-control:focus-visible {
+  outline: var(--focus-ring,1px solid color-mix(in srgb,var(--iv-ink) 60%,transparent));
+  outline-offset: calc(var(--focus-gap,3px) * -1);
+}
+@media (hover: none) {
+  .iv-control:hover:not(:focus-visible) {
+    color: var(--iv-quiet);
+  }
+  .iv-control:hover:not(:focus-visible) svg {
+    transform: none;
+    filter: none;
+  }
+}
+.iv-zooms .iv-control.is-off {
+  opacity: .34;
+  cursor: default;
+}
+.iv-zooms .iv-control.is-off:is(:hover, :focus-visible) {
+  color: var(--iv-quiet);
+}
+.iv-zooms .iv-control.is-off:is(:hover, :focus-visible) svg {
+  transform: none;
+  filter: none;
+}
+.iv-nav {
+  position: absolute;
+  top: 50%;
+  width: calc(var(--iv-hit) * 1.25);
+  height: calc(var(--iv-hit) * 2.4);
+  margin-top: calc(var(--iv-hit) * -1.2);
+  border-radius: 999px;
+}
+.iv-nav svg {
+  width: calc(var(--iv-icon) * 1.3);
+  height: calc(var(--iv-icon) * 1.3);
+}
+.iv-prev {
+  left: max(10px, env(safe-area-inset-left));
+}
+.iv-next {
+  right: max(10px, env(safe-area-inset-right));
+}
+.iv.is-open .iv-nav.is-off {
+  opacity: 0;
+  pointer-events: none;
+}
+.iv-foot {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--iv-in) max(var(--iv-pane), env(safe-area-inset-right)) max(var(--iv-pad), calc(env(safe-area-inset-bottom) + 10px)) max(var(--iv-pane), env(safe-area-inset-left));
+  background: linear-gradient(transparent, var(--iv-scrim));
+  pointer-events: none;
+}
+.iv-caption {
+  max-width: min(68ch, 100%);
+  margin: 0;
+  font-size: var(--iv-body);
+  line-height: var(--lh-base,1.5);
+  text-align: center;
+  color: color-mix(in srgb, var(--iv-ink) 84%, transparent);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  pointer-events: auto;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.iv.is-embed {
+  --iv-solid:var(--surface-section,color-mix(in srgb,var(--ink,#1d302e) 3%,var(--paper,#f3f3ec)));
+  --iv-scrim:color-mix(in srgb,var(--iv-solid) 78%,transparent);
+  --iv-lift:0 18px 46px -26px color-mix(in srgb,var(--ink,#1d302e) 42%,transparent);
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  flex: 1 1 0;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: calc(var(--ui,12px) * 16);
+  background: var(--iv-solid);
+  isolation: isolate;
+}
+:root[data-theme=dark] .iv.is-embed {
+  --iv-solid:var(--surface-section,color-mix(in srgb,#fff 6.5%,var(--paper,#000)));
+  --iv-lift:0 0 0 1px rgb(255 255 255 / .07),0 20px 50px -24px #000;
+}
+.iv.is-embed.is-zoomed {
+  --iv-scrim:color-mix(in srgb,var(--iv-solid) 92%,transparent);
+}
+.iv.is-embed .iv-stage {
+  cursor: default;
+}
+.iv.is-embed .iv-bar {
+  padding: 6px 6px 6px var(--iv-pad);
+}
+.iv.is-embed .iv-prev {
+  left: 6px;
+}
+.iv.is-embed .iv-next {
+  right: 6px;
+}
+.iv.is-embed .iv-foot {
+  padding: var(--iv-in) var(--iv-pad) var(--iv-pad);
+}
+.iv.is-phone {
+  --iv-hit:44px;
+  --iv-icon:24px;
+  --iv-data:14px;
+  --iv-body:16px;
+}
+.iv.is-phone .iv-bar {
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+.iv.is-phone .iv-zooms {
+  margin-right: 0;
+}
+@keyframes iv-arrive {
+  from {
+    opacity: 0;
+    transform: scale(.97);
+  }
+}
+@keyframes iv-from-next {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--iv-shift) * 4));
+  }
+}
+@keyframes iv-from-prev {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--iv-shift) * -4));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iv {
+    --iv-open:0s;
+    --iv-step:0s;
+    --iv-hover:0s;
+    --iv-grow:1;
+    --iv-shift:0px;
+  }
+  .iv-frame,
+  .iv-img {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+:where(.bv-image, .bv-prose, .pane-doc) img:not(a img, .viewer-img) {
+  cursor: zoom-in;
+}

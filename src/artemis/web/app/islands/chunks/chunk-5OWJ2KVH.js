@@ -1,0 +1,1 @@
+import{k as e}from"./chunk-TNOFUOAE.js";import{a as r}from"./chunk-AGXDBOIK.js";import{d as n}from"./chunk-SGBOX2D7.js";var t=n(r(),1);var o=e("InteractiveRoleContext",1,null);o.displayName="InteractiveRoleContext";function a(){return(0,t.use)(o)}export{o as a,a as b};

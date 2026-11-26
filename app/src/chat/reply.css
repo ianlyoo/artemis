@@ -1,0 +1,266 @@
+.reply-glyph {
+  display: block;
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+.chat .msg-reply {
+  position: absolute;
+  right: -24px;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--highlight-radius);
+  background: var(--paper);
+  color: var(--muted);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity .18s ease,
+    color .18s ease,
+    background-color .18s ease;
+  z-index: 2;
+}
+.chat .msg-owner > .msg-reply {
+  right: auto;
+  left: -24px;
+}
+.chat .msg:is(:hover, :focus-within) > .msg-reply {
+  opacity: 1;
+  pointer-events: auto;
+}
+.chat .msg-reply:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.msg-reply > .reply-glyph {
+  transition: transform .18s var(--ease-hover), filter .18s ease;
+}
+.chat .msg-reply:is(:hover, :focus-visible) {
+  color: var(--accent-ink);
+  outline: none;
+}
+.chat .msg-reply:is(:hover, :focus-visible) > .reply-glyph {
+  transform: scale(var(--hover-grow));
+  filter: var(--glyph-glow);
+}
+.msg-reply-label {
+  position: absolute;
+  right: calc(100% + 7px);
+  padding: 2px 4px;
+  background: var(--paper);
+  font-size: var(--t-meta);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.msg-reply:is(:hover, :focus-visible) > .msg-reply-label {
+  opacity: 1;
+}
+.msg-owner > .msg-reply > .msg-reply-label {
+  right: auto;
+  left: calc(100% + 7px);
+}
+.chat .msg-selection-quote {
+  position: fixed;
+  z-index: 30;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: var(--t-meta);
+  background: var(--surface-menu);
+  color: var(--accent-ink);
+  box-shadow: 0 5px 18px -8px var(--shadow,#0008);
+}
+.chat .msg-selection-quote:is(:hover, :focus-visible) {
+  text-shadow: 0 0 .8em var(--accent-halo);
+}
+.chat .msg-reply-quote {
+  display: block;
+  width: 100%;
+  padding: 0 0 0 .85em;
+  margin: .1em 0 .8em;
+  border-left: 1px solid var(--muted);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  white-space: normal;
+  font-size: var(--t-meta);
+  color: var(--muted);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.reply-meta {
+  display: block;
+  font-size: var(--t-meta);
+  line-height: 1.5;
+}
+.reply-preview {
+  display: block;
+  margin-top: .2em;
+  white-space: pre-wrap;
+}
+.chat .msg-reply-quote:is(:hover, :focus-visible) {
+  color: var(--ink);
+}
+.composer-reply {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--s-lead) minmax(0, 1fr) 32px;
+  align-items: start;
+  padding: 0 0 .75em;
+  color: var(--muted);
+  font-size: var(--t-meta);
+  line-height: 1.5;
+}
+.composer-reply > .reply-glyph {
+  margin-top: .2em;
+}
+.composer-reply-text {
+  min-width: 0;
+}
+.composer-reply-copy {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 4.5em;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+.chat .composer-reply-remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-top: -4px;
+  color: var(--muted);
+}
+.chat .composer-reply-remove:is(:hover, :focus-visible) {
+  color: var(--accent-ink);
+}
+.composer-reply-remove > .composer-glyph {
+  transition: transform .18s var(--ease-hover), filter .18s ease;
+}
+.composer-reply-remove:is(:hover, :focus-visible) > .composer-glyph {
+  transform: scale(1.035);
+  filter: drop-shadow(0 0 .3em var(--accent-halo));
+}
+.chat .composer:has(> .composer-reply:not([hidden])) > .chat-jump {
+  position: relative;
+  top: auto;
+  flex: none;
+  margin-bottom: .2em;
+}
+.msg-swipe-reply {
+  display: none;
+}
+.msg.is-reply-target::after {
+  content: "";
+  position: absolute;
+  inset: -6px -8px;
+  border-radius: 12px;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--accent-ink) 5%, transparent);
+  box-shadow: 0 3px 18px -8px var(--accent-halo);
+  animation: reply-target 1.8s cubic-bezier(.16, 1, .3, 1) forwards;
+}
+@keyframes reply-target {
+  0%, 30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.chat-phone .composer-reply {
+  grid-template-columns: calc(var(--mark) + var(--head-gap)) minmax(0, 1fr) 44px;
+  padding-bottom: 10px;
+}
+.chat-phone .composer:has(> .composer-reply:not([hidden])) {
+  isolation: isolate;
+}
+.chat-phone .composer:has(> .composer-reply:not([hidden]))::before {
+  content: "";
+  position: absolute;
+  inset: 0 -16px;
+  background: var(--paper);
+  z-index: -1;
+  pointer-events: none;
+}
+.chat-phone .composer-reply-remove {
+  width: 44px;
+  height: 44px;
+  margin-top: -8px;
+}
+.chat-phone .msg {
+  touch-action: pan-y pinch-zoom;
+}
+.chat-phone .msg-reply {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  width: 44px;
+  height: 0;
+  overflow: hidden;
+}
+.chat-phone .msg-reply:focus-visible {
+  height: 44px;
+  overflow: visible;
+}
+.chat-phone .msg.is-reply-swiping {
+  overflow: clip;
+}
+.chat-phone .msg.is-reply-swiping > :not(.msg-swipe-reply):not(.msg-reply) {
+  translate: var(--reply-shift) 0;
+}
+.chat-phone .msg-swipe-reply {
+  position: absolute;
+  left: 0;
+  top: 1.7em;
+  display: block;
+  opacity: 0;
+  color: var(--accent-ink);
+  pointer-events: none;
+}
+.chat-phone .msg:is(.is-reply-swiping, .is-reply-picked) > .msg-swipe-reply {
+  opacity: 1;
+  filter: drop-shadow(0 0 .3em var(--accent-halo));
+}
+@media (prefers-reduced-motion: reduce) {
+  .msg.is-reply-target::after {
+    animation: none;
+  }
+  .chat :is(.msg-reply, .composer-reply-remove) svg {
+    transition: none;
+  }
+}
+.chat ::selection {
+  background: var(--selection);
+  color: var(--ink);
+}
+@media (any-pointer: coarse) {
+  .chat:not(.chat-phone) .msg > .msg-reply {
+    position: relative;
+    left: auto;
+    right: auto;
+    top: auto;
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+    pointer-events: auto;
+    margin-left: auto;
+  }
+  .chat:not(.chat-phone) .composer-reply-remove {
+    width: 44px;
+    height: 44px;
+  }
+  .chat:not(.chat-phone) .composer-reply {
+    grid-template-columns: var(--s-lead) minmax(0, 1fr) 44px;
+  }
+}

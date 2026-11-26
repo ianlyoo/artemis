@@ -1,5 +1,5 @@
-# Artemis home settings. Edit freely. Artemis writes this file when it is missing, and after that changes one
-# line only: [agents] lead, when you pick who leads in the App's Settings.
+# Artemis home settings. Edit freely. Artemis writes this file when it is missing, and after that changes only
+# the lines you set in the App: [agents] lead, [lead] name and you, [interrupts] ask and [cards] phone_only.
 # Every key below shows its default. An unknown section or field is an error that names it.
 
 [serve]
@@ -27,6 +27,9 @@ docs = ["claude", "gemini", "codex"]
 host = ["claude", "codex", "api"]
 
 [lead]
+# Your lead's name, and what it calls you. Empty: the App's first-run setup asks.
+name = ""
+you = ""
 # At most this many times an hour the lead is woken by itself: when a request settles, a task gets stuck or you
 # answer a card. 0: only your messages wake it. Schedules never wake it.
 wake_per_hour = 6

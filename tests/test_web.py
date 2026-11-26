@@ -1,5 +1,5 @@
-"""The Artemis App's server: pairing and devices, the request gate, every route's shape, cards, secrets, and the
-live stream with its long-poll fallback. Each test runs a real server on a seeded demo home (mock agents only)."""
+"""The Artemis App's server: pairing and devices, the request gate, settings, setup, cards, secrets, and the
+live stream. Each test runs a real server on a seeded demo home (mock agents only)."""
 
 import contextlib
 import dataclasses
@@ -19,13 +19,14 @@ from unittest import mock
 
 from fixtures import app_demo
 
-from artemis import agents, demo_receiver, vault as vault_module, web
+from artemis import agents, attention, lead as lead_module, vault as vault_module, web
 from artemis.broker import ToolError
 from artemis.config import CardSettings
 from artemis.home import PAIR_S
 from artemis.roles import Interrupt, Role
 from artemis.tls import ensure_cert
 from artemis.vault import PASSPHRASE_ENV, Vault
+from artemis.web import secret_requests
 
 FAKE = "fake-value-for-tests-7f3a9c"           # an obviously fake secret value; it must never come back out
 IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile Safari/604.1"
@@ -37,13 +38,10 @@ PATCHES = (mock.patch.dict(os.environ, {PASSPHRASE_ENV: PASSPHRASE}),       # va
 
 
 def setUpModule():
+    """Each test module that serves a home imports this; the patches end with that module, so the next can start."""
     for patch in PATCHES:
         patch.start()
-
-
-def tearDownModule():
-    for patch in reversed(PATCHES):
-        patch.stop()
+        unittest.addModuleCleanup(patch.stop)
 
 
 class AppCase(unittest.TestCase):
@@ -135,9 +133,9 @@ class AppCase(unittest.TestCase):
 
 class PairingTest(AppCase):
     def test_the_api_needs_a_device_or_the_home_token(self):
-        self.assertEqual(self.call("GET", "/api/state")[0], 401)
-        self.assertEqual(self.call("GET", "/api/state", bearer=True)[0], 200)
-        status, _, data = self.call("GET", "/api/state", headers={"Authorization": "Bearer not-the-token"})
+        self.assertEqual(self.call("GET", "/api/settings")[0], 401)
+        self.assertEqual(self.call("GET", "/api/settings", bearer=True)[0], 200)
+        status, _, data = self.call("GET", "/api/settings", headers={"Authorization": "Bearer not-the-token"})
         self.assertEqual(status, 401)
         self.assertIn("Pair this browser", data["error"])
 
@@ -177,15 +175,15 @@ class PairingTest(AppCase):
         second, device = self.pair(IPHONE)
         self.assertEqual(device["state"], "pending")
         self.assertRegex(device["code"], r"^\d{4}$")
-        status, _, data = self.call("GET", "/api/state", cookie=second)
+        status, _, data = self.call("GET", "/api/settings", cookie=second)
         self.assertEqual((status, data["waiting"]), (403, True))
         status, _, me = self.call("GET", "/api/me", cookie=second)
         self.assertEqual((status, me["device"]["state"], me["device"]["code"]), (200, "pending", device["code"]))
-        state = self.call("GET", "/api/state", cookie=first)[2]
-        self.assertEqual([(item["name"], item["code"]) for item in state["devices_waiting"]],
+        waiting = [item for item in self.call("GET", "/api/devices", cookie=first)[2] if item["state"] == "pending"]
+        self.assertEqual([(item["name"], item["code"]) for item in waiting],
                          [("Safari on iPhone", device["code"])])
         self.assertEqual(self.call("POST", f"/api/devices/{device['id']}/allow", {}, cookie=first)[0], 200)
-        self.assertEqual(self.call("GET", "/api/state", cookie=second)[0], 200)
+        self.assertEqual(self.call("GET", "/api/settings", cookie=second)[0], 200)
         self.assertIsNone(self.call("GET", "/api/me", cookie=second)[2]["device"]["code"])
         status, _, _ = self.call("POST", f"/api/devices/{device['id']}/allow", {}, cookie=first)
         self.assertEqual(status, 409)
@@ -194,8 +192,8 @@ class PairingTest(AppCase):
         first = self.owner()
         _, device = self.pair(IPHONE)
         with mock.patch.object(web, "LOOPBACK", frozenset()):
-            state = self.call("GET", "/api/state", cookie=first)[2]
-            self.assertIsNone(state["devices_waiting"][0]["code"])   # the code shows only here and on itself
+            waiting = [item for item in self.call("GET", "/api/devices", cookie=first)[2] if item["state"] == "pending"]
+            self.assertIsNone(waiting[0]["code"])   # the code shows only here and on itself
             self.assertEqual(self.call("POST", f"/api/devices/{device['id']}/allow", {}, cookie=first)[0], 403)
             self.assertEqual(self.call("POST", f"/api/devices/{device['id']}/revoke", {}, cookie=first)[0], 200)
 
@@ -209,16 +207,16 @@ class PairingTest(AppCase):
         second = self.phone(first)
         device = self.call("GET", "/api/me", cookie=second)[2]["device"]
         self.assertEqual(self.call("POST", f"/api/devices/{device['id']}/revoke", {}, cookie=first)[0], 200)
-        self.assertEqual(self.call("GET", "/api/state", cookie=second)[0], 401)
+        self.assertEqual(self.call("GET", "/api/settings", cookie=second)[0], 401)
         status, response, _ = self.call("POST", "/api/signout", {}, cookie=first)
         self.assertEqual(status, 200)
         self.assertIn("Max-Age=0", response.getheader("Set-Cookie"))
-        self.assertEqual(self.call("GET", "/api/state", cookie=first)[0], 401)
+        self.assertEqual(self.call("GET", "/api/settings", cookie=first)[0], 401)
 
     def test_a_device_unseen_for_thirty_days_pairs_again(self):
         cookie = self.owner()
         with mock.patch.object(web, "SESSION_SECONDS", -1):
-            self.assertEqual(self.call("GET", "/api/state", cookie=cookie)[0], 401)
+            self.assertEqual(self.call("GET", "/api/settings", cookie=cookie)[0], 401)
 
     def test_a_new_pairing_link_comes_with_its_qr(self):
         cookie = self.owner()
@@ -235,7 +233,7 @@ class GateTest(AppCase):
     def test_an_unknown_host_is_refused(self):
         status, _, _ = self.call("GET", "/", headers={"Host": "evil.example"})
         self.assertEqual(status, 403)
-        self.assertEqual(self.call("GET", "/api/state", bearer=True, headers={"Host": "evil.example:80"})[0], 403)
+        self.assertEqual(self.call("GET", "/api/settings", bearer=True, headers={"Host": "evil.example:80"})[0], 403)
 
     def test_a_write_with_the_cookie_must_come_from_the_app(self):
         cookie = self.owner()
@@ -245,39 +243,64 @@ class GateTest(AppCase):
         self.assertFalse(self.home.ledger.stopped())
         self.assertEqual(self.call("POST", "/api/stop", {}, cookie=cookie)[0], 200)
 
+    def built_app(self) -> Path:
+        """A small built App in place of the real one: its page, a file of build 0123456789ab with a compressed
+        copy, and a font."""
+        app = self.root / "app"
+        (app / "fonts").mkdir(parents=True)
+        (app / "index.html").write_text('<!doctype html><script type="module" src="/static/0123456789ab/boot.js">'
+                                        "</script>", encoding="utf-8")
+        (app / "boot.js").write_bytes(b"export const booted = true;\n")
+        (app / "boot.js.br").write_bytes(b"brotli bytes")
+        (app / "fonts" / "Sans.woff2").write_bytes(b"wOF2")
+        patch = mock.patch.object(web, "APP", app)
+        patch.start()
+        self.addCleanup(patch.stop)
+        return app
+
     def test_pages_carry_a_strict_content_policy(self):
+        self.built_app()
         status, response, body = self.call("GET", "/")
         self.assertEqual(status, 200)
-        policy = response.getheader("Content-Security-Policy")
-        self.assertIn("default-src 'self'", policy)
-        self.assertIn("script-src 'self'", policy)
-        self.assertNotIn("unsafe-inline", policy)
+        policy = dict(part.strip().split(" ", 1) for part in response.getheader("Content-Security-Policy").split(";"))
+        self.assertEqual((policy["default-src"], policy["script-src"]), ("'self'", "'self'"))   # no inline script
+        self.assertEqual(policy["frame-ancestors"], "'none'")
         self.assertEqual(response.getheader("X-Frame-Options"), "DENY")
         self.assertEqual(response.getheader("X-Content-Type-Options"), "nosniff")
-        self.assertIn(b'src="/app.js"', body)
-        self.assertNotIn(b"<script>", body)    # no inline script: the policy would refuse it anyway
+        self.assertNotIn(b"<script>", body)
 
     def test_only_the_apps_own_files_are_served(self):
-        for path in ("/app.js", "/app.css", "/manifest.webmanifest", "/icon.svg", "/vendor/preact-htm.js",
-                     "/vendor/LICENSE-preact.txt", "/icon-192.png"):
-            self.assertEqual(self.call("GET", path)[0], 200, path)
-        for path in ("/__init__.py", "/../__init__.py", "/%2e%2e/ledger.py", "/vendor/../../ledger.py",
-                     "/__pycache__/x.pyc", "/missing.js"):
+        self.built_app()
+        status, response, body = self.call("GET", "/static/0123456789ab/boot.js")
+        self.assertEqual((status, body), (200, b"export const booted = true;\n"))
+        self.assertIn("immutable", response.getheader("Cache-Control"))
+        status, response, body = self.call("GET", "/static/0123456789ab/boot.js", headers={"Accept-Encoding": "br"})
+        self.assertEqual((status, response.getheader("Content-Encoding"), body), (200, "br", b"brotli bytes"))
+        status, response, _ = self.call("GET", "/fonts/Sans.woff2")
+        self.assertEqual((status, response.getheader("Content-Type"), response.getheader("Cache-Control")),
+                         (200, "font/woff2", "no-cache"))
+        status, response, body = self.call("GET", "/client.js")
+        self.assertEqual(status, 200)
+        self.assertIn(b"export async function streamEvents", body)
+        self.assertEqual(self.call("GET", "/healthz")[::2], (200, {"ok": True}))
+        for path in ("/__init__.py", "/../__init__.py", "/%2e%2e/ledger.py", "/static/0123456789ab/../../ledger.py",
+                     "/static/xyz/boot.js", "/__pycache__/x.pyc", "/missing.js", "/boot.js.br"):
             self.assertEqual(self.call("GET", path)[0], 404, path)
         self.assertEqual(self.call("POST", "/index.html", {})[0], 405)
 
     def test_bad_bodies_are_refused_plainly(self):
         cookie = self.owner()
         connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
-        connection.request("POST", "/api/messages", body=b"not json", headers={
+        connection.request("POST", "/chat/send", body=b"not json", headers={
             "Host": f"127.0.0.1:{self.port}", "Origin": self.origin, "Cookie": f"{web.COOKIE}={cookie}"})
         self.assertEqual(connection.getresponse().status, 400)
         connection.close()
-        self.assertEqual(self.call("POST", "/api/messages", {"text": ""}, cookie=cookie)[0], 400)
+        self.assertEqual(self.call("POST", "/chat/send", {"text": ""}, cookie=cookie)[0], 400)
         self.assertEqual(self.call("GET", "/api/nothing", cookie=cookie)[0], 404)
-        self.assertEqual(self.call("GET", "/api/updates?limit=many", cookie=cookie)[0], 400)
+        self.assertEqual(self.call("GET", "/timeline?limit=many", cookie=cookie)[0], 400)
 
     def test_a_client_that_hangs_up_between_requests_is_not_printed_as_an_error(self):
+        self.built_app()
         original = web.AppServer.handle_error
         with mock.patch("socketserver.BaseServer.handle_error") as printed, \
                 mock.patch.object(web.AppServer, "handle_error", autospec=True, side_effect=original) as seen:
@@ -309,10 +332,10 @@ class GateTest(AppCase):
 
         self.assertEqual(call("POST", "/api/stop", {"reason": "first reason"})[0], 200)
         self.assertEqual(call("POST", "/api/resume", {"reason": "second reason"})[0], 200)
-        self.assertEqual(call("POST", f"/api/cards/{layout}/choose", {"option": second}), (200, mock.ANY))
+        self.assertEqual(call("POST", f"/questions/{layout}/answer", {"option": second}), (200, mock.ANY))
         self.assertEqual(call("POST", "/api/nothing", {"text": "a body nobody reads"})[0], 404)
-        status, state = call("GET", "/api/state")
-        self.assertEqual((status, state["stopped"]), (200, False))
+        status, setup = call("GET", "/api/setup")
+        self.assertEqual((status, setup["stopped"]), (200, False))
         said = {row["kind"]: row["detail"] for row in self.home.ledger.events() if row["kind"] in ("halt", "resume")}
         self.assertEqual(said, {"halt": "first reason", "resume": "second reason"})
         self.assertEqual(self.home.ledger.card(layout)["answer"], second)
@@ -320,7 +343,7 @@ class GateTest(AppCase):
     def test_a_body_past_what_is_worth_reading_is_refused_unread(self):
         cookie = self.owner()
         with socket.create_connection(("127.0.0.1", self.port), timeout=10) as raw:
-            raw.sendall((f"POST /api/messages HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nOrigin: {self.origin}\r\n"
+            raw.sendall((f"POST /api/stop HTTP/1.1\r\nHost: 127.0.0.1:{self.port}\r\nOrigin: {self.origin}\r\n"
                          f"Cookie: {web.COOKIE}={cookie}\r\nContent-Length: {web.DRAIN_MAX + 1}\r\n\r\n").encode())
             head = raw.recv(4096).decode()
         self.assertTrue(head.startswith("HTTP/1.1 413"), head)
@@ -330,7 +353,7 @@ class GateTest(AppCase):
         # Answering with bytes unread resets the connection on Windows, and the client never sees the status.
         cookie = self.owner()
         sent = {"Host": f"127.0.0.1:{self.port}", "Origin": self.origin, "Cookie": f"{web.COOKIE}={cookie}"}
-        for path, body, status in (("/api/messages", b"x" * (web.MAX_BODY + 1), 413),
+        for path, body, status in (("/api/setup", b"x" * (web.MAX_BODY + 1), 413),
                                    ("/index.html", b"x" * 300_000, 405),
                                    ("/api/stop", b"x" * 300_000, 403)):
             connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
@@ -353,7 +376,7 @@ class GateTest(AppCase):
                            encode_chunked=True)
         response = connection.getresponse()
         self.assertEqual((response.status, json.loads(response.read())["stopped"]), (200, True))
-        connection.request("GET", "/api/state", headers=sent)   # the same connection, after the chunks
+        connection.request("GET", "/api/setup", headers=sent)   # the same connection, after the chunks
         self.assertTrue(json.loads(connection.getresponse().read())["stopped"])
         said = [row["detail"] for row in self.home.ledger.events() if row["kind"] == "halt"]
         self.assertEqual(said, ["sent in chunks"])
@@ -418,6 +441,21 @@ class TlsTest(unittest.TestCase):
         self.assertEqual(link.status, 200, link.read())
         plain.close()
 
+    def test_other_devices_reach_the_app_only_after_the_first_run_setup(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        home = app_demo.home(Path(folder.name) / "home")
+        self.addCleanup(home.close)
+        with self.assertRaises(web.WorkflowError) as refused:
+            web.start(home, 0, lan="198.51.100.23", tls=None)
+        self.assertIn("first-run setup is finished", str(refused.exception))
+        home.ledger.record(web.Role.OWNER, "setup.finished", "First-run setup finished")
+        with contextlib.redirect_stdout(io.StringIO()):
+            server = web.start(home, 0, lan="198.51.100.23", tls=None)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.assertEqual(server.lan_host(), "198.51.100.23")
+
 
 class RoutesTest(AppCase):
     def setUp(self):
@@ -434,96 +472,22 @@ class RoutesTest(AppCase):
         self.assertEqual(got, status, (path, data))
         return data
 
-    def test_state_has_everything_the_header_and_screens_need(self):
-        state = self.get("/api/state")
-        self.assertLessEqual({"stopped", "counts", "since", "projects", "cards", "lessons", "lead", "workers", "vault",
-                              "devices_waiting", "loopback", "lan", "device", "read_at", "cursor", "version"},
-                             set(state))
-        self.assertLessEqual({"asked", "done", "stuck", "wakes"}, set(state["counts"]))
-        self.assertEqual(sorted(project["name"] for project in state["projects"]),
-                         ["field-notes", "storefront", "tax-2026"])
-        shop = next(project for project in state["projects"] if project["name"] == "storefront")
-        self.assertEqual(shop["objective"], "Ship storefront 1.4")
-        self.assertEqual(shop["evidence"]["label"], "verified")
-        self.assertEqual(shop["blocker"]["kind"], "card")
-        taxes = next(project for project in state["projects"] if project["name"] == "tax-2026")
-        self.assertEqual(taxes["due"]["title"], "Sort new receipts and send the summary")
-        self.assertTrue(all(card["state"] in ("waiting", "approved", "running") for card in state["cards"]))
-        push = next(card for card in state["cards"] if card["id"] == self.ids["push"])
-        self.assertLessEqual({"command", "argv", "cwd", "secrets", "why", "allow_standing", "phone_only", "expires",
-                              "task", "request", "receiver"}, set(push))
-        self.assertEqual((push["command"], push["argv"]), ("git push origin main v1.4.0",
-                                                           ["git", "push", "origin", "main", "v1.4.0"]))
-        self.assertFalse(push["allow_standing"])     # its task was not started by a schedule
-        self.assertFalse(push["phone_only"])
-        summary = next(card for card in state["cards"] if card["id"] == self.ids["summary"])
-        self.assertTrue(summary["allow_standing"])
-        self.assertEqual((summary["request"]["method"], summary["receiver"]), ("POST", demo_receiver.NAME))
-        self.assertEqual(([worker["provider"] for worker in state["workers"]], state["lead"]["label"]),
-                         (list(agents.PROVIDERS), "mock (no AI)"))
-        self.assertEqual(([worker["provider"] for worker in state["workers"] if worker["chosen"]],
-                          state["max_workers"], state["lead"]["answers"]), (["mock"], 3, True))   # config.toml
-        self.assertEqual(state["agents"]["codex"], "Codex")
-        self.assertEqual(state["vault"]["backend"], "env")
-        self.assertTrue(state["vault"]["from_env"])
-        self.assertTrue(state["device"]["this"])
-
-    def test_the_conversation_and_its_updates(self):
-        messages = self.get("/api/messages")
-        self.assertLessEqual({"id", "at", "role", "text", "project_id", "card_id", "turn", "card"}, set(messages[0]))
-        self.assertIn("you", {message["role"] for message in messages})
-        later = self.get(f"/api/messages?after={messages[-2]['id']}")
-        self.assertEqual([message["id"] for message in later], [messages[-1]["id"]])
-        updates = self.get("/api/updates?limit=50")
-        self.assertTrue(all(event["update"] for event in updates))
-        opened = [event for event in updates if event["kind"] == "card.opened"]
-        self.assertTrue(opened and all(event["card"]["id"] == event["card_id"] for event in opened))
-
-    def test_a_project_and_a_task(self):
-        project = self.get(f"/api/projects/{self.ids['shop']}")
-        self.assertEqual(set(project), {"project", "tasks", "schedules", "lessons"})
-        self.assertLessEqual({"id", "title", "label", "provider", "proof"}, set(project["tasks"][0]))
-        self.assertEqual(self.call("GET", "/api/projects/999", cookie=self.cookie)[0], 404)
-        task = self.get(f"/api/tasks/{self.ids['search']}")
-        self.assertLessEqual({"task", "runs", "submissions", "evidence", "verdicts", "review", "log_tail",
-                              "files_changed", "undo"}, set(task))
-        self.assertLessEqual({"brief", "criteria"}, set(task["task"]))
-        self.assertEqual(self.call("GET", "/api/tasks/999", cookie=self.cookie)[0], 404)
-
-    def test_the_log_tail_shows_secret_names_not_values(self):
-        log = self.home.paths.logs / f"task-{self.ids['search']}.log"
-        log.write_text(log.read_text(encoding="utf-8") + "\nexported GITHUB_TOKEN=demo-token-not-real-0000\n",
-                       encoding="utf-8")
-        tail = self.get(f"/api/tasks/{self.ids['search']}")["log_tail"]
-        self.assertIn("[secret:GITHUB_TOKEN]", tail)
-        self.assertNotIn("demo-token-not-real-0000", tail)
-
-    def test_the_digest_and_reading_it(self):
-        digest = self.get("/api/digest")
-        self.assertEqual(set(digest), {"lines", "counts", "text"})
-        self.assertEqual(set(digest["lines"][0]), {"label", "ref", "title", "proof", "project", "question"})
-        asked = [line for line in self.get("/api/digest?since=0")["lines"] if line["question"]]
-        declined = self.card_id("Publish the theme package to npm")
-        self.assertEqual([(line["proof"], line["question"]) for line in asked],
-                         [(f"from D{declined} you declined",
-                           f"You declined D{declined}. Always ask before `npm publish`?")])
-        only = self.get(f"/api/digest?project={self.ids['taxes']}&since=0")
-        self.assertEqual({line["project"] for line in only["lines"]}, {"tax-2026"})
-        self.assertIsNone(self.get("/api/state")["read_at"])
-        read = self.post("/api/digest/read")
-        self.assertEqual(self.get("/api/state")["read_at"], read["read_at"])
+    def test_json_responses_show_secret_names_not_values(self):
+        self.home.ledger.note(Role.LEAD, "exported GITHUB_TOKEN=demo-token-not-real-0000", project=self.ids["shop"])
+        summaries = [event["summary"] for event in self.get("/timeline")["events"]]
+        self.assertTrue(any("[secret:GITHUB_TOKEN]" in text for text in summaries))
+        self.assertFalse(any("demo-token-not-real-0000" in text for text in summaries))
 
     def test_lessons_are_accepted_and_retired_through_the_lessons_module(self):
-        lessons = {lesson["id"]: lesson for lesson in self.get("/api/lessons")}
+        retired = self.post(f"/api/lessons/{self.ids['rule']}/retire")
         self.assertLessEqual({"id", "kind", "text", "state", "source", "uses", "first_try", "question", "from"},
-                             set(lessons[self.ids["rule"]]))
-        self.assertEqual(lessons[self.ids["rule"]]["from"], f"from #{lessons[self.ids['rule']]['source'][0]['task']} "
-                                                            "judge reject")
-        self.assertEqual(self.post(f"/api/lessons/{self.ids['rule']}/retire")["state"], "retired")
+                             set(retired))
+        self.assertEqual(retired["state"], "retired")
+        self.assertEqual(retired["from"], f"from #{retired['source'][0]['task']} judge reject")
         self.assertEqual(self.post(f"/api/lessons/{self.ids['rule']}/accept")["state"], "active")
-        guard = next(lesson for lesson in lessons.values() if lesson["question"])
-        self.assertEqual(self.post(f"/api/lessons/{guard['id']}/accept"),
-                         {**guard, "state": "active", "question": None})
+        guard = next(row for row in self.home.ledger.lessons(state="proposed") if row["kind"] == "guard")
+        accepted = self.post(f"/api/lessons/{guard['id']}/accept")
+        self.assertEqual((accepted["id"], accepted["state"], accepted["question"]), (guard["id"], "active", None))
         self.post(f"/api/lessons/{self.ids['check']}/retire")
         status, _, data = self.call("POST", f"/api/lessons/{self.ids['check']}/accept", {}, cookie=self.cookie)
         self.assertEqual(status, 409)                 # a check comes back only once it is proven on a rejected commit
@@ -547,21 +511,8 @@ class RoutesTest(AppCase):
 
     def test_stop_and_resume(self):
         self.assertTrue(self.post("/api/stop", {"reason": "checking"})["stopped"])
-        self.assertTrue(self.get("/api/state")["stopped"])
+        self.assertTrue(self.get("/api/setup")["stopped"])
         self.assertFalse(self.post("/api/resume")["stopped"])
-
-    def test_a_message_reaches_the_lead_and_its_reply_comes_back(self):
-        sent = self.post("/api/messages", {"text": "How is the release going?", "project_id": self.ids["shop"]})
-        deadline = time.time() + 10
-        while time.time() < deadline:
-            replies = [message for message in self.get(f"/api/messages?after={sent['id']}")
-                       if message["role"] == "lead"]
-            if replies:
-                break
-            time.sleep(0.1)
-        self.assertTrue(replies and replies[0]["project_id"] == self.ids["shop"])
-        self.post("/api/messages", {"text": "x", "project_id": "storefront"}, status=400)
-        self.post("/api/messages", {"text": "x", "project_id": 999}, status=404)
 
     def test_closing_waits_for_a_lead_that_is_still_answering(self):
         answered = threading.Event()
@@ -571,46 +522,39 @@ class RoutesTest(AppCase):
             answered.set()
 
         with mock.patch.object(self.home.lead, "turn", side_effect=slowly):
-            self.post("/api/messages", {"text": "Take your time"})
+            self.post("/chat/send", {"text": "Take your time"})
             self.server.shutdown()
             self.assertTrue(answered.is_set())
 
     def test_a_home_without_a_lead_says_so_where_you_asked(self):
         self.home.lead = None
-        sent = self.post("/api/messages", {"text": "Anyone there?", "project_id": self.ids["blog"]})
-        [said] = self.get(f"/api/messages?after={sent['id']}")
-        self.assertEqual((said["role"], said["project_id"]), ("artemis", self.ids["blog"]))
+        self.post("/chat/send", {"text": "Anyone there?"})
+        said = self.get("/chat/history")["items"][-1]
+        self.assertEqual((said["role"], said["source"]), ("note", "system"))
         self.assertIn("No lead runs in this home yet", said["text"])
-        self.assertFalse(self.get("/api/state")["lead"]["answers"])
 
     def test_a_build_without_a_broker_still_shows_and_answers_cards(self):
         self.home.broker = None
-        summary = next(card for card in self.get("/api/state")["cards"] if card["id"] == self.ids["summary"])
-        self.assertFalse(summary["allow_standing"])
-        self.post(f"/api/cards/{self.ids['summary']}/approve", {"standing": True}, status=400)
-        self.assertEqual(self.post(f"/api/cards/{self.ids['summary']}/approve")["state"], "approved")
+        summary = self.get(f"/approvals/{self.ids['summary']}")
+        self.post(f"/approvals/{self.ids['summary']}/decide",
+                  {"verdict": "approve", "scope_hash": summary["scope_hash"], "standing": True}, status=400)
+        decided = self.post(f"/approvals/{self.ids['summary']}/decide",
+                            {"verdict": "approve", "scope_hash": summary["scope_hash"]})
+        self.assertEqual(decided["status"], "approved")
         status, _, data = self.call("POST", "/broker/call", {"tool": "note"}, origin=False,
                                     headers={"X-Artemis-Run": "fake-run-token"})
         self.assertEqual(status, 503)
         self.assertIn("no broker", data["error"])
 
-    def test_adding_a_project(self):
-        folder = self.root / "notes"
-        folder.mkdir()
-        added = self.post("/api/projects", {"path": str(folder)})
-        self.assertEqual((added["kind"], added["name"]), ("folder", "notes"))
-        self.post("/api/projects", {"path": "relative/path"}, status=400)
-        self.post("/api/projects", {"path": str(self.root / "missing")}, status=400)
-
     def test_a_repeated_request_id_is_done_once(self):
         headers = {"X-Request-Id": "same-request-1"}
-        first = self.call("POST", "/api/messages", {"text": "Once only"}, cookie=self.cookie, headers=headers)
-        again = self.call("POST", "/api/messages", {"text": "Once only"}, cookie=self.cookie, headers=headers)
+        first = self.call("POST", "/chat/send", {"text": "Once only"}, cookie=self.cookie, headers=headers)
+        again = self.call("POST", "/chat/send", {"text": "Once only"}, cookie=self.cookie, headers=headers)
         self.assertEqual((first[0], again[0]), (200, 200))
         self.assertEqual(first[2], again[2])
         said = [row for row in self.home.ledger.messages(0) if row["text"] == "Once only"]
         self.assertEqual(len(said), 1)
-        other = self.call("POST", "/api/messages", {"text": "Once only"}, cookie=self.cookie,
+        other = self.call("POST", "/chat/send", {"text": "Once only"}, cookie=self.cookie,
                           headers={"X-Request-Id": "same-request-2"})
         self.assertNotEqual(other[2], first[2])
 
@@ -640,28 +584,32 @@ class LeadTest(AppCase):
             'lead = "mock"', 'lead = "mock"   # for now'), encoding="utf-8")
 
     def choose(self, name: str, **options):
-        return self.call("POST", "/api/settings/lead", {"lead": name}, cookie=self.cookie, **options)
+        return self.call("POST", "/chat/settings", {"model": name}, cookie=self.cookie, **options)
 
     def test_a_chosen_lead_is_one_line_of_config_and_answers_next(self):
         before = self.home.paths.config.read_text(encoding="utf-8").splitlines()
         status, _, chosen = self.choose("codex")
-        self.assertEqual((status, chosen["chosen"], chosen["label"]), (200, "codex", "Codex"))
+        self.assertEqual((status, chosen["settings"]["model"]["id"], chosen["settings"]["model"]["label"]),
+                         (200, "codex", "Codex"))
         after = self.home.paths.config.read_text(encoding="utf-8").splitlines()
         self.assertEqual([(old, new) for old, new in zip(before, after) if old != new],
                          [('lead = "mock"   # for now', 'lead = "codex"   # for now')])
         self.assertEqual(len(after), len(before))
         self.assertEqual(agents.lead_provider(self.home.config, self.home.vault, self.home.ledger), "codex")
-        updates = self.call("GET", "/api/updates", cookie=self.cookie)[2]
-        self.assertEqual([row["detail"] for row in updates if row["kind"] == "lead.switched"],
+        events = self.call("GET", "/timeline", cookie=self.cookie)[2]["events"]
+        self.assertEqual([row["summary"] for row in events if row["kind"] == "lead.switched"],
                          ["Lead switched to Codex"])
-        sent = self.call("POST", "/api/messages", {"text": "Who answers now?"}, cookie=self.cookie)[2]
+        sent = int(self.call("POST", "/chat/send", {"text": "Who answers now?"},
+                             cookie=self.cookie)[2]["messageId"][1:])
 
-        def replies():
-            return [row for row in self.call("GET", f"/api/messages?after={sent['id']}", cookie=self.cookie)[2]
-                    if row["role"] == "lead"]
-        self.until(replies)
-        self.assertEqual(replies()[0]["by"], "Codex")
-        self.assertEqual(self.choose("auto")[2]["provider"], "codex")    # Claude Code did not qualify to lead here
+        def turns():
+            return [json.loads(row["data"]) for row in self.home.ledger.events(kind="lead.turn")
+                    if json.loads(row["data"] or "{}").get("message") == sent]
+        self.until(turns)
+        self.assertEqual(turns()[0]["provider"], "codex")
+        self.assertEqual(self.choose("auto")[0], 200)
+        # Claude Code did not qualify to lead here
+        self.assertEqual(self.call("GET", "/api/settings", cookie=self.cookie)[2]["lead"]["provider"], "codex")
         self.assertEqual(self.home.config.agents.lead, "auto")
 
     def test_each_agent_says_whether_it_can_lead_here(self):
@@ -670,7 +618,7 @@ class LeadTest(AppCase):
         self.assertEqual({choice["provider"]: choice["why"] for choice in lead["choices"]}, {
             "claude": "did not qualify to lead here; run `artemis doctor providers` to try again",
             "codex": None,
-            "api": "needs a model and its key in config.toml's [api]",
+            "api": "needs a model and its key: Settings, API (or [api] in config.toml)",
             "mock": None})
 
     def test_an_unknown_lead_or_one_that_cannot_lead_changes_nothing(self):
@@ -690,6 +638,68 @@ class LeadTest(AppCase):
         self.assertEqual(self.home.ledger.events(kind="lead.switched"), [])
 
 
+class SetupTest(AppCase):
+    """The first-run setup: the lead's name and the person's, and what Artemis asks first, each a line of config."""
+
+    def setUp(self):
+        super().setUp()
+        self.cookie = self.owner()
+
+    def save(self, body: dict, **options):
+        return self.call("POST", "/api/setup", body, cookie=self.cookie, **options)
+
+    def test_a_new_home_shows_the_setup_until_it_is_finished(self):
+        status, _, shown = self.call("GET", "/api/setup", cookie=self.cookie)
+        self.assertEqual(status, 200)
+        self.assertEqual((shown["done"], shown["name"], shown["you"], shown["here"], shown["stopped"]),
+                         (False, "", "", True, False))
+        self.assertTrue(self.call("POST", "/api/stop", {}, cookie=self.cookie)[2]["stopped"])
+        self.assertTrue(self.call("GET", "/api/setup", cookie=self.cookie)[2]["stopped"])
+        self.assertFalse(self.call("POST", "/api/resume", {}, cookie=self.cookie)[2]["stopped"])
+        self.assertEqual(shown["kinds"], ["money out", "irreversible delete", "send as you"])
+        self.assertEqual(shown["lead"]["chosen"], "mock")
+        status, _, saved = self.save({"name": "  Juno ", "you": "Sam"})
+        self.assertEqual((status, saved["name"], saved["you"], saved["done"]), (200, "Juno", "Sam", False))
+        self.assertEqual((self.home.config.lead.name, self.home.config.lead.you), ("Juno", "Sam"))
+        self.assertIn('name = "Juno"', self.home.paths.config.read_text(encoding="utf-8"))
+        self.assertTrue(self.save({"done": True})[2]["done"])
+        self.save({"done": True})
+        self.assertEqual(len(self.home.ledger.events(kind="setup.finished")), 1)
+        self.assertEqual(lead_module.called(self.home.config), "Your name here is Juno. Call the person Sam.\n")
+
+    def test_what_artemis_asks_first_is_chosen_on_this_computer(self):
+        saved = self.save({"ask": ["send as you", "money out"], "phone_only": ["money out"]})[2]
+        self.assertEqual((saved["ask"], saved["phone_only"]), (["money out", "send as you"], ["money out"]))
+        self.assertEqual(self.home.config.interrupts.ask, ("money out", "send as you"))
+        status, _, refused = self.save({"ask": ["send as you"]})
+        self.assertEqual(status, 400)
+        self.assertIn("approved only from a phone", refused["error"])
+        self.assertEqual(self.save({"ask": ["spend"]})[0], 400)
+        before = self.home.paths.config.read_bytes()
+        with mock.patch.object(web.Handler, "loopback", new_callable=mock.PropertyMock, return_value=False):
+            status, _, refused = self.save({"ask": []})
+            self.assertEqual(status, 403)
+            self.assertIn("computer it runs on", refused["error"])
+            self.assertEqual(self.save({"name": "Ari"})[0], 200)     # a name may change from a phone
+        self.assertEqual(self.home.config.interrupts.ask, ("money out", "send as you"))
+        self.assertNotEqual(self.home.paths.config.read_bytes(), before)
+        self.assertEqual(self.save({"name": "x" * 41})[0], 409)
+        self.assertEqual(self.save({"name": "Ari"}, origin=False)[0], 403)
+
+    def test_the_api_that_can_lead_is_named_on_this_computer(self):
+        shown = self.call("GET", "/api/setup", cookie=self.cookie)[2]["api"]
+        self.assertEqual((shown["model"], shown["key"]), ("", "OPENAI_API_KEY"))
+        saved = self.save({"api": {"model": "gpt-4.1", "base_url": "https://api.example.com/v1/"}})[2]["api"]
+        self.assertEqual((saved["model"], saved["base_url"]), ("gpt-4.1", "https://api.example.com/v1"))
+        self.assertEqual(self.home.config.api.model, "gpt-4.1")
+        self.assertEqual(self.save({"api": {"model": "two words"}})[0], 409)
+        self.assertEqual(self.save({"api": {"base_url": "http://example.com"}})[0], 409)
+        self.assertEqual(self.save({"api": {"key": "OTHER"}})[0], 400)
+        with mock.patch.object(web.Handler, "loopback", new_callable=mock.PropertyMock, return_value=False):
+            self.assertEqual(self.save({"api": {"model": "other"}})[0], 403)
+        self.assertEqual(self.home.config.api.model, "gpt-4.1")
+
+
 class CardsTest(AppCase):
     def setUp(self):
         super().setUp()
@@ -698,8 +708,14 @@ class CardsTest(AppCase):
         self.decided = self.decide.start()
         self.addCleanup(self.decide.stop)
 
-    def act(self, card: int, action: str, body: dict | None = None, cookie: str | None = None):
-        return self.call("POST", f"/api/cards/{card}/{action}", body or {}, cookie=cookie or self.cookie)
+    def approval(self, card: int) -> dict:
+        status, _, data = self.call("GET", f"/approvals/{card}", cookie=self.cookie)
+        self.assertEqual(status, 200, data)
+        return data
+
+    def act(self, card: int, verdict: str, body: dict | None = None, cookie: str | None = None):
+        payload = {"verdict": verdict, "scope_hash": self.approval(card)["scope_hash"], **(body or {})}
+        return self.call("POST", f"/approvals/{card}/decide", payload, cookie=cookie or self.cookie)
 
     def test_approving_is_recorded_as_the_owner_once_and_carried_out_by_the_home(self):
         with mock.patch.object(self.home.broker, "run_card") as run:
@@ -707,7 +723,7 @@ class CardsTest(AppCase):
             run.assert_not_called()          # the App records the answer; the home's card round carries it out
             self.home.run_cards()
             self.until(lambda: run.called)
-        self.assertEqual((status, card["state"]), (200, "approved"))
+        self.assertEqual((status, card["status"]), (200, "approved"))
         self.decided.assert_called_once_with(Role.OWNER, self.ids["push"], True, standing=None)
         run.assert_called_once_with(self.ids["push"])
         status, _, data = self.act(self.ids["push"], "approve")
@@ -716,9 +732,9 @@ class CardsTest(AppCase):
 
     def test_declining(self):
         with mock.patch.object(self.home.broker, "run_card") as run:
-            status, _, card = self.act(self.ids["push"], "decline")
+            status, _, card = self.act(self.ids["push"], "deny")
             self.home.run_cards()
-        self.assertEqual((status, card["state"]), (200, "declined"))
+        self.assertEqual((status, card["status"]), (200, "denied"))
         self.decided.assert_called_once_with(Role.OWNER, self.ids["push"], False, standing=None)
         run.assert_not_called()
 
@@ -726,11 +742,10 @@ class CardsTest(AppCase):
         card = self.home.ledger.open_card(Role.HOME, Interrupt.SEND, "Tell everyone", "It speaks for you.",
                                           project=self.ids["shop"], command="notify-team --all",
                                           cwd=str(self.root), shell="sh")
-        shown = next(item for item in self.call("GET", "/api/state", cookie=self.cookie)[2]["cards"]
-                     if item["id"] == card)
-        self.assertEqual((shown["command"], shown["argv"], shown["request"]), ("notify-team --all", None, None))
-        status, _, declined = self.act(card, "decline")
-        self.assertEqual((status, declined["state"]), (200, "declined"))
+        shown = self.approval(card)
+        self.assertIn("notify-team --all", shown["scope_text"])
+        status, _, declined = self.act(card, "deny")
+        self.assertEqual((status, declined["status"]), (200, "denied"))
 
     def test_always_for_this_exact_operation_binds_the_command_folder_and_secret(self):
         schedule = next(row for row in self.home.ledger.schedules() if row["title"] == "Publish the site")
@@ -753,14 +768,13 @@ class CardsTest(AppCase):
 
     def test_an_approved_request_to_the_demo_receiver_is_really_sent_once(self):
         status, _, card = self.act(self.ids["summary"], "approve", {"standing": True})
-        self.assertEqual((status, card["state"]), (200, "approved"))
+        self.assertEqual((status, card["status"]), (200, "approved"))
         self.home.run_cards()
         self.until(lambda: self.home.ledger.card(self.ids["summary"])["state"] == "done")
         got = [event for event in self.home.ledger.events() if event["kind"] == "demo.received"]
         self.assertEqual(len(got), 1)
         self.assertEqual(json.loads(got[0]["data"])["sha256"], hashlib.sha256(app_demo.SUMMARY).hexdigest())
-        self.assertIn("it got that exact body", json.dumps(self.call("GET", "/api/digest?since=0",
-                                                                      cookie=self.cookie)[2]))
+        self.assertIn("it got that exact body", attention.digest(self.home.ledger, since=0).text)
 
     def held_request(self, task: int | None) -> int:
         """A web request held for a card, recorded the way httpop holds one."""
@@ -772,12 +786,8 @@ class CardsTest(AppCase):
 
     def test_a_held_web_request_shows_its_method_and_address(self):
         card = self.held_request(None)
-        shown = next(item for item in self.call("GET", "/api/state", cookie=self.cookie)[2]["cards"]
-                     if item["id"] == card)
-        self.assertIsNone(shown["command"])
-        self.assertEqual(shown["request"], {"method": "POST", "url": "https://api.newsletter.example/v1/send",
-                                            "save_to": None})
-        self.assertFalse(shown["allow_standing"])     # httpop lets a request through for good only from a schedule
+        shown = self.approval(card)
+        self.assertIn("POST https://api.newsletter.example/v1/send", shown["scope_text"])
         self.assertEqual(self.act(card, "approve", {"standing": True})[0], 400)
 
     def test_a_scheduled_web_request_is_approved_for_good_as_httpop_looks_it_up(self):
@@ -785,7 +795,7 @@ class CardsTest(AppCase):
         task = self.home.ledger.fire(schedule["id"], schedule["next_at"], schedule["next_at"] + 7 * 86400, False)
         card = self.held_request(task)
         status, _, shown = self.act(card, "approve", {"standing": True})
-        self.assertEqual((status, shown["state"]), (200, "approved"))
+        self.assertEqual((status, shown["status"]), (200, "approved"))
         self.assertEqual(self.decided.call_args.kwargs["standing"],
                          {"method": "POST", "url": "https://api.newsletter.example/v1/send",
                           "secret": "NEWSLETTER_API_KEY", "schedule": schedule["id"]})
@@ -804,11 +814,7 @@ class CardsTest(AppCase):
         self.assertEqual(status, 400)
         self.assertIn("asked every time", data["error"])
         status, _, card = self.act(domain, "approve", cookie=phone)
-        self.assertEqual((status, card["state"]), (200, "approved"))
-
-    def test_money_out_can_be_declined_anywhere(self):
-        domain = self.card_id("Renew storefront.example for a year")
-        self.assertEqual(self.act(domain, "decline")[2]["state"], "declined")
+        self.assertEqual((status, card["status"]), (200, "approved"))
 
     def test_phone_only_follows_the_config(self):
         self.home.config = dataclasses.replace(self.home.config, cards=CardSettings(phone_only=()))
@@ -823,27 +829,19 @@ class CardsTest(AppCase):
         self.assertEqual(status, 409)
         self.assertIn("expired", data["error"])
         self.assertEqual(self.home.ledger.card(late)["state"], "expired")
-        opened = next(event for event in self.call("GET", "/api/updates", cookie=self.cookie)[2]
-                      if event["card_id"] == late and event["kind"] == "card.opened")
-        self.assertEqual(opened["card"]["state"], "expired")
+        shown = self.approval(late)
+        self.assertEqual((shown["status"], shown["execution_state"]), ("expired", "expired"))
 
     def test_a_choice_is_chosen_not_approved(self):
         self.assertEqual(self.act(self.ids["layout"], "approve")[0], 400)
         options = self.home.ledger.card(self.ids["layout"])["options"]
         option = json.loads(options)[0]["id"]
-        status, _, card = self.act(self.ids["layout"], "choose", {"option": option})
-        self.assertEqual((status, card["answer"]), (200, option))
-        self.assertEqual(self.act(self.ids["layout"], "choose", {"option": option})[0], 409)
-
-    def test_a_secret_card_stores_the_value_and_says_only_the_name(self):
-        self.assertEqual(self.act(self.ids["push"], "secret", {"value": FAKE})[0], 400)   # not a secret card
-        status, _, card = self.act(self.ids["newsletter"], "secret", {"value": FAKE})
-        self.assertEqual((status, card["state"]), (200, "done"))
-        stored = self.home.vault.info("NEWSLETTER_API_KEY")
-        self.assertEqual((stored.use, stored.kind, stored.origin), ("http", "send", "https://api.newsletter.example"))
-        self.assertEqual(self.home.vault.http("NEWSLETTER_API_KEY", "https://api.newsletter.example"),
-                         ("Authorization", f"Bearer {FAKE}"))
-        self.assertFalse(any(FAKE.encode() in body for body in self.bodies))
+        status, _, answered = self.call("POST", f"/questions/{self.ids['layout']}/answer", {"option": option},
+                                        cookie=self.cookie)
+        self.assertEqual((status, answered["status"]), (200, "answered"))
+        self.assertEqual(self.home.ledger.card(self.ids["layout"])["answer"], option)
+        self.assertEqual(self.call("POST", f"/questions/{self.ids['layout']}/answer", {"option": option},
+                                   cookie=self.cookie)[0], 409)
 
 
 class SecretsTest(AppCase):
@@ -917,17 +915,14 @@ class SecretsTest(AppCase):
         self.locked()
         self.assertEqual(self.call("GET", "/api/secrets", cookie=self.cookie)[0], 423)
         self.assertEqual(self.add({"name": "EXAMPLE_API_KEY", "value": FAKE})[0], 423)
-        self.assertEqual(self.call("POST", f"/api/cards/{self.ids['newsletter']}/secret", {"value": FAKE},
-                                   cookie=self.cookie)[0], 423)
-        self.assertEqual(self.home.ledger.card(self.ids["newsletter"])["state"], "waiting")
-        vault = self.call("GET", "/api/state", cookie=self.cookie)[2]["vault"]
+        vault = self.call("GET", "/api/settings", cookie=self.cookie)[2]["vault"]
         self.assertEqual((vault["locked"], vault["state"], vault["from_env"]), (True, "locked", False))
         self.home.vault = None
         self.assertEqual(self.call("GET", "/api/secrets", cookie=self.cookie)[0], 423)
-        self.assertIsNone(self.call("GET", "/api/state", cookie=self.cookie)[2]["vault"])
+        self.assertIsNone(self.call("GET", "/api/settings", cookie=self.cookie)[2]["vault"])
 
     def test_a_vault_unlocked_from_the_environment_says_so(self):
-        vault = self.call("GET", "/api/state", cookie=self.cookie)[2]["vault"]
+        vault = self.call("GET", "/api/settings", cookie=self.cookie)[2]["vault"]
         self.assertEqual((vault["locked"], vault["from_env"], vault["notice"]),
                          (False, True, "vault unlocked from environment"))
 
@@ -969,10 +964,15 @@ class SecretsTest(AppCase):
 
     def test_the_value_is_in_no_response_log_stream_or_ledger(self):
         stream = Stream(self, self.cookie)
+        self.addCleanup(stream.close)
+        stream.until(lambda text: "retry:" in text)
         self.add({"name": "EXAMPLE_API_KEY", "value": FAKE})
-        self.call("POST", f"/api/cards/{self.ids['newsletter']}/secret", {"value": FAKE}, cookie=self.cookie)
+        req_id = secret_requests.request_for_card(self.home.ledger, self.ids["newsletter"])["id"]
+        self.call("POST", f"/secret-requests/{req_id}/save", {"value": FAKE}, cookie=self.cookie)
+        self.addCleanup(setattr, self.home.lead, "saying", None)
+        self.home.lead.saying = {"turn": "t1", "text": f"the key is {FAKE}", "at": time.time()}
         self.home.publish("said.delta", {"turn": "t1", "text": f"the key is {FAKE}"})
-        seen = stream.until(lambda text: "said.delta" in text)
+        seen = stream.until(lambda text: "[secret:" in text)
         stream.close()
         self.assertIn("[secret:", seen)
         self.assertNotIn(FAKE, seen)
@@ -984,13 +984,12 @@ class SecretsTest(AppCase):
 
 
 class Stream:
-    """An open /api/events stream, read line by line in the background."""
+    """An open GET /events stream, read line by line in the background."""
 
-    def __init__(self, case: AppCase, cookie: str, last: int | None = None):
+    def __init__(self, case: AppCase, cookie: str):
         self.sock = socket.create_connection(("127.0.0.1", case.port), timeout=10)
-        extra = f"Last-Event-ID: {last}\r\n" if last is not None else ""
-        self.sock.sendall((f"GET /api/events HTTP/1.1\r\nHost: 127.0.0.1:{case.port}\r\n"
-                           f"Cookie: {web.COOKIE}={cookie}\r\n{extra}\r\n").encode())
+        self.sock.sendall((f"GET /events HTTP/1.1\r\nHost: 127.0.0.1:{case.port}\r\n"
+                           f"Cookie: {web.COOKIE}={cookie}\r\n\r\n").encode())
         self.text = ""
         self.lock = threading.Lock()
         self.ended = threading.Event()      # the server closed the stream
@@ -1014,14 +1013,6 @@ class Stream:
             time.sleep(0.05)
         return self.text
 
-    def events(self) -> list[tuple[int | None, dict]]:
-        found = []
-        for block in self.text.split("\r\n\r\n", 1)[-1].split("\n\n"):
-            lines = dict(line.split(": ", 1) for line in block.splitlines() if ": " in line and line[0] != ":")
-            if "data" in lines:
-                found.append((int(lines["id"]) if "id" in lines else None, json.loads(lines["data"])))
-        return found
-
     def close(self):
         with contextlib.suppress(OSError):
             self.sock.shutdown(socket.SHUT_RDWR)
@@ -1032,27 +1023,11 @@ class LiveTest(AppCase):
     def setUp(self):
         super().setUp()
         self.cookie = self.owner()
-        self.cursor = self.call("GET", "/api/state", cookie=self.cookie)[2]["cursor"]
-
-    def test_a_stream_resumes_after_the_last_event_it_saw(self):
-        stream = Stream(self, self.cookie, last=self.cursor - 2)
-        stream.until(lambda text: text.count("\nid: ") >= 2)
-        ids = [key for key, _ in stream.events() if key is not None]
-        self.assertEqual(ids[:2], [self.cursor - 1, self.cursor])
-        self.home.ledger.note(Role.LEAD, "A new reading", project=self.ids["shop"])
-        self.home.publish("said.delta", {"turn": "t9", "text": "Hel"})
-        stream.until(lambda text: "said.delta" in text and "A new reading" in text)
-        stream.close()
-        events = stream.events()
-        self.assertIn((self.cursor + 1, "note"), [(key, data["kind"]) for key, data in events])
-        delta = next(data for key, data in events if data["kind"] == "said.delta")
-        self.assertEqual(delta["data"], {"turn": "t9", "text": "Hel"})
-        self.assertIn("text/event-stream", stream.text.split("\r\n\r\n")[0])
 
     def test_a_stream_that_falls_behind_is_closed_and_lets_go_of_the_home(self):
         with mock.patch("artemis.home.SUBSCRIBER_QUEUE", 1), \
                 mock.patch.object(self.home, "unsubscribe", wraps=self.home.unsubscribe) as unsubscribe:
-            stream = Stream(self, self.cookie, last=self.cursor)
+            stream = Stream(self, self.cookie)
             self.addCleanup(stream.close)
             stream.until(lambda text: "retry:" in text)
             for _ in range(2000):
@@ -1061,31 +1036,21 @@ class LiveTest(AppCase):
             self.until(lambda: unsubscribe.called)
         self.assertIn("retry: 2000", stream.text)
 
-    def test_the_long_poll_answers_with_new_events_or_after_its_wait(self):
-        with mock.patch.object(web, "POLL_WAIT", 0.6):
-            started = time.monotonic()
-            status, _, data = self.call("GET", f"/api/events?poll=1&after={self.cursor}", cookie=self.cookie)
-            self.assertEqual((status, data), (200, {"events": [], "cursor": self.cursor}))
-            self.assertLess(time.monotonic() - started, 5)
-        threading.Timer(0.3, self.home.ledger.note, (Role.LEAD, "Later reading")).start()
-        status, _, data = self.call("GET", f"/api/events?poll=1&after={self.cursor}", cookie=self.cookie)
-        self.assertEqual([event["kind"] for event in data["events"]], ["note"])
-        self.assertEqual(data["cursor"], self.cursor + 1)
-
     def test_open_streams_leave_room_for_stop_and_approvals(self):
         with mock.patch.object(web, "MAX_STREAMS", 2):
             streams = [Stream(self, self.cookie) for _ in range(2)]
             for stream in streams:
                 stream.until(lambda text: "retry:" in text)
-            status, _, data = self.call("GET", "/api/events", cookie=self.cookie)
+            status, _, data = self.call("GET", "/events", cookie=self.cookie)
             self.assertEqual(status, 503)
-            self.assertIn("checks every few seconds", data["error"])
+            self.assertIn("Too many live views", data["error"])
             started = time.monotonic()
             self.assertEqual(self.call("POST", "/api/stop", {}, cookie=self.cookie)[0], 200)
-            declined = self.call("POST", f"/api/cards/{self.ids['push']}/decline", {}, cookie=self.cookie)
+            _, _, shown = self.call("GET", f"/approvals/{self.ids['push']}", cookie=self.cookie)
+            declined = self.call("POST", f"/approvals/{self.ids['push']}/decide",
+                                 {"verdict": "deny", "scope_hash": shown["scope_hash"]}, cookie=self.cookie)
             self.assertEqual(declined[0], 200)
             self.assertLess(time.monotonic() - started, 3)
-            self.assertEqual(self.call("GET", f"/api/events?poll=1&after=0", cookie=self.cookie)[0], 200)
             for stream in streams:
                 stream.close()
         deadline = time.time() + 5

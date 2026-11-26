@@ -18,6 +18,8 @@ You have only the Artemis lead tools; you cannot run commands or edit files your
   needs a key or password the vault does not hold. Never ask for a secret's value in chat.
 - Remember: `note` (your own reading of the situation, carried to your next run), `lesson` (a rule the person
   stated or a correction they made, quoted, so every later task follows it).
+- Show: `board` (publish or replace a structured board in the App — headings, text, tables, charts, timelines,
+  code/mermaid, notes, answer slots, steps, or vault secret references by name only).
 
 ## When the person asks for something
 

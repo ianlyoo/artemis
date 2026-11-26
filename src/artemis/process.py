@@ -155,11 +155,10 @@ def kill_tree(process: subprocess.Popen, grace_s: float = GRACE_S) -> None:
     """End a child started with group() and everything it started.
 
     POSIX: SIGTERM to the group, then SIGKILL to whatever is left once the child exits or grace_s passes.
-    Windows: taskkill /T /F ends the tree at once.
+    Windows: taskkill /T /F ends the tree at once, and this returns once every process of it has exited.
     """
     if WINDOWS:
-        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], stdin=subprocess.DEVNULL,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        _end_tree(process.pid, grace_s)
         try:
             process.wait(timeout=grace_s)
         except subprocess.TimeoutExpired:
@@ -199,7 +198,7 @@ def started(pid: int) -> str | None:
 def end_if_same(pid: int, start: str, grace_s: float = GRACE_S) -> bool:
     """End the process tree of pid if it is still the process that started at `start`. True when it was ended.
 
-    Windows: the process handle is held from the check through taskkill /T /F until the process has exited (or
+    Windows: the process handle is held from the check through taskkill /T /F until the tree has exited (or
     grace_s passes), so the id cannot pass to another process in between and its files are closed on return.
     POSIX: SIGTERM to its group (a worker leads its own), SIGKILL to what is left after grace_s.
     """
@@ -210,9 +209,7 @@ def end_if_same(pid: int, start: str, grace_s: float = GRACE_S) -> bool:
         try:
             if _created(handle) != start:
                 return False
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdin=subprocess.DEVNULL,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-            _kernel32().WaitForSingleObject(handle, int(grace_s * 1000))
+            _end_tree(pid, grace_s)
             return True
         finally:
             _kernel32().CloseHandle(handle)
@@ -279,6 +276,71 @@ def _kernel32():
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
     kernel32.CloseHandle.restype = wintypes.BOOL
     return kernel32
+
+
+def _end_tree(pid: int, grace_s: float) -> None:
+    """Windows: end pid and every process it started with taskkill /T /F, and return once each of them has exited
+    (or grace_s passes). taskkill returns once it has asked, and a process it ended can hold its working folder a
+    moment longer, so a caller that removes the folder next would find it in use.
+
+    The handles are opened before the kill, so an id cannot pass to a new process while it is awaited. A process
+    that started before pid did is not one pid started, whatever its parent id says (ids are reused)."""
+    kernel32 = _kernel32()
+    root = _open_process(pid)
+    born = int(_created(root) or 0) if root else 0
+    handles = [root] if root else []
+    for child in _tree(pid)[1:]:
+        handle = _open_process(child)
+        if handle is None:
+            continue
+        if int(_created(handle) or 0) >= born:
+            handles.append(handle)
+        else:
+            kernel32.CloseHandle(handle)
+    try:
+        subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], stdin=subprocess.DEVNULL,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        deadline = time.monotonic() + grace_s
+        for handle in handles:
+            kernel32.WaitForSingleObject(handle, max(0, int((deadline - time.monotonic()) * 1000)))
+    finally:
+        for handle in handles:
+            kernel32.CloseHandle(handle)
+
+
+def _tree(pid: int) -> list[int]:
+    """Windows: pid and the ids of every process below it, parents first, from one snapshot of the processes."""
+    import ctypes
+    from ctypes import wintypes
+
+    class Entry(ctypes.Structure):   # PROCESSENTRY32W
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD),
+                    ("cntThreads", wintypes.DWORD), ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD), ("szExeFile", ctypes.c_wchar * 260)]
+
+    kernel32 = _kernel32()
+    kernel32.CreateToolhelp32Snapshot.argtypes = (wintypes.DWORD, wintypes.DWORD)
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    for walk in (kernel32.Process32FirstW, kernel32.Process32NextW):
+        walk.argtypes = (wintypes.HANDLE, ctypes.POINTER(Entry))
+        walk.restype = wintypes.BOOL
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x2, 0)   # TH32CS_SNAPPROCESS
+    if not snapshot or snapshot == wintypes.HANDLE(-1).value:
+        return [pid]
+    below: dict[int, list[int]] = {}
+    try:
+        entry = Entry(dwSize=ctypes.sizeof(Entry))
+        more = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+        while more:
+            below.setdefault(entry.th32ParentProcessID, []).append(entry.th32ProcessID)
+            more = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+    tree = [pid]
+    for parent in tree:          # grows as it is walked: each child's own children follow
+        tree += [child for child in below.get(parent, ()) if child and child not in tree]
+    return tree
 
 
 def _open_process(pid: int):

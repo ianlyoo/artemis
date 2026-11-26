@@ -10,6 +10,7 @@ import threading
 import time
 import unittest
 from unittest import mock
+from urllib.parse import urlsplit
 
 from artemis import httpop, tls
 from artemis.judge import Criterion
@@ -220,7 +221,8 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.posts(), [])
         card = self.ledger.card(held["card"])
         self.assertEqual((card["kind"], card["what"], json.loads(card["secrets"]), card["state"]),
-                         (Interrupt.SEND, f"POST {url}", ["SEND_TOKEN"], "waiting"))
+                         (Interrupt.SEND, f"POST {urlsplit(self.base).netloc}", ["SEND_TOKEN"], "waiting"),
+                         "with no stated purpose, the card says the method and where it goes")
         self.assertEqual(json.loads(card["command"]),
                          {"method": "POST", "url": url, "headers": {"Content-Type": "application/json"},
                           "body_sha256": hashlib.sha256(body.encode()).hexdigest(), "save_to": None})
@@ -247,6 +249,20 @@ class HttpTests(unittest.TestCase):
             httpop.dispatch(self.home, held["card"])
         self.assertEqual(len(self.posts()), 1)
         self.assert_nowhere(json.dumps(held), said, json.dumps(dict(self.ledger.card(held["card"]))))
+
+    def test_a_held_request_is_titled_by_what_it_is_for_and_keeps_the_exact_request(self):
+        self.vault.set("SEND_TOKEN", OTHER, use="http", kind="send", origin=self.base)
+        url = self.base + "/hooks/team?channel=receipts"
+        held = self.call(method="POST", url=url, secret="SEND_TOKEN", body="{}",
+                         purpose="Post the receipts summary to the team channel")
+        card = self.ledger.card(held["card"])
+        self.assertEqual(card["what"], "Post the receipts summary to the team channel")
+        self.assertEqual({key: json.loads(card["command"])[key] for key in ("method", "url")},
+                         {"method": "POST", "url": url}, "the exact request stays in the card, where it is checked")
+        for purpose in ("", "two\nlines", 3):
+            with self.subTest(purpose=purpose):
+                self.assertEqual(self.call(method="POST", url=url, secret="SEND_TOKEN", purpose=purpose)["state"],
+                                 "denied")
 
     def test_a_held_request_without_a_body_is_sent_once_too(self):
         self.vault.set("PAY_TOKEN", OTHER, use="http", kind="spend", origin=self.base)

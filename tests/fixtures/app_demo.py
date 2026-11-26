@@ -20,16 +20,18 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import threading
 import time
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
-from artemis import agents, demo_receiver, httpop, vault as vault_module, web  # noqa: E402
+from artemis import agents, demo_receiver, httpop, lessons, vault as vault_module, web  # noqa: E402
 from artemis.broker import Broker                                      # noqa: E402
 from artemis.guard import SHELL                                        # noqa: E402
 from artemis.home import Home, Parts, Paths                            # noqa: E402
 from artemis.judge import CommandEvidence, Criterion, RuleJudge        # noqa: E402
+from artemis.lead import LEAD_RUN                                     # noqa: E402
 from artemis.ledger import Check, Ledger                               # noqa: E402
 from artemis.roles import Interrupt, Role, WorkflowError               # noqa: E402
 from artemis.vault import PASSPHRASE_ENV, Vault                        # noqa: E402
@@ -49,6 +51,8 @@ class DemoLead:
 
     def __init__(self, home: "DemoHome"):
         self.home = home
+        self.saying = None
+        self.cancel = threading.Event()
 
     def turn(self, message: int) -> None:
         home = self.home
@@ -58,12 +62,23 @@ class DemoLead:
         reply = (f"(mock lead{stands_in}) I read “{said['text'][:80]}”. A real lead would plan this into tasks now; "
                  "this demo home only shows how the App looks while that happens.")
         turn = f"demo-{message}"
-        for start in range(0, len(reply), 24):
-            time.sleep(0.05)
-            home.publish("said.delta", {"turn": turn, "text": reply[start:start + 24]})
-        home.ledger.record(Role.HOME, "lead.turn", f"{agents.LABELS[name]} answered (mock)",
-                           project=said["project_id"], data={"turn": turn, "provider": name, "message": message})
-        home.ledger.say(Role.LEAD, reply, project=said["project_id"], turn=turn)
+        self.saying = {"turn": turn, "text": "", "at": time.time(), "message": message}
+        self.cancel.clear()
+        home.publish("turn.started", {"turn": turn})
+        try:
+            for start in range(0, len(reply), 24):
+                time.sleep(0.05)
+                if self.cancel.is_set():
+                    home.ledger.record(Role.HOME, "lead.turn", "You cancelled the answer", data={"turn": turn})
+                    return
+                self.saying["text"] += reply[start:start + 24]
+                home.publish("said.delta", {"turn": turn, "text": reply[start:start + 24]})
+            home.ledger.record(Role.HOME, "lead.turn", f"{agents.LABELS[name]} answered (mock)",
+                               project=said["project_id"], data={"turn": turn, "provider": name, "message": message})
+            home.ledger.say(Role.LEAD, reply, project=said["project_id"], turn=turn)
+        finally:            # the reply is kept before the turn ends, as the real lead does
+            self.saying = None
+            home.publish("turn.ended", {"turn": turn})
 
 
 class DemoBroker(Broker):
@@ -167,8 +182,20 @@ def _ship(ledger: Ledger, task: int, agent: str, evidence: dict, clock: Clock, m
     ledger.land(task, sha, True)
 
 
+def agent_call(built: DemoHome, project: int, tool: str, args: dict, *, run: int = LEAD_RUN, task: int | None = None,
+               role: str = "lead") -> dict:
+    """A tool call as an agent makes one: through the broker, on its run's grant (the lead's by default)."""
+    token = built.grant(run, task, project, role, built.paths.root, "folder").read_text(encoding="utf-8")
+    try:
+        return built.broker.call(token.strip(), tool, args)
+    finally:
+        built.revoke(run)
+
+
 def seed(built: DemoHome) -> dict[str, int]:
-    """Write the demo story into an empty home ledger. Returns the ids the screenshots point at."""
+    """Write the demo story into an empty home ledger. Returns the ids the screenshots point at. The clock goes
+    back for each thread of the story, but the conversation is said in time order, as a live home says it: the App
+    gives each reply the cards opened since the reply before it."""
     ledger, paths = built.ledger, built.paths
     clock = Clock(time.time())
     with mock.patch("time.time", clock):
@@ -270,6 +297,10 @@ def seed(built: DemoHome) -> dict[str, int]:
                                    cwd=str(paths.root / "projects" / "field-notes"), shell=SHELL, rule="npm publish*")
         clock.ago(75)
         ledger.decide_card(Role.OWNER, publish, False)
+        clock.ago(74)
+        lessons.propose(ledger, Role.HOME, "guard", "Ask before npm publish in field-notes.",
+                        {"kind": Interrupt.SEND, "argv": ["npm", "publish"]},
+                        [{"card": publish, "why": "you declined"}], project=blog)
 
         clock.ago(60)
         rounding_run = ledger.claim_run(Role.HOME, rounding, "codex")
@@ -284,21 +315,18 @@ def seed(built: DemoHome) -> dict[str, int]:
         clock.ago(40)
         ledger.claim_run(Role.HOME, totals, "codex")
         clock.ago(30)
-        ledger.say(Role.LEAD, "The draft of the migration post is in. Claude Code says it's done; nobody has checked "
-                              "it yet. To send it to subscribers I need the newsletter key. There's a card for it, "
-                              "and what you type goes to the vault, not to me.", project=blog)
-        newsletter = ledger.open_card(Role.WORKER, "secret", "The newsletter API key", "The post goes out through "
-                                      "the newsletter service and Artemis does not have its key yet.", task=draft,
-                                      options={"name": "NEWSLETTER_API_KEY", "kind": "send", "use": "http",
-                                               "origin": "https://api.newsletter.example",
-                                               "note": "Newsletter service, sending only"})
+        newsletter = agent_call(built, blog, "secret_request", {
+            "name": "NEWSLETTER_API_KEY", "use": "http", "origin": "https://api.newsletter.example", "kind": "send",
+            "why": "The draft of the migration post is in. Claude Code says it's done; nobody has checked it yet. To "
+                   "send it to subscribers I need the newsletter key. What you type goes to the vault, not to me."})["card"]
         clock.ago(12)
         ledger.claim_run(Role.HOME, notes, "claude")
         clock.ago(9)
-        layout = ledger.open_card(Role.LEAD, "choice", "Which layout should summary.csv use?", "Both work; your "
-                                  "accountant reads it, so it's your call.", request=receipts, options=[
-                                      {"id": "same", "label": "Same as last year"},
-                                      {"id": "new", "label": "The accountant's new template"}])
+        layout = agent_call(built, taxes, "ask", {
+            "kind": "choice", "what": "Which layout should summary.csv use?",
+            "why": "Both work; your accountant reads it, so it's your call.",
+            "options": [{"id": "same", "label": "Same as last year"},
+                        {"id": "new", "label": "New template"}]})["card"]
         clock.ago(4)
         push = ledger.open_card(Role.HOME, Interrupt.SEND, "Push storefront 1.4 to GitHub", "It publishes the "
                                 "release under your GitHub account.", task=rounding,
@@ -319,10 +347,6 @@ def seed(built: DemoHome) -> dict[str, int]:
         check = ledger.add_lesson(Role.HOME, "check", "Run the link checker before the blog ships.",
                                   payload={"argv": ["python", "scripts/links.py"]},
                                   source=[{"task": links, "why": "judge reject"}], project=blog)
-        clock.ago(74)
-        ledger.add_lesson(Role.HOME, "guard", "Ask before npm publish in field-notes.",
-                          payload={"kind": Interrupt.SEND, "argv": ["npm", "publish"]},
-                          source=[{"card": publish, "why": "you declined"}], project=blog, state="proposed")
         clock.ago(50)
         placement = ledger.add_lesson(Role.HOME, "placement", "Prefer Codex for spreadsheet work in tax-2026.",
                                       payload={"kind": "host", "demote": "claude"},
@@ -348,14 +372,13 @@ def seed(built: DemoHome) -> dict[str, int]:
         summary_run = ledger.claim_run(Role.HOME, summary_task, "codex")
         built.receiver = demo_receiver.DemoReceiver(ledger, taxes).__enter__()
         hook = built.receiver.url
+        built.vault.set("TEAM_WEBHOOK_TOKEN", "demo-webhook-not-real-3333", use="http", kind="send",
+                        origin=vault_module.origin(hook), note="The team's inbox (here the local demo receiver)")
         clock.ago(21)
-        summary = ledger.open_card(
-            Role.HOME, Interrupt.SEND, f"POST {hook}", f"TEAM_WEBHOOK_TOKEN sends as you, and a POST request changes "
-            f"something at {vault_module.origin(hook)}.", project=taxes, task=summary_task, run=summary_run,
-            command=json.dumps({"method": "POST", "url": hook, "headers": {"Content-Type": "application/json"},
-                                "body_sha256": hashlib.sha256(SUMMARY).hexdigest(), "save_to": None}),
-            secrets=("TEAM_WEBHOOK_TOKEN",), expires=clock.now + httpop.HOLD)
-        httpop.body_file(paths, summary).write_bytes(SUMMARY)
+        summary = agent_call(built, taxes, "http_request", {
+            "method": "POST", "url": hook, "headers": {"Content-Type": "application/json"}, "body": SUMMARY.decode(),
+            "secret": "TEAM_WEBHOOK_TOKEN", "purpose": "Post the receipts summary to the team channel"},
+            run=summary_run, task=summary_task, role="worker")["card"]
         ledger.note(Role.LEAD, "Search ranking probably needs exact matches boosted; I'll try that first.",
                     project=shop, task=search)
 
@@ -396,8 +419,6 @@ def seed(built: DemoHome) -> dict[str, int]:
                     note="Direct API worker")
     built.vault.set("STRIPE_API_KEY", "demo-stripe-not-real-2222", use="http", kind="spend",
                     origin="https://api.stripe.com", note="Shop payments")
-    built.vault.set("TEAM_WEBHOOK_TOKEN", "demo-webhook-not-real-3333", use="http", kind="send",
-                    origin=vault_module.origin(hook), note="The team's inbox (here the local demo receiver)")
     ledger.expire_cards()
     paths.token.write_text("demo-home-token\n", encoding="utf-8")
     return {"push": push, "layout": layout, "newsletter": newsletter, "summary": summary, "pages": pages,

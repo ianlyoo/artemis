@@ -1,0 +1,326 @@
+.ide-docs > .doc-scroll.is-kind[data-kind=db] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.doc-scroll.is-kind[data-kind=db] > .doc-sheet {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.doc-scroll.is-kind[data-kind=db] .doc-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.doc-scroll.is-kind[data-kind=db] :is(.doc-head, .doc-gutter) {
+  display: none;
+}
+.doc-scroll.is-kind[data-kind=db] .doc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+.db {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template: minmax(0, 1fr)/minmax(0, 1fr);
+  background: var(--ide-doc);
+}
+.db > * {
+  grid-area: 1/1;
+  min-width: 0;
+  min-height: 0;
+}
+.db > .db-ide {
+  z-index: 1;
+  justify-self: end;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  height: calc(var(--t-body) * 2.25);
+  margin: calc(var(--t-body) * .75) var(--t-body) 0 0;
+}
+.db-ide :is(.ide-oltoggle, .dol-pop, .ide-zoom, .ide-findopen) {
+  display: none;
+}
+.db-failed {
+  margin: 0;
+  padding: var(--t-body);
+  color: var(--muted);
+}
+@layer reset, astryx-base, astryx-theme, db;
+.db-island {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+@layer db {
+  .db-view {
+    --db-pad:var(--spacing-6);
+    --db-col:calc(var(--t-body) * 44);
+    --db-mark:color-mix(in srgb,var(--state-owner) 20%,transparent);
+    --db-w:min(var(--db-col),calc(100cqw - var(--db-pad) * 2));
+    --db-time:calc(var(--t-meta) * 3.1);
+    --db-ground:var(--ide-doc,var(--ground));
+    --db-quiet:color-mix(in srgb,var(--ink) 70%,var(--db-ground));
+    --db-done:color-mix(in srgb,var(--done) 85%,var(--ink));
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    color: var(--ink);
+    font-size: var(--t-body);
+  }
+  :root[data-theme=dark] .db-view {
+    --db-mark:color-mix(in srgb,var(--state-owner) 28%,transparent);
+  }
+  .db-view [hidden] {
+    display: none;
+  }
+  .db-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .db-view {
+    --focus-outline-color:transparent;
+  }
+  .db-quiet {
+    margin: 0;
+    color: var(--db-quiet);
+    font-size: var(--t-meta);
+  }
+  .db-head {
+    flex: none;
+    width: var(--db-w);
+    margin-inline: auto;
+    padding-top: var(--spacing-3);
+  }
+  .db-find {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+  .db-find > .db-search {
+    flex: 1;
+    min-width: 0;
+  }
+  .db-search {
+    margin-inline-end: max(0px, calc(var(--db-room,0px) - (100cqw - var(--db-w)) / 2));
+  }
+  .db-search .astryx-text-input {
+    background: var(--surface-inset);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .db-search .astryx-text-input:focus-within {
+    box-shadow: 0 0 1.2em -.5em var(--accent-halo);
+  }
+  .db-search input::placeholder {
+    color: var(--db-quiet);
+  }
+  .db-status {
+    margin: var(--spacing-3) 0 0;
+    color: var(--db-quiet);
+    font-size: var(--t-meta);
+    line-height: var(--lh-meta);
+    font-variant-numeric: tabular-nums;
+  }
+  .db-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 0 calc((100cqw - var(--db-w)) / 2) var(--spacing-12);
+    scrollbar-width: thin;
+    scrollbar-color: var(--ide-doc-on,var(--surface-inset)) transparent;
+    outline: none;
+  }
+  .db-scroll > .astryx-empty-state {
+    margin-top: var(--spacing-10);
+  }
+  .db-day {
+    padding-top: var(--spacing-4);
+  }
+  .db-day-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0;
+    padding: var(--spacing-3) 0 var(--spacing-2);
+    background: var(--db-ground);
+    font-size: var(--t-data);
+    line-height: var(--lh-meta);
+    font-weight: var(--fw-emph);
+    font-variant-numeric: tabular-nums;
+  }
+  .db-thread {
+    margin-top: var(--spacing-3);
+  }
+  .db-thread-head {
+    display: flex;
+    align-items: baseline;
+    gap: .6em;
+    min-width: 0;
+    margin: 0 0 var(--spacing-1);
+    font-size: var(--t-meta);
+    line-height: var(--lh-meta);
+    font-weight: 400;
+    color: var(--db-quiet);
+  }
+  .db-thread-name {
+    flex: none;
+    color: var(--ink);
+    font-weight: var(--fw-control);
+  }
+  .db-thread-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .db-lines {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .db-line {
+    margin-inline: calc(var(--spacing-2) * -1);
+    border-radius: var(--radius-container);
+  }
+  .db-row {
+    --text-body-size:var(--t-body);
+    --text-supporting-size:var(--t-data);
+    gap: var(--spacing-3);
+    padding: var(--spacing-2);
+    border-radius: var(--highlight-radius);
+    cursor: pointer;
+    transition: color var(--dur-hover) var(--ease-hover);
+  }
+  .db-time {
+    display: inline-block;
+    min-width: var(--db-time);
+    color: var(--db-quiet);
+    font-size: var(--t-meta);
+    font-variant-numeric: tabular-nums;
+    line-height: calc(var(--t-body) * var(--lh-base));
+  }
+  .db-said {
+    color: var(--ink);
+  }
+  .db-came {
+    color: var(--db-quiet);
+  }
+  .db-word {
+    font-weight: var(--fw-control);
+  }
+  .db-word.is-done {
+    color: var(--db-done);
+  }
+  .db-word.is-dropped {
+    color: var(--db-quiet);
+  }
+  .db-word.is-open {
+    color: var(--ink);
+  }
+  .db-lit {
+    color: var(--ink);
+    background: var(--db-mark);
+    border-radius: .2em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  .db-line.is-open {
+    background: var(--ide-doc-on,var(--surface-section));
+  }
+  .db-line.is-open .db-row:not(:focus-visible) {
+    background: transparent;
+  }
+  .db-line.is-open :is(.db-said, .db-came) {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .db-line.is-open .db-came {
+    display: block;
+    margin-top: var(--spacing-1);
+    color: var(--ink);
+    line-height: var(--lh-base);
+  }
+  .db-acts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-1) var(--spacing-2);
+    padding: 0 var(--spacing-2) var(--spacing-2) calc(var(--spacing-2) + var(--db-time));
+  }
+  .db-acts > .db-quiet {
+    margin-inline-start: auto;
+    padding-inline-end: var(--spacing-1);
+  }
+  .db-more {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: var(--spacing-5) 0 0 calc(var(--spacing-2) * -1);
+  }
+  .db-meeting {
+    margin: 0;
+    padding: 0 var(--spacing-2) var(--spacing-3) calc(var(--spacing-2) + var(--db-time) + var(--spacing-3));
+  }
+  .db-meeting-head {
+    margin: var(--spacing-6) 0 var(--spacing-2);
+    font-size: var(--t-meta);
+    line-height: var(--lh-meta);
+    font-weight: var(--fw-emph);
+    color: var(--ink);
+  }
+  .db-meeting-head:first-child {
+    margin-top: var(--spacing-3);
+  }
+  .db-decision + .db-decision {
+    margin-top: var(--spacing-3);
+  }
+  .db-decision > .db-quiet {
+    margin-bottom: var(--spacing-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .db-decision .astryx-metadata-list-item {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: keep-all;
+  }
+  .db-meeting > .db-acts {
+    padding: var(--spacing-2) 0 0;
+  }
+  .db-view.is-touch {
+    --db-pad:16px;
+    --db-col:100cqw;
+    --db-time:calc(var(--t-meta) * 2.9);
+  }
+  .db-view.is-touch .db-row {
+    min-height: 44px;
+    padding-block: var(--spacing-2);
+  }
+}

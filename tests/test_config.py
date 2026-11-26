@@ -1,4 +1,4 @@
-"""The home's config.toml: the one line the App writes."""
+"""The home's config.toml: the lines the App writes, one at a time."""
 
 from importlib.resources import files
 from pathlib import Path
@@ -6,7 +6,7 @@ import tempfile
 import tomllib
 import unittest
 
-from artemis.config import write_lead
+from artemis.config import name_setting, write_setting
 from artemis.roles import WorkflowError
 
 
@@ -21,7 +21,7 @@ class WriteLeadTest(unittest.TestCase):
 
     def written(self, before: str, name: str) -> str:
         self.path.write_bytes(before.encode("utf-8"))
-        write_lead(self.path, name)
+        write_setting(self.path, "agents", "lead", name)
         return self.path.read_bytes().decode("utf-8")
 
     def test_only_the_lead_line_changes(self):
@@ -43,18 +43,37 @@ class WriteLeadTest(unittest.TestCase):
         self.assertEqual(self.written('[serve]\nport = 7411', "codex"),
                          '[serve]\nport = 7411\n\n[agents]\nlead = "codex"\n')
 
-    def test_an_unknown_name_and_a_line_it_cannot_read_change_nothing(self):
-        before = '[agents]\nlead = "auto"\n'
-        self.path.write_text(before, encoding="utf-8")
-        with self.assertRaises(WorkflowError):
-            write_lead(self.path, "someone")
+    def test_a_line_it_cannot_read_changes_nothing(self):
         odd = '[agents]\n"lead" = "auto"\n'
         self.path.write_text(odd, encoding="utf-8")
         with self.assertRaises(WorkflowError) as caught:
-            write_lead(self.path, "codex")
+            write_setting(self.path, "agents", "lead", "codex")
         self.assertIn("by hand", str(caught.exception))
         self.assertEqual(self.path.read_text(encoding="utf-8"), odd)
         self.assertEqual([item.name for item in self.path.parent.iterdir()], ["config.toml"])
+
+
+    def test_lists_and_names_from_the_first_run_setup(self):
+        self.path.write_bytes(TEMPLATE.encode("utf-8"))
+        write_setting(self.path, "interrupts", "ask", ["money out", "send as you"])
+        write_setting(self.path, "cards", "phone_only", [])
+        write_setting(self.path, "lead", "name", 'Juno "J" \\ 주노')
+        write_setting(self.path, "lead", "you", "Sam")
+        after = self.path.read_text(encoding="utf-8")
+        self.assertEqual(len(after.splitlines()), len(TEMPLATE.splitlines()))
+        data = tomllib.loads(after)
+        self.assertEqual(data["interrupts"]["ask"], ["money out", "send as you"])
+        self.assertEqual(data["cards"]["phone_only"], [])
+        self.assertEqual((data["lead"]["name"], data["lead"]["you"]), ('Juno "J" \\ 주노', "Sam"))
+        self.assertEqual(data["lead"]["wake_per_hour"], tomllib.loads(TEMPLATE)["lead"]["wake_per_hour"])
+        self.assertIn('ask = ["money out", "send as you"]', after)
+
+    def test_a_name_is_one_short_line(self):
+        self.assertEqual(name_setting("  Juno \n ", "lead.name"), "Juno")
+        self.assertEqual(name_setting(None, "lead.name"), "")
+        for bad in ("x" * 41, "a\x07b", "a\x9fb"):
+            with self.assertRaises(WorkflowError):
+                name_setting(bad, "lead.name")
 
 
 if __name__ == "__main__":

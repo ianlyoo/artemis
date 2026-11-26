@@ -1,0 +1,5 @@
+import { svg } from "../../boards/dom.js";
+const paths = { mail: "M4 6h16v12H4z M4 6l8 7 8-7", calendar: "M4 6h16v14H4z M4 10h16 M8 3v5 M16 3v5", folder: "M3 6h7l2 3h9v11H3z", chart: "M4 3v17h17 M8 16v-5 M13 16V6 M18 16v-8", check: "M5.5 12.5l4.2 4.2 8.8-9.2", info: "M12 11v6 M12 7v.1 M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18", clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 6v6l4 2", location: "M12 21s7-8 7-12A7 7 0 0 0 5 9c0 4 7 12 7 12z M12 7v4", coffee: "M4 8h12v7a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z M16 9h2a3 3 0 0 1 0 6h-2 M7 3v2 M12 3v2", image: "M3 4h18v16H3z M3 17l5-6 4 4 3-3 6 6 M15 8h.1", users: "M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M2 21v-3a7 7 0 0 1 14 0v3 M17 4a4 4 0 0 1 0 7 M20 15c2 1 2 3 2 6", star: "M12 3l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" };
+export function answerIcon(name) {
+  return svg("svg", { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, svg("path", { d: paths[name] ?? paths.info }));
+}

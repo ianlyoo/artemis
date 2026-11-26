@@ -262,6 +262,8 @@ class PlacementSettings:
 
 @dataclass(frozen=True)
 class LeadSettings:
+    name: str = ""      # what the person calls their lead; set in the App's first-run setup
+    you: str = ""       # what the lead calls the person
     wake_per_hour: int = 6
     history: int = 20
     max_turn_minutes: int = 5
@@ -392,25 +394,46 @@ class HomeConfig:
         for where, kinds in (("interrupts.ask", parts["interrupts"].ask), ("cards.phone_only", parts["cards"].phone_only)):
             if any(item not in list(Interrupt) for item in kinds):
                 raise WorkflowError(f"config.toml: {where} lists only: {', '.join(Interrupt)}.")
+        lead = parts["lead"]
+        lead = replace(lead, name=name_setting(lead.name, "lead.name"), you=name_setting(lead.you, "lead.you"))
         if parts["vault"].unlock not in UNLOCKS:
             raise WorkflowError(f"config.toml: vault.unlock is one of {', '.join(UNLOCKS)}.")
         api = parts["api"]
         if not SECRET_NAME.fullmatch(api.key):
             raise WorkflowError("config.toml: api.key names a vault secret in capitals, like OPENAI_API_KEY.")
         api = replace(api, base_url=base_url_setting(api.base_url))
-        return cls(**{**parts, "agents": agents, "placement": placement, "api": api})
+        return cls(**{**parts, "agents": agents, "placement": placement, "api": api, "lead": lead})
 
 
 _TABLE = re.compile(r"\s*\[([^\]]*)\]\]?\s*(#.*)?")            # [agents], [agents.caps], [[x]]
-_LEAD = re.compile(r"""(\s*lead\s*=\s*)("(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*')(.*)""", re.S)
+_VALUE = r"""("(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*'|\[[^\]\r\n]*\])"""     # a string, or a list on one line
+NAME_ROOM = 40
 
 
-def write_lead(path: Path, name: str) -> None:
-    """Set [agents] lead in a home's config.toml to name, changing that one line: every comment and every other
-    line stays as it is. Without the line, it goes first under [agents]; without [agents], that table goes at the
-    end. The file is replaced whole, so a reader never sees half of it."""
-    if name not in ("auto", *LEADS):
-        raise WorkflowError(f"agents.lead is one of: auto, {', '.join(LEADS)}.")
+def name_setting(value: object, what: str) -> str:
+    """A name the person gives (their lead's, their own): one line, at most NAME_ROOM characters, or empty."""
+    text = " ".join(str(value or "").split())
+    if len(text) > NAME_ROOM or any(ord(char) < 32 or 0x7f <= ord(char) < 0xa0 for char in text):
+        raise WorkflowError(f"{what} is one line of at most {NAME_ROOM} characters.")
+    return text
+
+
+def model_setting(value: object) -> str:
+    """A model's name as an API takes it (gpt-4.1, llama3.1:8b, org/model): one word, or empty."""
+    text = str(value or "").strip()
+    if len(text) > 200 or not re.fullmatch(r"[\w.:/@+-]*", text):
+        raise WorkflowError("api.model is one word of at most 200 characters, like gpt-4.1.")
+    return text
+
+
+def write_setting(path: Path, section: str, key: str, value: str | tuple[str, ...] | list[str]) -> None:
+    """Set one key of one [section] in a home's config.toml, changing that one line: every comment and every
+    other line stays as it is. Without the line, it goes first under [section]; without [section], that table goes
+    at the end. The file is read back before it replaces the old one whole, so a reader never sees half of it."""
+    shown = (json.dumps(value, ensure_ascii=False) if isinstance(value, str)
+             else "[" + ", ".join(json.dumps(item, ensure_ascii=False) for item in value) + "]")
+    wanted = value if isinstance(value, str) else list(value)
+    pattern = re.compile(rf"(\s*{re.escape(key)}\s*=\s*){_VALUE}(.*)", re.S)
     raw = path.read_bytes() if path.exists() else b""
     lines = raw.decode("utf-8").splitlines(keepends=True)
     newline = "\r\n" if lines and lines[0].endswith("\r\n") else "\n"
@@ -421,26 +444,26 @@ def write_lead(path: Path, name: str) -> None:
         header = _TABLE.fullmatch(line.rstrip("\r\n"))
         if header:
             table = header.group(1).strip()
-            start = index if table == "agents" else start
+            start = index if table == section else start
             continue
-        setting = _LEAD.fullmatch(line.rstrip("\r\n")) if table == "agents" else None
-        if setting:
+        setting_line = pattern.fullmatch(line.rstrip("\r\n")) if table == section else None
+        if setting_line:
             ending = line[len(line.rstrip("\r\n")):]
-            lines[index] = f'{setting.group(1)}"{name}"{setting.group(3)}{ending}'
+            lines[index] = f"{setting_line.group(1)}{shown}{setting_line.group(3)}{ending}"
             found = True
             break
     if not found and start is not None:
-        lines.insert(start + 1, f'lead = "{name}"{newline}')
+        lines.insert(start + 1, f"{key} = {shown}{newline}")
     elif not found:
-        lines.append(f'{newline}[agents]{newline}lead = "{name}"{newline}')
+        lines.append(f"{newline}[{section}]{newline}{key} = {shown}{newline}")
     text = "".join(lines)
     try:
-        written = tomllib.loads(text).get("agents", {}).get("lead")
+        written = tomllib.loads(text).get(section, {}).get(key)
     except tomllib.TOMLDecodeError:
         written = None
-    if written != name:
-        raise WorkflowError(f"Could not set the lead in {path}: its [agents] lead line is written in a way this "
-                            "edit does not know. Set it there by hand.")
+    if written != wanted:
+        raise WorkflowError(f"Could not set {section}.{key} in {path}: its line is written in a way this edit "
+                            "does not know. Set it there by hand.")
     scratch = path.with_name(path.name + ".new")
     scratch.write_bytes(text.encode("utf-8"))
     os.replace(scratch, path)

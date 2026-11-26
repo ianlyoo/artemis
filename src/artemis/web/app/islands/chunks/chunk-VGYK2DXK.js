@@ -1,0 +1,1 @@
+var r={kbCHJM:"x1nrll8i",k3aq6I:"xsqj5wx",$$css:!0},e={mirror:{k3aq6I:"xgtlewx",$$css:!0},centerInline:t=>[r,{"--x-transform":`translate(-50%, ${t})`!=null?`translate(-50%, ${t})`:void 0}]};export{e as a};

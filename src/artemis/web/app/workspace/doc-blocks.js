@@ -1,0 +1,1 @@
+export function placeDocBlocks(o,c){const f=new Set(c);for(const e of[...o.childNodes])f.has(e)||e.remove();let i=o.firstChild;for(const e of c){if(e===i){i=i.nextSibling;continue}o.moveBefore&&e.parentNode===o&&o.isConnected?o.moveBefore(e,i):o.insertBefore(e,i)}}

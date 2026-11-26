@@ -41,6 +41,7 @@ MAX_URL = 8000
 MAX_SEND = 8 << 20      # request body
 MAX_BODY = 256 << 10    # response body returned to the agent
 MAX_SAVE = 64 << 20     # response body written to save_to
+MAX_PURPOSE = 200       # a card's title, the words the person reads first
 TIMEOUT = 30
 HOLD = 24 * 3600        # a held request's card expires after a day
 EXCERPT = 2000          # response text kept in a card's result
@@ -64,12 +65,14 @@ class Call:
     body: bytes | None
     secret: str | None
     save_to: Path | None
+    purpose: str | None = None   # what the request is for, in the agent's words: the title of the card that asks
 
 
 def request(home: Home, grant: Grant, args: dict) -> dict:
     """Carry out one http_request for the run `grant` belongs to: {state: done | held | denied, ...}.
 
-    args: method, url, headers?, body?, secret? (a NAME), save_to? (a path in the project). A locked vault raises
+    args: method, url, headers?, body?, secret? (a NAME), save_to? (a path in the project), purpose? (what it is for,
+    the title of a card that asks). A locked vault raises
     VaultLocked when the request needs a key's value."""
     try:
         call = _call(home, grant, args)
@@ -181,8 +184,14 @@ def _call(home: Home, grant: Grant, args: dict) -> Call:
         if len(body) > MAX_SEND:
             raise VaultError(f"A request body is at most {MAX_SEND >> 20} MiB.")
     save_to = args.get("save_to")
+    purpose = args.get("purpose")
+    if purpose is not None and not (isinstance(purpose, str) and purpose.strip() and "\n" not in purpose
+                                    and len(purpose) <= MAX_PURPOSE):
+        raise VaultError(f"purpose is one line of at most {MAX_PURPOSE} characters: what the request does, "
+                         "like Post the weekly summary to the team channel.")
     return Call(method, url, target, dict(headers), body, secret,
-                None if save_to is None else _save_path(home, grant, save_to))
+                None if save_to is None else _save_path(home, grant, save_to),
+                None if purpose is None else " ".join(purpose.split()))
 
 
 def _bound(home: Home, secret: object, target: str) -> str:
@@ -242,7 +251,7 @@ def _hold(home: Home, grant: Grant, call: Call, kind: str) -> dict:
                           "save_to": None if call.save_to is None else str(call.save_to)})
     why = (f"{call.secret} spends money: every use waits for your yes." if kind == Interrupt.SPEND else
            f"{call.secret} sends as you, and a {call.method} request changes something at {call.origin}.")
-    what = f"{call.method} {call.url}"
+    what = call.purpose or f"{call.method} {urlsplit(call.origin).netloc}"    # the exact request is in its details
     pending = None
     if call.body is not None:
         home.paths.runs.mkdir(parents=True, exist_ok=True)

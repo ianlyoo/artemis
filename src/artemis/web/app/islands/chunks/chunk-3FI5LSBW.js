@@ -1,0 +1,1 @@
+var s=()=>globalThis.document?.documentElement?.getAttribute?.("lang")!=="en";function l(e,o){let r,a,n=()=>s()?r??=new Intl.DateTimeFormat(e,{...o,timeZone:"Asia/Seoul"}):a??=new Intl.DateTimeFormat(e,o);return{format:t=>n().format(t),formatToParts:t=>n().formatToParts(t)}}export{l as a};

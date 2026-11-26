@@ -1,0 +1,1 @@
+var t=["noopener","noreferrer"];function s(n,e){if(n!=="_blank")return{target:n,rel:e};let o=e?.split(/\s+/).filter(Boolean)??[];for(let r of t)o.includes(r)||o.push(r);return{target:n,rel:o.join(" ")}}export{s as a};
