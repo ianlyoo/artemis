@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-써-보기">써 보기</a>
+  <a href="README.md">English</a> · <a href="https://youtu.be/Yxw6hL3c57o">2분 시연 영상</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-써-보기">써 보기</a>
 </p>
 
 채팅 비서는 자기 샌드박스 밖으로 못 나가고, 코딩 세션은 창을 닫으면 끝나요. 에이전트 여러 개를 직접 돌리면 결국 내가 병목이 돼요. 프로젝트마다 어디까지 왔는지 머리로 기억하고, 키를 프롬프트에 붙여 넣고, 읽지도 않은 걸 승인하게 되죠.
@@ -32,6 +32,10 @@ Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 �
     <img src="assets/readme/app-board-light.png" width="100%" alt="Artemis 앱의 Workspace: 탐색기에 보드와 파일이 있고, 가운데에 Storefront 1.4 출시를 다룬 리드의 아침 보고 보드가 열려 있고, 옆의 대화에는 main 푸시는 아니오, 팀 채널 요약은 예로 답하고 폰으로 결제를 먼저 해 보겠다는 코멘트를 단 카드, 리드가 알린 다음 단계, 가격 페이지 구성을 묻는 질문이 있어요">
   </picture>
   <br><sub>만든 사람이 여러 대의 기기에서 쓰는 Artemis를 찍고, 이름과 글은 모두 지어낸 것으로 바꿨어요. 다른 기기와 계정을 다루는 패널은 그 환경에서만 보이고 0.4에는 없어요.</sub>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/Yxw6hL3c57o"><strong>2분 시연 영상 보기 (YouTube) ↗</strong></a>
 </p>
 
 ## 무엇을 하나요

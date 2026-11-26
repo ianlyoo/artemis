@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="README.ko.md">한국어</a> · <a href="docs/design.md">Design</a> · <a href="#try-it-in-a-minute">Try it</a>
+  <a href="README.ko.md">한국어</a> · <a href="https://youtu.be/Yxw6hL3c57o">Watch 2-min demo</a> · <a href="docs/design.md">Design</a> · <a href="#try-it-in-a-minute">Try it</a>
 </p>
 
 A chat assistant stops at the edge of its sandbox, and a coding session ends when you close it. Run several agents yourself and you become the bottleneck: you track every project in your head, paste keys into prompts, and approve things you did not read.
@@ -32,6 +32,10 @@ Artemis is a home that keeps working while you are away. One process on your com
     <img src="assets/readme/app-board-light.png" width="100%" alt="The Artemis App's workspace: the explorer lists boards and files, the lead's morning report on a Storefront 1.4 release is open in the middle, and the chat beside it shows a card where the push to main is answered No and the team-channel summary Yes, with a comment asking to try checkout on a phone first, then the lead's next step and a question about the pricing page layout">
   </picture>
   <br><sub>The author's own Artemis, which runs across several machines, with every name and line of text replaced by made-up ones. Panels for other machines and accounts come with that setup and are not in 0.4.</sub>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/Yxw6hL3c57o"><strong>Watch the 2-minute demo film (YouTube) ↗</strong></a>
 </p>
 
 ## What it does
