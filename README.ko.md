@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a> · <a href="https://youtu.be/Yxw6hL3c57o">2분 시연 영상</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-써-보기">써 보기</a>
+  <a href="README.md">English</a> · <a href="https://youtu.be/xpm92sPcbAo">2분 시연 영상</a> · <a href="docs/design.ko.md">설계</a> · <a href="#1분-만에-써-보기">써 보기</a>
 </p>
 
 채팅 비서는 자기 샌드박스 밖으로 못 나가고, 코딩 세션은 창을 닫으면 끝나요. 에이전트 여러 개를 직접 돌리면 결국 내가 병목이 돼요. 프로젝트마다 어디까지 왔는지 머리로 기억하고, 키를 프롬프트에 붙여 넣고, 읽지도 않은 걸 승인하게 되죠.
@@ -35,7 +35,7 @@ Artemis는 내가 자리를 비워도 일이 계속되는 '홈'이에요. 내 �
 </p>
 
 <p align="center">
-  <a href="https://youtu.be/Yxw6hL3c57o"><strong>2분 시연 영상 보기 (YouTube) ↗</strong></a>
+  <a href="https://youtu.be/xpm92sPcbAo"><strong>2분 시연 영상 보기 (YouTube) ↗</strong></a>
 </p>
 
 ## 무엇을 하나요
